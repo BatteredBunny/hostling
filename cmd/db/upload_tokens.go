@@ -21,9 +21,9 @@ type UploadTokens struct {
 	Account   Accounts `gorm:"foreignKey:AccountID"`
 }
 
-func (db *Database) DeleteUploadTokensFromAccount(userID uint) (err error) {
+func (db *Database) DeleteUploadTokensFromAccount(accountID uint) (err error) {
 	return db.Model(&UploadTokens{}).
-		Where(&UploadTokens{AccountID: userID}).
+		Where(&UploadTokens{AccountID: accountID}).
 		Delete(&UploadTokens{}).Error
 }
 
@@ -41,21 +41,21 @@ type UiUploadToken struct {
 	LastUsed *time.Time
 }
 
-func (db *Database) GetUploadTokens(userID uint) (uploadTokens []UiUploadToken, err error) {
+func (db *Database) GetUploadTokens(accountID uint) (uploadTokens []UiUploadToken, err error) {
 	err = db.Model(&UploadTokens{}).
-		Where(&UploadTokens{AccountID: userID}).
+		Where(&UploadTokens{AccountID: accountID}).
 		Select("token, nickname, last_used").
 		Scan(&uploadTokens).Error
 
 	return
 }
 
-func (db *Database) CreateUploadToken(userID uint, nickname string) (uploadToken uuid.UUID, err error) {
+func (db *Database) CreateUploadToken(accountID uint, nickname string) (uploadToken uuid.UUID, err error) {
 	uploadToken = uuid.New()
 
 	err = db.Model(&UploadTokens{}).
 		Create(&UploadTokens{
-			AccountID: userID,
+			AccountID: accountID,
 			Token:     uploadToken,
 			LastUsed:  nil,
 			Nickname:  nickname,
@@ -64,10 +64,10 @@ func (db *Database) CreateUploadToken(userID uint, nickname string) (uploadToken
 	return
 }
 
-func (db *Database) DeleteUploadToken(userID uint, uploadToken uuid.UUID) (err error) {
+func (db *Database) DeleteUploadToken(accountID uint, uploadToken uuid.UUID) (err error) {
 	return db.Model(&UploadTokens{}).
 		Where(&UploadTokens{
-			AccountID: userID,
+			AccountID: accountID,
 			Token:     uploadToken,
 		}).
 		Delete(&UploadTokens{}).Error

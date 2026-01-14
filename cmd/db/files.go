@@ -102,9 +102,9 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) (err error) {
 }
 
 // Only deletes database entry, actual file has to be deleted as well
-func (db *Database) DeleteFilesFromAccount(userID uint) (err error) {
+func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
 	return db.Model(&Files{}).
-		Where(&Files{UploaderID: userID}).
+		Where(&Files{UploaderID: accountID}).
 		Delete(&Files{}).Error
 }
 
@@ -117,16 +117,16 @@ func (db *Database) FilesAmountOnAccount(accountID uint) (count int64, err error
 	return
 }
 
-func (db *Database) GetAllFilesFromAccount(userID uint) (files []Files, err error) {
+func (db *Database) GetAllFilesFromAccount(accountID uint) (files []Files, err error) {
 	err = db.Model(&Files{}).
-		Where(&Files{UploaderID: userID}).
+		Where(&Files{UploaderID: accountID}).
 		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()). // Filters expired files
 		Find(&files).Error
 
 	return
 }
 
-func (db *Database) GetFileStats(userID uint) (totalFiles uint, totalStorage uint, err error) {
+func (db *Database) GetFileStats(accountID uint) (totalFiles uint, totalStorage uint, err error) {
 	var result struct {
 		TotalFiles   uint
 		TotalStorage uint
@@ -134,7 +134,7 @@ func (db *Database) GetFileStats(userID uint) (totalFiles uint, totalStorage uin
 
 	err = db.Model(&Files{}).
 		Select("COUNT(*) AS total_files, COALESCE(SUM(file_size), 0) AS total_storage").
-		Where(&Files{UploaderID: userID}).
+		Where(&Files{UploaderID: accountID}).
 		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()). // Filters expired files
 		Scan(&result).Error
 	if err != nil {

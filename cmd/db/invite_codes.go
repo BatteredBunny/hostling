@@ -74,9 +74,9 @@ func (db *Database) UseCode(code string) (accountType string, invitedBy uint, er
 	return
 }
 
-func (db *Database) DeleteInviteCodesFromAccount(userID uint) (err error) {
+func (db *Database) DeleteInviteCodesFromAccount(accountID uint) (err error) {
 	return db.Model(&InviteCodes{}).
-		Where(&InviteCodes{InviteCreatorID: userID}).
+		Where(&InviteCodes{InviteCreatorID: accountID}).
 		Delete(&InviteCodes{}).Error
 }
 

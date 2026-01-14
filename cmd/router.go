@@ -106,7 +106,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 		app.isAdmin(),
 	)
 
-	adminAPI.DELETE("/user", app.adminDeleteUser)
+	adminAPI.DELETE("/user", app.adminDeleteAccount)
 	adminAPI.DELETE("/files", app.adminDeleteFiles)
 	adminAPI.DELETE("/sessions", app.adminDeleteSessions)
 	adminAPI.DELETE("/upload_tokens", app.adminDeleteUploadTokens)

@@ -57,7 +57,7 @@ func (db *Database) CleanupOrphanedTags() (deleted int64, err error) {
 	return result.RowsAffected, nil
 }
 
-func (db *Database) GetUserTags(accountID uint) (tags []string, err error) {
+func (db *Database) GetAccountTags(accountID uint) (tags []string, err error) {
 	err = db.Table("tags").
 		Joins("JOIN file_tags ON file_tags.tag_name = tags.name").
 		Joins("JOIN files ON files.id = file_tags.files_id").

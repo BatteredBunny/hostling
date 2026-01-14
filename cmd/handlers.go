@@ -135,15 +135,15 @@ func (app *Application) adminPage(c *gin.Context) {
 		templateInput["AccountID"] = account.ID
 		templateInput["IsAdmin"] = account.AccountType == "ADMIN"
 
-		users, err := app.db.GetAccounts()
+		accounts, err := app.db.GetAccounts()
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
 		var stats []AccountStats
-		for _, user := range users {
-			stat, err := app.toAccountStats(&user, account.ID)
+		for _, account := range accounts {
+			stat, err := app.toAccountStats(&account, account.ID)
 			if err != nil {
 				c.AbortWithStatus(http.StatusInternalServerError)
 				return
@@ -152,7 +152,7 @@ func (app *Application) adminPage(c *gin.Context) {
 			stats = append(stats, stat)
 		}
 
-		templateInput["Users"] = stats
+		templateInput["Accounts"] = stats
 		templateInput["MaxUploadSize"] = uint(app.config.MaxUploadSize)
 		templateInput["Version"] = Version
 	}
@@ -326,7 +326,7 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch user by session token")
+		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -356,7 +356,7 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch user by session token")
+		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -394,7 +394,7 @@ func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch user by session token")
+		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -422,7 +422,7 @@ func (app *Application) deleteFilesAPI(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch user by session token")
+		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -436,13 +436,13 @@ func (app *Application) deleteFilesAPI(c *gin.Context) {
 	c.String(http.StatusOK, "Files deleted")
 }
 
-func (app *Application) deleteFilesFromAccount(userID uint) (err error) {
-	files, err := app.db.GetAllFilesFromAccount(userID)
+func (app *Application) deleteFilesFromAccount(accountID uint) (err error) {
+	files, err := app.db.GetAllFilesFromAccount(accountID)
 	if err != nil {
 		return
 	}
 
-	if err = app.db.DeleteFilesFromAccount(userID); err != nil {
+	if err = app.db.DeleteFilesFromAccount(accountID); err != nil {
 		return
 	}
 
@@ -473,7 +473,7 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch user by session token")
+		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -490,9 +490,9 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 	output.Count = totalFiles
 	output.SizeTotal = totalStorage
 
-	output.Tags, err = app.db.GetUserTags(account.ID)
+	output.Tags, err = app.db.GetAccountTags(account.ID)
 	if err != nil {
-		log.Err(err).Msg("Failed to get user tags")
+		log.Err(err).Msg("Failed to get account tags")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -523,7 +523,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch user by session token")
+		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}

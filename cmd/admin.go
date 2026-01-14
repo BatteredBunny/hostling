@@ -10,16 +10,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// Admin api for deleting user
-type adminDeleteUserInput struct {
+// Admin api for deleting accounts and their data
+type adminDeleteAccountInput struct {
 	ID uint `form:"id"`
 }
 
 var ErrCantDeleteSelf = fmt.Errorf("you can't delete yourself")
 
-func (app *Application) adminDeleteUser(c *gin.Context) {
+func (app *Application) adminDeleteAccount(c *gin.Context) {
 	var (
-		input adminDeleteUserInput
+		input adminDeleteAccountInput
 		err   error
 	)
 
@@ -49,16 +49,16 @@ func (app *Application) adminDeleteUser(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, fmt.Sprintf("User %d deleted", input.ID))
+	c.String(http.StatusOK, fmt.Sprintf("Account %d deleted", input.ID))
 }
 
-type adminDeleteUserFilesInput struct {
+type adminDeleteAccountFilesInput struct {
 	ID uint `form:"id"`
 }
 
 func (app *Application) adminDeleteFiles(c *gin.Context) {
 	var (
-		input adminDeleteUserFilesInput
+		input adminDeleteAccountFilesInput
 		err   error
 	)
 
@@ -75,13 +75,13 @@ func (app *Application) adminDeleteFiles(c *gin.Context) {
 	c.String(http.StatusOK, "Files deleted")
 }
 
-type adminDeleteUserSessionsInput struct {
+type adminDeleteAccountSessionsInput struct {
 	ID uint `form:"id"`
 }
 
 func (app *Application) adminDeleteSessions(c *gin.Context) {
 	var (
-		input adminDeleteUserSessionsInput
+		input adminDeleteAccountSessionsInput
 		err   error
 	)
 
@@ -98,13 +98,13 @@ func (app *Application) adminDeleteSessions(c *gin.Context) {
 	c.String(http.StatusOK, "Sessions deleted")
 }
 
-type adminDeleteUserUploadTokensInput struct {
+type adminDeleteAccountUploadTokensInput struct {
 	ID uint `form:"id"`
 }
 
 func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
 	var (
-		input adminDeleteUserUploadTokensInput
+		input adminDeleteAccountUploadTokensInput
 		err   error
 	)
 

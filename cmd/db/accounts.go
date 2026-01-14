@@ -54,14 +54,14 @@ func (db *Database) UpdateGithubUsername(accountID uint, username string) (err e
 		Update("github_username", username).Error
 }
 
-func (db *Database) LinkGithub(userID uint, username string, rawGithubID string) (err error) {
+func (db *Database) LinkGithub(accountID uint, username string, rawGithubID string) (err error) {
 	githubID, err := strconv.ParseUint(rawGithubID, 10, 0)
 	if err != nil {
 		return
 	}
 
 	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: userID}).
+		Where(&Accounts{ID: accountID}).
 		Updates(map[string]interface{}{
 			"github_username": username,
 			"github_id":       uint(githubID),
@@ -152,14 +152,14 @@ func (db *Database) GetAccountByUploadToken(uploadToken uuid.UUID) (account Acco
 }
 
 // Deletes account entry only
-func (db *Database) DeleteAccount(userID uint) (err error) {
+func (db *Database) DeleteAccount(accountID uint) (err error) {
 	return db.Model(&Accounts{}).
-		Delete(&Accounts{}, userID).Error
+		Delete(&Accounts{}, accountID).Error
 }
 
-func (db *Database) GetAccounts() (users []Accounts, err error) {
+func (db *Database) GetAccounts() (accounts []Accounts, err error) {
 	err = db.Model(&Accounts{}).
-		Scan(&users).Error
+		Scan(&accounts).Error
 
 	return
 }

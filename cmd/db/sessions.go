@@ -42,11 +42,11 @@ func (db *Database) GetSessionsCount(accountID uint) (count int64, err error) {
 	return
 }
 
-func (db *Database) CreateSessionToken(userID uint) (sessionToken uuid.UUID, err error) {
-	log.Debug().Msgf("Creating session token for account %d", userID)
+func (db *Database) CreateSessionToken(accountID uint) (sessionToken uuid.UUID, err error) {
+	log.Debug().Msgf("Creating session token for account %d", accountID)
 
 	session := SessionTokens{
-		AccountID:  userID,
+		AccountID:  accountID,
 		Token:      uuid.New(),
 		ExpiryDate: time.Now().Add(time.Hour * 24 * 7), // A week from now
 		LastUsed:   time.Now(),

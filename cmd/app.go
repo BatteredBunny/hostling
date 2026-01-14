@@ -152,17 +152,17 @@ func prepareDB(c Config) (database db.Database) {
 		log.Fatal().Err(err).Msg("Migration failed")
 	}
 
-	// Create the first admin user if no user with ID 1 exists
-	userAmount, err := database.AccountAmount()
+	// Create the first admin account if no account with ID 1 exists
+	accountAmount, err := database.AccountAmount()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to get user amount")
+		log.Fatal().Err(err).Msg("Failed to get account amount")
 	}
 	inviteCodeAmount, err := database.InviteCodeAmount()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to get invite amount")
 	}
 
-	if userAmount == 0 && inviteCodeAmount == 0 {
+	if accountAmount == 0 && inviteCodeAmount == 0 {
 		inviteCode, err := database.CreateInviteCode(1, "ADMIN", 0)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to create initial invite")

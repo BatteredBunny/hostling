@@ -92,7 +92,7 @@ func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 	}
 }
 
-// Makes sure the authenticated user is admin
+// Makes sure the authenticated account is admin
 func (app *Application) isAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Verify the field exists
@@ -106,7 +106,7 @@ func (app *Application) isAdmin() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if err != nil {
-			log.Err(err).Msg("Failed to find user by session token")
+			log.Err(err).Msg("Failed to find account by session token")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if account.AccountType != "ADMIN" {
@@ -118,7 +118,7 @@ func (app *Application) isAdmin() gin.HandlerFunc {
 	}
 }
 
-// Makes sure the user token provided is valid
+// Makes sure the account token provided is valid
 func (app *Application) isSessionAuthenticated() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Verify the field exists
@@ -132,7 +132,7 @@ func (app *Application) isSessionAuthenticated() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if err != nil {
-			log.Err(err).Msg("Failed to find user by session token")
+			log.Err(err).Msg("Failed to find account by session token")
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}

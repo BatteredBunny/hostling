@@ -31,12 +31,12 @@ func (app *Application) StartJobScheudler() (err error) {
 func (app *Application) CleanUpJob() {
 	log.Info().Msg("Starting clean up job")
 
-	log.Info().Msg("Starting cleaning up expired tokens")
+	log.Info().Msg("Starting clean up expired sessions")
 	if err := app.db.DeleteExpiredSessionTokens(); err != nil {
 		log.Err(err).Msg("Failed to delete expired session tokens")
 	}
 
-	log.Info().Msg("Starting cleaning up invite tokens")
+	log.Info().Msg("Starting clean up of expired invite codes")
 	if err := app.db.DeleteExpiredInviteCodes(); err != nil {
 		log.Err(err).Msg("Failed to delete expired invite codes")
 	}
@@ -62,5 +62,12 @@ func (app *Application) CleanUpJob() {
 	if err = app.db.DeleteExpiredFiles(); err != nil {
 		log.Err(err).Msg("Failed to delete file entries in database")
 		return
+	}
+
+	log.Info().Msg("Starting clean up of orphaned tags")
+	if count, err := app.db.CleanupOrphanedTags(); err != nil {
+		log.Err(err).Msg("Failed to clean up orphaned tags")
+	} else {
+		log.Info().Msgf("Cleaned up %d orphaned tags", count)
 	}
 }

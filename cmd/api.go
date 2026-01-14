@@ -100,27 +100,29 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	rawSessionToken, sessionTokenExists := c.Get("sessionToken")
-	rawUploadToken, uploadTokenExists := c.Get("uploadToken")
-
-	var sessionToken uuid.NullUUID
-	var uploadToken uuid.NullUUID
-	if sessionTokenExists {
-		sessionToken = uuid.NullUUID{UUID: rawSessionToken.(uuid.UUID), Valid: true}
-	} else if uploadTokenExists {
-		uploadToken = uuid.NullUUID{UUID: rawUploadToken.(uuid.UUID), Valid: true}
-	} else {
+	sessionToken, exists := c.Get("sessionToken")
+	if !exists {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	} else if err != nil {
+		log.Err(err).Msg("Failed to fetch user by session token")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
 	// Makes sure the file exists
-	var exists bool
-	if exists, err = app.db.FileExists(input.FileName); err != nil {
+	var fileExists bool
+	if fileExists, err = app.db.FileExists(input.FileName); err != nil {
 		log.Err(err).Msg("Failed to check if file exists")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
-	} else if !exists {
+	} else if !fileExists {
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
@@ -132,7 +134,7 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.DeleteFileEntry(input.FileName, uploadToken, sessionToken); err != nil { // Deletes file entry from database
+	if err = app.db.DeleteFileEntry(input.FileName, account.ID); err != nil { // Deletes file entry from database
 		log.Err(err).Msg("Failed to delete file entry")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -204,6 +206,7 @@ Additional inputs:
 expiry_timestamp: unix timestamp in seconds
 expiry_date: YYYY-MM-DD in string, expiry_timestamp gets priority
 */
+// TODO: Allow including tags on upload
 func (app *Application) uploadFileAPI(c *gin.Context) {
 	var expiryDate time.Time
 
@@ -300,4 +303,79 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	}
 
 	c.Redirect(http.StatusTemporaryRedirect, "/"+fullFileName)
+}
+
+type TagInput struct {
+	FileName string `form:"file_name" binding:"required"`
+	Tag      string `form:"tag" binding:"required"`
+}
+
+func (app *Application) addTagAPI(c *gin.Context) {
+	var (
+		input TagInput
+		err   error
+	)
+	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	sessionToken, exists := c.Get("sessionToken")
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	} else if err != nil {
+		log.Err(err).Msg("Failed to fetch user by session token")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	if err = app.db.AddTagToFile(input.FileName, input.Tag, account.ID); err != nil {
+		log.Err(err).Msg("Failed to add tag to file")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	c.String(http.StatusOK, "Tag added successfully")
+}
+
+func (app *Application) deleteTagAPI(c *gin.Context) {
+	var (
+		input TagInput
+		err   error
+	)
+	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	sessionToken, exists := c.Get("sessionToken")
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	} else if err != nil {
+		log.Err(err).Msg("Failed to fetch user by session token")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	if err := app.db.RemoveTagFromFile(input.FileName, input.Tag, account.ID); err != nil {
+		log.Err(err).Msg("Failed to remove tag from file")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	c.String(http.StatusOK, "Tag removed successfully")
 }

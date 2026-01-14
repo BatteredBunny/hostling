@@ -32,6 +32,8 @@ type Files struct {
 
 	UploaderID uint     `json:"-"`
 	Uploader   Accounts `gorm:"foreignKey:UploaderID" json:"-"`
+
+	Tags []Tag `gorm:"many2many:file_tags;"`
 }
 
 type FileViews struct {
@@ -61,25 +63,9 @@ func (db *Database) getFileViews(fileID uint) (count int64, err error) {
 }
 
 // Deletes file entry from database
-func (db *Database) DeleteFileEntry(fileName string, uploadToken uuid.NullUUID, sessionToken uuid.NullUUID) (err error) {
-	var account Accounts
-	if uploadToken.Valid {
-		account, err = db.GetAccountByUploadToken(uploadToken.UUID)
-		if err != nil {
-			return
-		}
-	} else if sessionToken.Valid {
-		account, err = db.GetAccountBySessionToken(sessionToken.UUID)
-		if err != nil {
-			return
-		}
-	} else {
-		// This shouldnt happen but just in case
-		return ErrNotAuthenticated
-	}
-
+func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
 	return db.Model(&Files{}).
-		Where(&Files{FileName: fileName, UploaderID: account.ID}).
+		Where(&Files{FileName: fileName, UploaderID: accountID}).
 		Delete(&Files{}).Error
 }
 

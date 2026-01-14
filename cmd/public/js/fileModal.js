@@ -97,7 +97,7 @@ function showModal(elem) {
         const formData = new FormData();
         formData.append('file_name', filename);
 
-        const response = await fetch('/api/account/toggle_file_public', {
+        const response = await fetch('/api/account/file/public', {
             method: 'POST',
             body: formData
         });

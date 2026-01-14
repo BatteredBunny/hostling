@@ -62,14 +62,13 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 
 	app.setupAuth(api)
 
-	// Apis that require the upload token, typical this token is included in scripts
+	// Upload token should only have access to upload endpoint!
 	fileAPI := api.Group("/file")
 	fileAPI.Use(
 		app.hasUploadOrSessionTokenMiddleware(),
 	)
 
 	fileAPI.POST("/upload", app.uploadFileAPI)
-	fileAPI.POST("/delete", app.deleteFileAPI)
 	// ---
 
 	// Accounts for managing your user
@@ -79,14 +78,21 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 		app.isSessionAuthenticated(),
 	)
 
-	accountAPI.POST("/delete", app.accountDeleteAPI)
-	accountAPI.POST("/new_upload_token", app.newUploadTokenApi)
-	accountAPI.POST("/delete_upload_token", app.deleteUploadTokenAPI)
-	accountAPI.POST("/delete_invite_code", app.deleteInviteCodeAPI)
-	accountAPI.POST("/delete_all_files", app.deleteFilesAPI)
-	accountAPI.POST("/toggle_file_public", app.toggleFilePublicAPI)
+	accountAPI.DELETE("/", app.accountDeleteAPI)
+
+	accountAPI.POST("/upload_token", app.newUploadTokenApi)
+	accountAPI.DELETE("/upload_token", app.deleteUploadTokenAPI)
+
+	accountAPI.DELETE("/invite_code", app.deleteInviteCodeAPI)
+
+	accountAPI.DELETE("/files/delete", app.deleteFilesAPI)
 	accountAPI.GET("/files", app.filesAPI)
-	accountAPI.GET("/file_stats", app.fileStatsAPI)
+	accountAPI.GET("/files/stats", app.fileStatsAPI)
+
+	accountAPI.DELETE("/file", app.deleteFileAPI)
+	accountAPI.POST("/file/public", app.toggleFilePublicAPI)
+	accountAPI.POST("/file/tag", app.addTagAPI)
+	accountAPI.DELETE("/file/tag", app.deleteTagAPI)
 	// ---
 
 	// Admin apis
@@ -96,10 +102,10 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 		app.isAdmin(),
 	)
 
-	adminAPI.POST("/delete_user", app.adminDeleteUser)
-	adminAPI.POST("/delete_files", app.adminDeleteFiles)
-	adminAPI.POST("/delete_sessions", app.adminDeleteSessions)
-	adminAPI.POST("/delete_upload_tokens", app.adminDeleteUploadTokens)
+	adminAPI.DELETE("/user", app.adminDeleteUser)
+	adminAPI.DELETE("/files", app.adminDeleteFiles)
+	adminAPI.DELETE("/sessions", app.adminDeleteSessions)
+	adminAPI.DELETE("/upload_tokens", app.adminDeleteUploadTokens)
 	adminAPI.POST("/give_invite_code", app.adminGiveInviteCode)
 
 	app.Router.StaticFS("/public/", PublicFiles())

@@ -15,8 +15,8 @@ export async function deleteFileByName(filename) {
     const formData = new FormData();
     formData.append('file_name', filename);
 
-    const response = await fetch('/api/file/delete', {
-        method: 'POST',
+    const response = await fetch('/api/account/file', {
+        method: 'DELETE',
         body: formData
     });
 

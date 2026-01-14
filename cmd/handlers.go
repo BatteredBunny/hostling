@@ -456,8 +456,9 @@ func (app *Application) deleteFilesFromAccount(userID uint) (err error) {
 }
 
 type FileStatsOutput struct {
-	Count     uint `json:"count"`
-	SizeTotal uint `json:"size_total"`
+	Count     uint     `json:"count"`
+	SizeTotal uint     `json:"size_total"`
+	Tags      []string `json:"tags"`
 }
 
 func (app *Application) fileStatsAPI(c *gin.Context) {
@@ -489,6 +490,13 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 	output.Count = totalFiles
 	output.SizeTotal = totalStorage
 
+	output.Tags, err = app.db.GetUserTags(account.ID)
+	if err != nil {
+		log.Err(err).Msg("Failed to get user tags")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
 	c.JSON(http.StatusOK, output)
 }
 
@@ -500,7 +508,7 @@ type FilesApiInput struct {
 
 type FilesApiOutput struct {
 	Files []db.Files `json:"files"`
-	Count int64   `json:"count"`
+	Count int64      `json:"count"`
 }
 
 func (app *Application) filesAPI(c *gin.Context) {

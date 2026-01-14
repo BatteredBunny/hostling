@@ -112,6 +112,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	adminAPI.DELETE("/upload_tokens", app.adminDeleteUploadTokens)
 	adminAPI.POST("/give_invite_code", app.adminGiveInviteCode)
 
+	// Pages
 	app.Router.StaticFS("/public/", PublicFiles())
 
 	app.Router.GET("/login", app.loginPage)

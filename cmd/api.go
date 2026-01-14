@@ -316,7 +316,7 @@ func (app *Application) addTagAPI(c *gin.Context) {
 		err   error
 	)
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -333,6 +333,17 @@ func (app *Application) addTagAPI(c *gin.Context) {
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch user by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	hasTag, err := app.db.FileHasTag(input.FileName, input.Tag, account.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	if hasTag {
+		c.String(http.StatusBadRequest, "File already has this tag")
 		return
 	}
 
@@ -351,7 +362,7 @@ func (app *Application) deleteTagAPI(c *gin.Context) {
 		err   error
 	)
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		c.String(http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -368,6 +379,17 @@ func (app *Application) deleteTagAPI(c *gin.Context) {
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch user by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	hasTag, err := app.db.FileHasTag(input.FileName, input.Tag, account.ID)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	if !hasTag {
+		c.String(http.StatusBadRequest, "File does not have this tag")
 		return
 	}
 

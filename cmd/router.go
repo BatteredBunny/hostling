@@ -80,15 +80,19 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 
 	accountAPI.DELETE("/", app.accountDeleteAPI)
 
+	// Manage upload tokens
 	accountAPI.POST("/upload_token", app.newUploadTokenApi)
 	accountAPI.DELETE("/upload_token", app.deleteUploadTokenAPI)
 
+	// Delete invite codes, only admins can create them
 	accountAPI.DELETE("/invite_code", app.deleteInviteCodeAPI)
 
-	accountAPI.DELETE("/files/delete", app.deleteFilesAPI)
+	// Bulk file operations
+	accountAPI.DELETE("/files", app.deleteFilesAPI)
 	accountAPI.GET("/files", app.filesAPI)
 	accountAPI.GET("/files/stats", app.fileStatsAPI)
 
+	// Modify individual files
 	accountAPI.DELETE("/file", app.deleteFileAPI)
 	accountAPI.POST("/file/public", app.toggleFilePublicAPI)
 	accountAPI.POST("/file/tag", app.addTagAPI)

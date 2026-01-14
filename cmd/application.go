@@ -3,6 +3,7 @@ package cmd
 import (
 	"net/http"
 
+	"github.com/BatteredBunny/hostling/cmd/db"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"
@@ -12,7 +13,7 @@ import (
 
 type Application struct {
 	config      Config
-	db          Database
+	db          db.Database
 	s3client    *s3.S3
 	RateLimiter *limiter.Limiter
 	cron        gocron.Scheduler
@@ -38,7 +39,7 @@ type Config struct {
 	TrustedProxy       string `toml:"trusted_proxy"`
 	PublicUrl          string `toml:"public_url"` // URL to use for github callback and cookies
 	Branding           string `toml:"branding"`   // Branding text for toolbar (max 20 characters)
-	Tagline 		   string `toml:"tagline"`    // Used for meta description and text on index page (max 100 characters)
+	Tagline            string `toml:"tagline"`    // Used for meta description and text on index page (max 100 characters)
 
 	FileStorageMethod fileStorageMethod
 	S3                s3Config `toml:"s3"`

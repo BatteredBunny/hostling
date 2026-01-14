@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/BatteredBunny/hostling/cmd/db"
 	"github.com/BatteredBunny/hostling/cmd/tags"
 	"github.com/BurntSushi/toml"
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,6 +17,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/rs/zerolog/log"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var ErrUnknownStorageMethod = errors.New("unknown file storage method")
@@ -59,7 +63,7 @@ func prepareStorage(c Config) (s3client *s3.S3) {
 		if file, _ := os.Stat(c.DataFolder); file == nil {
 			log.Info().Msg("Creating data folder")
 
-			if err := os.Mkdir(c.DataFolder, 0770); err != nil {
+			if err := os.Mkdir(c.DataFolder, 0o770); err != nil {
 				log.Fatal().Err(err).Msg("Failed to create data folder")
 			}
 		}
@@ -110,6 +114,61 @@ func initializeConfig() (c Config) {
 		c.Tagline = "Simple file hosting service"
 	} else if len(c.Tagline) > 100 {
 		log.Fatal().Msgf("Tagline text exceeds maximum length of 100 characters (got %d)", len(c.Tagline))
+	}
+
+	return
+}
+
+var ErrInvalidDatabaseType = errors.New("Invalid database type")
+
+func prepareDB(c Config) (database db.Database) {
+	log.Info().Msg("Setting up database")
+
+	var gormConnection gorm.Dialector
+	switch c.DatabaseType {
+	case "postgresql":
+		gormConnection = postgres.Open(c.DatabaseConnectionUrl)
+	case "sqlite":
+		gormConnection = sqlite.Open(c.DatabaseConnectionUrl)
+	default:
+		log.Fatal().Err(ErrInvalidDatabaseType).Msg("Invalid database chosehn")
+	}
+
+	var err error
+	database.DB, err = gorm.Open(gormConnection, &gorm.Config{})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to open database connection")
+	}
+
+	if err := database.DB.AutoMigrate(
+		&db.Accounts{},
+		&db.Files{},
+		&db.FileViews{},
+		&db.InviteCodes{},
+		&db.SessionTokens{},
+		&db.UploadTokens{},
+		&db.Tag{},
+	); err != nil {
+		log.Fatal().Err(err).Msg("Migration failed")
+	}
+
+	// Create the first admin user if no user with ID 1 exists
+	userAmount, err := database.AccountAmount()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get user amount")
+	}
+	inviteCodeAmount, err := database.InviteCodeAmount()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get invite amount")
+	}
+
+	if userAmount == 0 && inviteCodeAmount == 0 {
+		inviteCode, err := database.CreateInviteCode(1, "ADMIN", 0)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create initial invite")
+		}
+
+		log.Warn().Msgf("No accounts found, please create your account via this registration token: %s", inviteCode.Code)
 	}
 
 	return

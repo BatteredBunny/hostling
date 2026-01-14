@@ -3,13 +3,16 @@ package cmd
 import (
 	"errors"
 
+	"github.com/BatteredBunny/hostling/cmd/db"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-const AUTH_COOKIE = "auth"
-const LINKING_COOKIE = "linking"
+const (
+	AUTH_COOKIE    = "auth"
+	LINKING_COOKIE = "linking"
+)
 
 func (app *Application) setLinkingCookie(c *gin.Context) {
 	c.SetCookie("linking", "true", 500, "/", app.config.PublicUrl, gin.Mode() == gin.ReleaseMode, true)
@@ -44,7 +47,7 @@ func (app *Application) parseAuthCookie(c *gin.Context) (sessionToken uuid.UUID,
 	return
 }
 
-func (app *Application) validateAuthCookie(c *gin.Context) (sessionToken uuid.UUID, account Accounts, loggedIn bool, err error) {
+func (app *Application) validateAuthCookie(c *gin.Context) (sessionToken uuid.UUID, account db.Accounts, loggedIn bool, err error) {
 	sessionToken, err = app.parseAuthCookie(c)
 	if err != nil {
 		err = ErrInvalidAuthCookie
@@ -52,7 +55,7 @@ func (app *Application) validateAuthCookie(c *gin.Context) (sessionToken uuid.UU
 		return
 	}
 
-	if account, err = app.db.getAccountBySessionToken(sessionToken); errors.Is(err, gorm.ErrRecordNotFound) {
+	if account, err = app.db.GetAccountBySessionToken(sessionToken); errors.Is(err, gorm.ErrRecordNotFound) {
 		err = ErrInvalidAuthCookie
 		app.clearAuthCookie(c)
 		return

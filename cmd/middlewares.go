@@ -102,7 +102,7 @@ func (app *Application) isAdmin() gin.HandlerFunc {
 			return
 		}
 
-		if account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID)); errors.Is(err, gorm.ErrRecordNotFound) {
+		if account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); errors.Is(err, gorm.ErrRecordNotFound) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if err != nil {
@@ -128,7 +128,7 @@ func (app *Application) isSessionAuthenticated() gin.HandlerFunc {
 			return
 		}
 
-		if _, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID)); errors.Is(err, gorm.ErrRecordNotFound) {
+		if _, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); errors.Is(err, gorm.ErrRecordNotFound) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if err != nil {

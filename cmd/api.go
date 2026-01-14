@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/BatteredBunny/hostling/cmd/db"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -25,7 +26,7 @@ func (app *Application) accountDeleteAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -45,19 +46,19 @@ func (app *Application) accountDeleteAPI(c *gin.Context) {
 }
 
 func (app *Application) deleteAccount(userID uint) (err error) {
-	if err = app.db.deleteSessionTokensFromAccount(userID); err != nil {
+	if err = app.db.DeleteSessionsFromAccount(userID); err != nil {
 		return
 	}
 
-	if err = app.db.deleteUploadTokensFromAccount(userID); err != nil {
+	if err = app.db.DeleteUploadTokensFromAccount(userID); err != nil {
 		return
 	}
 
-	if err = app.db.deleteInviteCodesFromAccount(userID); err != nil {
+	if err = app.db.DeleteInviteCodesFromAccount(userID); err != nil {
 		return
 	}
 
-	files, err := app.db.getAllFilesFromAccount(userID)
+	files, err := app.db.GetAllFilesFromAccount(userID)
 	if err != nil {
 		return
 	}
@@ -68,11 +69,11 @@ func (app *Application) deleteAccount(userID uint) (err error) {
 		}
 	}
 
-	if err = app.db.deleteFilesFromAccount(userID); err != nil {
+	if err = app.db.DeleteFilesFromAccount(userID); err != nil {
 		return
 	}
 
-	if err = app.db.deleteAccount(userID); err != nil {
+	if err = app.db.DeleteAccount(userID); err != nil {
 		return
 	}
 
@@ -115,7 +116,7 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 
 	// Makes sure the file exists
 	var exists bool
-	if exists, err = app.db.fileExists(input.FileName); err != nil {
+	if exists, err = app.db.FileExists(input.FileName); err != nil {
 		log.Err(err).Msg("Failed to check if file exists")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -131,7 +132,7 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.deleteFileEntry(input.FileName, uploadToken, sessionToken); err != nil { // Deletes file entry from database
+	if err = app.db.DeleteFileEntry(input.FileName, uploadToken, sessionToken); err != nil { // Deletes file entry from database
 		log.Err(err).Msg("Failed to delete file entry")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -168,7 +169,7 @@ func (app *Application) toggleFilePublicAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -178,7 +179,7 @@ func (app *Application) toggleFilePublicAPI(c *gin.Context) {
 		return
 	}
 
-	newPublicStatus, err := app.db.toggleFilePublic(input.FileName, account.ID)
+	newPublicStatus, err := app.db.ToggleFilePublic(input.FileName, account.ID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.String(http.StatusNotFound, "File not found or you don't own this file")
 		return
@@ -260,8 +261,8 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		return
 	}
 
-	input := CreateFileEntryInput{
-		files: Files{
+	input := db.CreateFileEntryInput{
+		Files: db.Files{
 			FileName:         fullFileName,
 			OriginalFileName: originalFileName,
 			FileSize:         uint(len(file)),
@@ -275,12 +276,12 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	uploadToken, uploadTokenExists := c.Get("uploadToken")
 
 	if sessionTokenExists {
-		input.sessionToken = uuid.NullUUID{
+		input.SessionToken = uuid.NullUUID{
 			UUID:  sessionToken.(uuid.UUID),
 			Valid: true,
 		}
 	} else if uploadTokenExists {
-		input.uploadToken = uuid.NullUUID{
+		input.UploadToken = uuid.NullUUID{
 			UUID:  uploadToken.(uuid.UUID),
 			Valid: true,
 		}
@@ -289,7 +290,7 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.createFileEntry(input); errors.Is(err, gorm.ErrRecordNotFound) {
+	if err = app.db.CreateFileEntry(input); errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	} else if err != nil {

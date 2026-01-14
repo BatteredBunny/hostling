@@ -86,7 +86,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 		app.clearLinkingCookie(c)
 
 		if loggedIn && account.GithubID == 0 {
-			if err := app.db.linkGithub(account.ID, user.NickName, user.UserID); err != nil {
+			if err := app.db.LinkGithub(account.ID, user.NickName, user.UserID); err != nil {
 				c.String(http.StatusInternalServerError, "Failed to link github")
 				return
 			}
@@ -96,17 +96,17 @@ func (app *Application) loginCallback(c *gin.Context) {
 			c.Redirect(http.StatusTemporaryRedirect, "/login")
 		}
 	} else {
-		account, err := app.db.findAccountByGithubID(user.UserID)
+		account, err := app.db.FindAccountByGithubID(user.UserID)
 		if err != nil {
 			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return
 		}
 
-		if err := app.db.updateGithubUsername(account.ID, user.NickName); err != nil {
+		if err := app.db.UpdateGithubUsername(account.ID, user.NickName); err != nil {
 			log.Warn().Err(err).Msg("Failed to update github username")
 		}
 
-		sessionToken, err := app.db.createSessionToken(account.ID)
+		sessionToken, err := app.db.CreateSessionToken(account.ID)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
@@ -157,7 +157,7 @@ func (app *Application) registerApi(c *gin.Context) {
 		return
 	}
 
-	accountType, invitedBy, err := app.db.useCode(input.Code)
+	accountType, invitedBy, err := app.db.UseCode(input.Code)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.String(http.StatusBadRequest, "Invalid code")
 		return
@@ -166,13 +166,13 @@ func (app *Application) registerApi(c *gin.Context) {
 		return
 	}
 
-	acc, err := app.db.createAccount(accountType, invitedBy)
+	acc, err := app.db.CreateAccount(accountType, invitedBy)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to create account")
 		return
 	}
 
-	token, err := app.db.createSessionToken(acc.ID)
+	token, err := app.db.CreateSessionToken(acc.ID)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Failed to create account")
 		return
@@ -198,7 +198,7 @@ func (app *Application) logoutHandler(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.deleteSession(sessionToken); err != nil {
+	if err = app.db.DeleteSession(sessionToken); err != nil {
 		log.Err(err).Msg("Failed to delete session from db")
 	}
 

@@ -1,12 +1,10 @@
 package cmd
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"os"
-
-	"crypto/rand"
-
 	"path/filepath"
 
 	"github.com/gabriel-vasile/mimetype"
@@ -36,7 +34,7 @@ func (app *Application) generateFullFileName(mime *mimetype.MIME) string {
 }
 
 func (app *Application) isValidUploadToken(uploadToken uuid.UUID) (bool, error) {
-	_, err := app.db.getAccountByUploadToken(uploadToken)
+	_, err := app.db.GetAccountByUploadToken(uploadToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	} else if err != nil {

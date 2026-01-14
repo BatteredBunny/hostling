@@ -35,7 +35,7 @@ func (app *Application) adminDeleteUser(c *gin.Context) {
 	}
 
 	// You can't delete yourself
-	if account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID)); err != nil {
+	if account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	} else if account.ID == input.ID {
@@ -90,7 +90,7 @@ func (app *Application) adminDeleteSessions(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.deleteSessionsFromAccount(input.ID); err != nil {
+	if err = app.db.DeleteSessionsFromAccount(input.ID); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -113,7 +113,7 @@ func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.deleteUploadTokensFromAccount(input.ID); err != nil {
+	if err = app.db.DeleteUploadTokensFromAccount(input.ID); err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
@@ -138,7 +138,7 @@ func (app *Application) adminGiveInviteCode(c *gin.Context) {
 		return
 	}
 
-	inviteCode, err := app.db.createInviteCode(input.Uses, "USER", input.ID)
+	inviteCode, err := app.db.CreateInviteCode(input.Uses, "USER", input.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to create invite code")
 		c.AbortWithStatus(http.StatusInternalServerError)

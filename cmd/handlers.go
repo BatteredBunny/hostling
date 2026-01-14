@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BatteredBunny/hostling/cmd/db"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"
@@ -21,10 +22,10 @@ import (
 
 func (app *Application) indexPage(c *gin.Context) {
 	templateInput := gin.H{
-		"Host": c.Request.Host,
+		"Host":        c.Request.Host,
 		"CurrentPage": "home",
-		"Branding": app.config.Branding,
-		"Tagline": app.config.Tagline,
+		"Branding":    app.config.Branding,
+		"Tagline":     app.config.Tagline,
 	}
 
 	_, account, loggedIn, err := app.validateAuthCookie(c)
@@ -46,7 +47,7 @@ func (app *Application) indexPage(c *gin.Context) {
 }
 
 type AccountStats struct {
-	Accounts
+	db.Accounts
 
 	SpaceUsed         uint
 	InvitedBy         string
@@ -57,8 +58,8 @@ type AccountStats struct {
 	LastActivity      time.Time // Last session or upload token usage
 }
 
-func (app *Application) toAccountStats(account *Accounts, requesterAccountID uint) (stats AccountStats, err error) {
-	files, err := app.db.getAllFilesFromAccount(account.ID)
+func (app *Application) toAccountStats(account *db.Accounts, requesterAccountID uint) (stats AccountStats, err error) {
+	files, err := app.db.GetAllFilesFromAccount(account.ID)
 	if err != nil {
 		return
 	}
@@ -68,17 +69,17 @@ func (app *Application) toAccountStats(account *Accounts, requesterAccountID uin
 		You:      account.ID == requesterAccountID,
 	}
 
-	stats.SessionsCount, err = app.db.getSessionsCount(account.ID)
+	stats.SessionsCount, err = app.db.GetSessionsCount(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get session count")
 	}
 
-	stats.UploadTokensCount, err = app.db.getUploadTokensCount(account.ID)
+	stats.UploadTokensCount, err = app.db.GetUploadTokensCount(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get upload token count")
 	}
 
-	stats.LastActivity, err = app.db.lastAccountActivity(account.ID)
+	stats.LastActivity, err = app.db.LastAccountActivity(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get last activity")
 	}
@@ -86,7 +87,7 @@ func (app *Application) toAccountStats(account *Accounts, requesterAccountID uin
 	if account.InvitedBy == 0 {
 		stats.InvitedBy = "system"
 	} else if account.InvitedBy > 0 {
-		invitedBy, err := app.db.getAccountByID(account.InvitedBy)
+		invitedBy, err := app.db.GetAccountByID(account.InvitedBy)
 		if err == nil && invitedBy.GithubUsername != "" {
 			stats.InvitedBy = fmt.Sprintf("%s (%d)", invitedBy.GithubUsername, invitedBy.ID)
 		} else {
@@ -124,8 +125,8 @@ func (app *Application) adminPage(c *gin.Context) {
 
 	templateInput := gin.H{
 		"CurrentPage": "admin",
-		"Branding": app.config.Branding,
-		"Tagline": app.config.Tagline,
+		"Branding":    app.config.Branding,
+		"Tagline":     app.config.Tagline,
 	}
 
 	if loggedIn {
@@ -134,7 +135,7 @@ func (app *Application) adminPage(c *gin.Context) {
 		templateInput["AccountID"] = account.ID
 		templateInput["IsAdmin"] = account.AccountType == "ADMIN"
 
-		users, err := app.db.getAccounts()
+		users, err := app.db.GetAccounts()
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
@@ -174,8 +175,8 @@ func (app *Application) userPage(c *gin.Context) {
 
 	templateInput := gin.H{
 		"CurrentPage": "user",
-		"Branding": app.config.Branding,
-		"Tagline": app.config.Tagline,
+		"Branding":    app.config.Branding,
+		"Tagline":     app.config.Tagline,
 	}
 
 	if loggedIn && account.GithubID > 0 {
@@ -191,13 +192,13 @@ func (app *Application) userPage(c *gin.Context) {
 
 		templateInput["UnlinkedAccount"] = account.GithubID == 0
 
-		templateInput["InviteCodes"], err = app.db.inviteCodesByAccount(account.ID)
+		templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
 
-		uploadTokens, err := app.db.getUploadTokens(account.ID)
+		uploadTokens, err := app.db.GetUploadTokens(account.ID)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
@@ -231,10 +232,10 @@ func (app *Application) loginPage(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, "/user")
 	} else {
 		c.HTML(http.StatusOK, "login.gohtml", gin.H{
-			"Providers": providers,
+			"Providers":   providers,
 			"CurrentPage": "login",
-			"Branding": app.config.Branding,
-			"Tagline": app.config.Tagline,
+			"Branding":    app.config.Branding,
+			"Tagline":     app.config.Tagline,
 		})
 	}
 }
@@ -253,8 +254,8 @@ func (app *Application) registerPage(c *gin.Context) {
 	} else {
 		c.HTML(http.StatusOK, "register.gohtml", gin.H{
 			"CurrentPage": "register",
-			"Branding": app.config.Branding,
-			"Tagline": app.config.Tagline,
+			"Branding":    app.config.Branding,
+			"Tagline":     app.config.Tagline,
 		})
 	}
 }
@@ -279,7 +280,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 	// Looks in database for uploaded file
 	fileName := path.Base(path.Clean(c.Request.URL.Path))
 
-	fileRecord, err := app.db.getFileByName(fileName)
+	fileRecord, err := app.db.GetFileByName(fileName)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.Redirect(http.StatusTemporaryRedirect, "/")
 		return
@@ -298,7 +299,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 		}
 	}
 
-	if err := app.db.bumpFileViews(fileName, c.ClientIP()); err != nil {
+	if err := app.db.BumpFileViews(fileName, c.ClientIP()); err != nil {
 		log.Err(err).Msg("Failed to bump file views")
 	}
 
@@ -320,7 +321,7 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -334,7 +335,7 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 
 	nickname := c.PostForm("nickname")
 
-	if uploadToken, err = app.db.createUploadToken(account.ID, nickname); err != nil {
+	if uploadToken, err = app.db.CreateUploadToken(account.ID, nickname); err != nil {
 		log.Err(err).Msg("Failed to create upload token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -350,7 +351,7 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -372,7 +373,7 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.deleteUploadToken(account.ID, uploadToken); err != nil {
+	if err = app.db.DeleteUploadToken(account.ID, uploadToken); err != nil {
 		log.Err(err).Msg("Failed to delete upload token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -388,7 +389,7 @@ func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -400,7 +401,7 @@ func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
 
 	inviteCode := c.PostForm("invite_code")
 
-	if err = app.db.deleteInviteCode(inviteCode, account.ID); err != nil {
+	if err = app.db.DeleteInviteCode(inviteCode, account.ID); err != nil {
 		log.Err(err).Msg("Failed to delete invite code")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -416,7 +417,7 @@ func (app *Application) deleteFilesAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -436,12 +437,12 @@ func (app *Application) deleteFilesAPI(c *gin.Context) {
 }
 
 func (app *Application) deleteFilesFromAccount(userID uint) (err error) {
-	files, err := app.db.getAllFilesFromAccount(userID)
+	files, err := app.db.GetAllFilesFromAccount(userID)
 	if err != nil {
 		return
 	}
 
-	if err = app.db.deleteFilesFromAccount(userID); err != nil {
+	if err = app.db.DeleteFilesFromAccount(userID); err != nil {
 		return
 	}
 
@@ -466,7 +467,7 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -478,7 +479,7 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 
 	var output FileStatsOutput
 
-	totalFiles, totalStorage, err := app.db.getFileStats(account.ID)
+	totalFiles, totalStorage, err := app.db.GetFileStats(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get file stats")
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -498,7 +499,7 @@ type FilesApiInput struct {
 }
 
 type FilesApiOutput struct {
-	Files []Files `json:"files"`
+	Files []db.Files `json:"files"`
 	Count int64   `json:"count"`
 }
 
@@ -509,7 +510,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 		return
 	}
 
-	account, err := app.db.getAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -539,14 +540,14 @@ func (app *Application) filesAPI(c *gin.Context) {
 	var limit uint = 8
 
 	var output FilesApiOutput
-	output.Files, err = app.db.getFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc)
+	output.Files, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	count, err := app.db.filesAmountOnAccount(account.ID)
+	count, err := app.db.FilesAmountOnAccount(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files amount on account")
 		c.AbortWithStatus(http.StatusInternalServerError)

@@ -32,16 +32,16 @@ func (app *Application) CleanUpJob() {
 	log.Info().Msg("Starting clean up job")
 
 	log.Info().Msg("Starting cleaning up expired tokens")
-	if err := app.db.deleteExpiredSessionTokens(); err != nil {
+	if err := app.db.DeleteExpiredSessionTokens(); err != nil {
 		log.Err(err).Msg("Failed to delete expired session tokens")
 	}
 
 	log.Info().Msg("Starting cleaning up invite tokens")
-	if err := app.db.deleteExpiredInviteCodes(); err != nil {
+	if err := app.db.DeleteExpiredInviteCodes(); err != nil {
 		log.Err(err).Msg("Failed to delete expired invite codes")
 	}
 
-	files, err := app.db.findExpiredFiles()
+	files, err := app.db.FindExpiredFiles()
 	if err != nil {
 		log.Err(err).Msg("Failed to find expired files")
 		return
@@ -59,7 +59,7 @@ func (app *Application) CleanUpJob() {
 		}
 	}
 
-	if err = app.db.deleteExpiredFiles(); err != nil {
+	if err = app.db.DeleteExpiredFiles(); err != nil {
 		log.Err(err).Msg("Failed to delete file entries in database")
 		return
 	}

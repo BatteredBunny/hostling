@@ -3,17 +3,19 @@ package db
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"time"
 
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type FileViews struct {
-	gorm.Model
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	// Each IP counts once as a view
-	IpHash string `gorm:"index:,unique,composite:hash_collision"`
-	FilesID uint `gorm:"index:,unique,composite:hash_collision"`
+	IpHash  string `gorm:"index:,unique,composite:hash_collision"`
+	FilesID uint   `gorm:"index:,unique,composite:hash_collision"`
 }
 
 func (db *Database) BumpFileViews(fileName string, ip string) (err error) {

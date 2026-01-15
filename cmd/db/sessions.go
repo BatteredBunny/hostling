@@ -5,13 +5,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
 type SessionTokens struct {
-	gorm.Model
-
-	ID uint `gorm:"primaryKey"`
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	LastUsed   time.Time
 	ExpiryDate time.Time

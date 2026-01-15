@@ -4,13 +4,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type UploadTokens struct {
-	gorm.Model
-
-	ID uint `gorm:"primaryKey"`
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	LastUsed *time.Time
 	Nickname string

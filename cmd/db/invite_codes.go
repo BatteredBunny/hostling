@@ -8,9 +8,10 @@ import (
 )
 
 type InviteCodes struct {
-	gorm.Model
+	ID        uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
-	ID          uint `gorm:"primaryKey"`
 	Code        string
 	Uses        uint // How many usages of this code is left
 	ExpiryDate  time.Time

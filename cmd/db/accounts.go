@@ -12,9 +12,9 @@ import (
 )
 
 type Accounts struct {
-	gorm.Model
-
-	ID uint `gorm:"primaryKey"` // Internal numeric account ID
+	ID        uint `gorm:"primaryKey"` // Internal numeric account ID
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	GithubID       uint
 	GithubUsername string

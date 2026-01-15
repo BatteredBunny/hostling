@@ -82,7 +82,7 @@ func (app *Application) deleteAccount(accountID uint) (err error) {
 
 // Api for deleting a file from your account
 type deleteFileAPIInput struct {
-	FileName string `form:"file_name"`
+	FileName string `form:"file_name" binding:"required"`
 }
 
 func (app *Application) deleteFileAPI(c *gin.Context) {
@@ -90,12 +90,7 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 	var err error
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
-	if input.FileName == "" {
-		c.String(http.StatusBadRequest, "File name is required")
+		c.String(http.StatusBadRequest, err.Error())
 		c.Abort()
 		return
 	}
@@ -145,7 +140,7 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 
 // Api for toggling file public/private status
 type toggleFilePublicAPIInput struct {
-	FileName string `form:"file_name"`
+	FileName string `form:"file_name" binding:"required"`
 }
 
 // TODO: merge into a generic image properties modification api
@@ -155,12 +150,7 @@ func (app *Application) toggleFilePublicAPI(c *gin.Context) {
 		err   error
 	)
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
-		return
-	}
-
-	if input.FileName == "" {
-		c.String(http.StatusBadRequest, "File name is required")
+		c.String(http.StatusBadRequest, err.Error())
 		c.Abort()
 		return
 	}
@@ -317,6 +307,7 @@ func (app *Application) addTagAPI(c *gin.Context) {
 	)
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
 		c.String(http.StatusBadRequest, err.Error())
+		c.Abort()
 		return
 	}
 
@@ -344,6 +335,7 @@ func (app *Application) addTagAPI(c *gin.Context) {
 
 	if hasTag {
 		c.String(http.StatusBadRequest, "File already has this tag")
+		c.Abort()
 		return
 	}
 
@@ -363,6 +355,7 @@ func (app *Application) deleteTagAPI(c *gin.Context) {
 	)
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
 		c.String(http.StatusBadRequest, err.Error())
+		c.Abort()
 		return
 	}
 

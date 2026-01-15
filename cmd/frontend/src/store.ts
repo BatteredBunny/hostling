@@ -8,7 +8,7 @@ export const [currentPage, setCurrentPage] = createSignal(0);
 export const [isLoading, setIsLoading] = createSignal(false);
 export const [loadingText, setLoadingText] = createSignal('');
 
-// Sort state
+// Sort/Filter state
 export const [sortField, setSortField] = createSignal<SortField>('created_at');
 export const [sortDesc, setSortDesc] = createSignal(true);
 export const [tagFilter, setTagFilter] = createSignal<string | null>(null);

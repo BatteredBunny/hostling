@@ -195,10 +195,12 @@ curl -F 'upload_token=1234567890' -F 'file=@yourfile.png'
 Additional inputs:
 expiry_timestamp: unix timestamp in seconds
 expiry_date: YYYY-MM-DD in string, expiry_timestamp gets priority
+tag: tags to add to the file
 */
-// TODO: Allow including tags on upload
 func (app *Application) uploadFileAPI(c *gin.Context) {
 	var expiryDate time.Time
+
+	tags, tags_exists := c.GetPostFormArray("tag")
 
 	date, exists := c.GetPostForm("expiry_date")
 	if exists {
@@ -263,6 +265,12 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 			ExpiryDate:       expiryDate,
 			Public:           true,
 		},
+	}
+
+	if tags_exists {
+		for _, tag := range tags {
+			input.Files.Tags = append(input.Files.Tags, db.Tag{Name: tag})
+		}
 	}
 
 	sessionToken, sessionTokenExists := c.Get("sessionToken")

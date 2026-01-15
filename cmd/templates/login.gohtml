@@ -4,6 +4,7 @@
 <head>
     {{ template "header.gohtml" . }}
     <link rel="stylesheet" href="/public/styles/common.css">
+    <link rel="stylesheet" href="/public/styles/login.css">
     {{ template "meta-title.gohtml" "Login" }}
 </head>
 
@@ -12,13 +13,17 @@
 
     {{ template "toolbar.gohtml" . }}
 
-    <div class="container">
-        <h1>Login</h1>
+    <main>
+        <div class="container">
+            <h1>Login</h1>
 
-        {{ range .Providers }}
-            <p><a href="/api/auth/login/{{ . }}">Log in with {{ . }}</a></p>
-        {{ end }}
-    </div>
+            {{ range .Providers }}
+                <p class="provider">
+                    <a class="social-login" href="/api/auth/login/{{ . }}">Login with {{ . }}</a>
+                </p>
+            {{ end }}
+        </div>
+    </main>
 </body>
 
 </html>

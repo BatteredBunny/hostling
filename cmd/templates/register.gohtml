@@ -4,6 +4,7 @@
 <head>
     {{ template "header.gohtml" . }}
     <link rel="stylesheet" href="/public/styles/common.css">
+    <link rel="stylesheet" href="/public/styles/register.css">
     {{ template "meta-title.gohtml" "Register" }}
 </head>
 
@@ -12,14 +13,16 @@
 
     {{ template "toolbar.gohtml" . }}
 
-    <div class="container">
-        <h1>Register</h1>
+    <main>
+        <div class="container">
+            <h1>Register</h1>
 
-        <form action="/api/auth/register" method="GET" enctype="multipart/form-data">
-            <input type="text" name="code" placeholder="Register code">
-            <input type="submit" value="Register">
-        </form>
-    </div>
+            <form action="/api/auth/register" method="GET" enctype="multipart/form-data">
+                <input type="text" name="code" placeholder="Register code">
+                <input type="submit" value="Register">
+            </form>
+        </div>
+    </main>
 </body>
 
 </html>

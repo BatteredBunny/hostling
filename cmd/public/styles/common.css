@@ -331,3 +331,11 @@ input[type="submit"] {
         gap: 10px;
     }
 }
+
+.social-login {
+    background-color: var(--menu-bg-color);
+    padding: 10px;
+
+    border-radius: 8px;
+    border: 1px solid var(--menu-border-color);
+}

@@ -81,3 +81,22 @@ function confirmDeleteUser(id) {
 }
 
 window.confirmDeleteUser = confirmDeleteUser;
+
+function giveInvite(id) {
+    const formData  = new FormData();
+    formData.append('id', id);
+
+    fetch('/api/admin/give_invite_code', {
+        method: 'POST',
+        body: formData,
+    }).then(response => {
+        if (response.ok) {
+            alert('An invite code has been given to the user.');
+            window.location.reload();
+        } else {
+            alert('Failed to give invite code to user.');
+        }
+    });
+}
+
+window.giveInvite = giveInvite;

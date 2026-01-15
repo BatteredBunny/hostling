@@ -339,3 +339,31 @@ input[type="submit"] {
     border-radius: 8px;
     border: 1px solid var(--menu-border-color);
 }
+
+input {
+    padding: 0.6rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--menu-border-color);
+    background-color: var(--menu-bg-color);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: inherit;
+    transition: all 0.2s ease;
+
+    &::placeholder {
+        color: var(--text-color);
+        opacity: 0.5;
+    }
+
+    &:hover {
+        border-color: var(--text-color);
+        background-color: var(--background-color);
+    }
+
+    &:focus {
+        outline: none;
+        border-color: var(--link-color);
+        background-color: var(--background-color);
+        box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.1);
+    }
+}

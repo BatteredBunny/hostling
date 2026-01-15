@@ -35,7 +35,7 @@ let
     '';
 
     installPhase = ''
-      cp -r ../public/dist/* $out
+      cp -r ../public/dist $out
     '';
   };
 in

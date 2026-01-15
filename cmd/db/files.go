@@ -64,9 +64,12 @@ func (db *Database) getFileViews(fileID uint) (count int64, err error) {
 
 // Deletes file entry from database
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
-	return db.Model(&Files{}).
-		Where(&Files{FileName: fileName, UploaderID: accountID}).
-		Delete(&Files{}).Error
+	var file Files
+	if err = db.Where("file_name = ? AND uploader_id = ?", fileName, accountID).First(&file).Error; err != nil {
+		return
+	}
+
+	return db.Select("Tags").Delete(&file).Error
 }
 
 type CreateFileEntryInput struct {
@@ -241,7 +244,6 @@ func (db *Database) GetFilesPaginatedFromAccount(
 
 	return
 }
-
 
 func (db *Database) ToggleFilePublic(fileName string, accountID uint) (newPublicStatus bool, err error) {
 	var file Files

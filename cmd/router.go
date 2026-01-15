@@ -93,6 +93,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	accountAPI.GET("/files/stats", app.fileStatsAPI)
 
 	// Modify individual files
+	// TODO: make them use ID instead of file name
 	accountAPI.DELETE("/file", app.deleteFileAPI)
 	accountAPI.POST("/file/public", app.toggleFilePublicAPI)
 	accountAPI.POST("/file/tag", app.addTagAPI)

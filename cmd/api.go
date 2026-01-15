@@ -202,6 +202,14 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 
 	tags, tags_exists := c.GetPostFormArray("tag")
 
+	for _, tag := range tags {
+		if len(tag) > db.TagMaxLength {
+			c.String(http.StatusBadRequest, db.ErrTagTooLong.Error())
+			c.Abort()
+			return
+		}
+	}
+
 	date, exists := c.GetPostForm("expiry_date")
 	if exists {
 		expiryDate, _ = time.Parse("2006-01-02", date)
@@ -315,6 +323,12 @@ func (app *Application) addTagAPI(c *gin.Context) {
 	)
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
 		c.String(http.StatusBadRequest, err.Error())
+		c.Abort()
+		return
+	}
+
+	if len(input.Tag) > db.TagMaxLength {
+		c.String(http.StatusBadRequest, db.ErrTagTooLong.Error())
 		c.Abort()
 		return
 	}

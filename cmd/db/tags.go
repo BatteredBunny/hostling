@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
@@ -9,9 +10,18 @@ type Tag struct {
 	Name string `gorm:"primaryKey"`
 }
 
+const TagMaxLength = 25
+
+var ErrTagTooLong = errors.New("Tag too long")
+
 func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {
 	var file Files
 	if err = db.Where("file_name = ? AND uploader_id = ?", fileName, accountID).First(&file).Error; err != nil {
+		return
+	}
+
+	if len(tagName) > TagMaxLength {
+		err = ErrTagTooLong
 		return
 	}
 

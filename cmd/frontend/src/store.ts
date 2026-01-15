@@ -11,6 +11,7 @@ export const [loadingText, setLoadingText] = createSignal('');
 // Sort state
 export const [sortField, setSortField] = createSignal<SortField>('created_at');
 export const [sortDesc, setSortDesc] = createSignal(true);
+export const [tagFilter, setTagFilter] = createSignal<string | null>(null);
 
 // Stats state
 export const [statsCount, setStatsCount] = createSignal(0);

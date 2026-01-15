@@ -504,6 +504,7 @@ type FilesApiInput struct {
 	Skip uint   `form:"skip,default=0"`          // Used for pagination
 	Sort string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
 	Desc bool   `form:"desc,default=true"`       // true for descending, false for ascending
+	Tag  string `form:"tag"`                     // optional tag filter
 }
 
 type FilesApiOutput struct {
@@ -548,7 +549,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 	var limit uint = 8
 
 	var output FilesApiOutput
-	output.Files, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc)
+	output.Files, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc, input.Tag)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)

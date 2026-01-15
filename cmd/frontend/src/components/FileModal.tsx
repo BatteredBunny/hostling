@@ -6,6 +6,7 @@ import {
   closeModal,
   updateFileInList,
   removeFileFromList,
+  tagFilter,
 } from '../store';
 import {
   mimeIsImage,
@@ -20,6 +21,7 @@ import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag } from '../
 import { loadStats } from './FileStats';
 import { Icon } from './Icon';
 import { Tag } from './Tag';
+import { loadFiles } from './FileGrid';
 
 export function FileModal() {
   const [tagInput, setTagInput] = createSignal('');
@@ -93,6 +95,10 @@ export function FileModal() {
         Tags: newTags.map((name, i) => ({ ID: i, Name: name })),
       });
       loadStats();
+
+      if (tagFilter() === tagName) {
+        loadFiles(0);
+      }
     } else {
       alert('Failed to remove tag');
     }

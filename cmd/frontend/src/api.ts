@@ -5,10 +5,11 @@ const FILES_PER_PAGE = 8;
 export async function fetchFiles(
   skip: number,
   sort: SortField,
-  desc: boolean
+  desc: boolean,
+  tagFilter?: string | null
 ): Promise<FilesResponse> {
   const response = await fetch(
-    `/api/account/files?skip=${skip}&sort=${sort}&desc=${desc}`,
+    `/api/account/files?skip=${skip}&sort=${sort}&desc=${desc}&tag=${tagFilter ?? ''}`,
     { method: 'GET' }
   );
 

@@ -16,6 +16,7 @@ import {
   sortDesc,
   setSortDesc,
   removeFileFromList,
+  tagFilter,
 } from '../store';
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
@@ -149,7 +150,7 @@ export function FileGrid() {
   );
 }
 
-async function loadFiles(skip: number) {
+export async function loadFiles(skip: number) {
   if (isLoading()) return;
 
   setIsLoading(true);
@@ -159,7 +160,7 @@ async function loadFiles(skip: number) {
   }
 
   try {
-    const data = await fetchFiles(skip, sortField(), sortDesc());
+    const data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter());
     setTotalFiles(data.count || 0);
     setFiles(data.files || []);
 
@@ -174,5 +175,3 @@ async function loadFiles(skip: number) {
     setIsLoading(false);
   }
 }
-
-export { loadFiles };

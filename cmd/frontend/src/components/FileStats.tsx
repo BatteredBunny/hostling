@@ -1,9 +1,10 @@
 import { For, onMount } from 'solid-js';
 import './FileStats.css';
-import { statsCount, statsSizeTotal, statsTags, setStatsCount, setStatsSizeTotal, setStatsTags } from '../store';
+import { statsCount, statsSizeTotal, statsTags, setStatsCount, setStatsSizeTotal, setStatsTags, tagFilter, setTagFilter, setCurrentPage } from '../store';
 import { fetchFileStats } from '../api';
 import { humanizeBytes } from '../utils';
 import { Tag } from './Tag';
+import { loadFiles } from './FileGrid';
 
 export function FileStats() {
   onMount(async () => {
@@ -21,7 +22,17 @@ export function FileStats() {
       <div>
         <h3>Tags</h3>
         <div id="files-stats-tags">
-          <For each={statsTags()}>{(tag) => <Tag name={tag} />}</For>
+          <For each={statsTags()}>{(tag) =>
+            <Tag
+              name={tag}
+              onClicked={() => {
+                setTagFilter(tagFilter() === tag ? null : tag);
+                setCurrentPage(0);
+                loadFiles(0);
+              }}
+              selected={tagFilter() === tag}
+            />
+          }</For>
         </div>
       </div>
     </>

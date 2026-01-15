@@ -204,20 +204,34 @@ func (db *Database) DeleteExpiredFiles() (err error) {
 		Delete(&Files{}).Error
 }
 
-func (db *Database) GetFilesPaginatedFromAccount(accountID, skip, limit uint, sort string, desc bool) (files []Files, err error) {
-	if err = db.Model(&Files{}).
-		Where("uploader_id = ?", accountID).
-		Where("expiry_date IS NULL OR expiry_date > ?", time.Now()).
+func (db *Database) GetFilesPaginatedFromAccount(
+	accountID, skip, limit uint,
+	sort string,
+	desc bool,
+	tag string, // Tag to filter by
+) (files []Files, err error) {
+	query := db.Model(&Files{}).
+		Where("files.uploader_id = ?", accountID).
+		Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
+
+	// Add tag filter if provided
+	if tag != "" {
+		query = query.Joins("JOIN file_tags ON file_tags.files_id = files.id").
+			Where("file_tags.tag_name = ?", tag)
+	}
+
+	if err = query.
 		Offset(int(skip)).
 		Limit(int(limit)).
 		Preload("Views").
 		Preload("Tags").
 		Joins("LEFT JOIN file_views ON file_views.files_id = files.id").
-		Select("files.*, COUNT(file_views.id) AS views").
-		Group("files.id").Order(clause.OrderByColumn{
-		Column: clause.Column{Name: sort},
-		Desc:   desc,
-	}).Find(&files).Error; err != nil {
+		Select("files.*").
+		Group("files.id").
+		Order(clause.OrderByColumn{
+			Column: clause.Column{Table: "files", Name: sort},
+			Desc:   desc,
+		}).Find(&files).Error; err != nil {
 		return
 	}
 
@@ -227,6 +241,7 @@ func (db *Database) GetFilesPaginatedFromAccount(accountID, skip, limit uint, so
 
 	return
 }
+
 
 func (db *Database) ToggleFilePublic(fileName string, accountID uint) (newPublicStatus bool, err error) {
 	var file Files

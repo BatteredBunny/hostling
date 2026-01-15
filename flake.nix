@@ -65,6 +65,8 @@
               go
               wire
               sqlite
+              pnpm_10
+              nodejs
 
               # hot reloading during development
               # air -- -c examples/example_local_sqlite.toml

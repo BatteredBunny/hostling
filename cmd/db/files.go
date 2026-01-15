@@ -211,6 +211,7 @@ func (db *Database) GetFilesPaginatedFromAccount(accountID, skip, limit uint, so
 		Offset(int(skip)).
 		Limit(int(limit)).
 		Preload("Views").
+		Preload("Tags").
 		Joins("LEFT JOIN file_views ON file_views.files_id = files.id").
 		Select("files.*, COUNT(file_views.id) AS views").
 		Group("files.id").Order(clause.OrderByColumn{

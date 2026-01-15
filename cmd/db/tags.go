@@ -1,6 +1,9 @@
 package db
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type Tag struct {
 	Name string `gorm:"primaryKey"`
@@ -12,7 +15,7 @@ func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint
 		return
 	}
 
-	tag := Tag{Name: tagName}
+	tag := Tag{Name: strings.ToLower(tagName)}
 
 	err = db.Model(&file).Association("Tags").Append(&tag)
 
@@ -25,7 +28,7 @@ func (db *Database) FileHasTag(fileName string, tagName string, accountID uint) 
 		return
 	}
 
-	result := db.Model(&file).Where("name = ?", tagName).Association("Tags")
+	result := db.Model(&file).Where("name = ?", strings.ToLower(tagName)).Association("Tags")
 	if err = result.Error; err != nil {
 		return
 	}
@@ -41,7 +44,7 @@ func (db *Database) RemoveTagFromFile(fileName string, tagName string, accountID
 		return
 	}
 
-	err = db.Model(&file).Association("Tags").Delete(&Tag{Name: tagName})
+	err = db.Model(&file).Association("Tags").Delete(&Tag{Name: strings.ToLower(tagName)})
 
 	return
 }

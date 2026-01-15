@@ -10,3 +10,5 @@ hostling.db
 .env
 .nixos-test-history
 tmp
+cmd/frontend/node_modules/
+cmd/public/dist/

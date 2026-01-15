@@ -5,6 +5,7 @@
     {{ template "header.gohtml" . }}
     <link rel="stylesheet" href="/public/styles/common.css">
     <link rel="stylesheet" href="/public/styles/user.css">
+    <link rel="stylesheet" href="/public/dist/fileLibrary.css">
     {{ template "meta-title.gohtml" "User" }}
 </head>
 
@@ -44,176 +45,7 @@
             </setting-group>
 
             <setting-group id="files">
-                <div class="setting-group-header">
-                    <files-top-row>
-                        <h2>Files</h2>
-                        <select id="sort-dropdown" onchange="changeSorting()">
-                            <option value="created_at:desc">Newest First</option>
-                            <option value="created_at:asc">Oldest First</option>
-                            <option value="views:desc">Most Views</option>
-                            <option value="views:asc">Least Views</option>
-                            <option value="file_size:desc">Largest First</option>
-                            <option value="file_size:asc">Smallest First</option>
-                        </select>
-                    </files-top-row>
-                </div>
-
-                <div class="setting-group-body">
-                    <p id="files-stats"></p>
-                    <div class="file-grid">
-                        <p id="file-grid-loading-text"></p>
-                    </div>
-
-                    <div id="file-grid-loading-overlay">
-                        <div class="spinner"></div>
-                    </div>
-
-                    <div id="pagination-controls" style="display: none;">
-                        <button id="prev-page-btn" class="pagination-button" onclick="prevPage()">
-                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                <use href="/public/assets/lucide-sprite.svg#chevron-left" />
-                            </svg>
-                            <span>Previous</span>
-                        </button>
-                        <span id="page-info"></span>
-                        <button id="next-page-btn" class="pagination-button" onclick="nextPage()">
-                            <span>Next</span>
-                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                <use href="/public/assets/lucide-sprite.svg#chevron-right" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <template id="file-entry-template">
-                        <div class="file-entry">
-                            <div class="file-preview" onclick="showModal(this)">
-                                <div class="file-thumbnail">
-                                    <img class="preview-image" alt="Uploaded image" style="display: none;">
-
-                                    <video class="preview-video" alt="Uploaded video" style="display: none;"></video>
-
-                                    <div class="preview-audio file-icon" style="display: none;">
-                                        <svg class="lucide-icon" viewBox="0 0 24 24">
-                                            <use href="/public/assets/lucide-sprite.svg#music" />
-                                        </svg>
-                                    </div>
-
-                                    <div class="preview-generic file-icon" style="display: none;">
-                                        <svg class="lucide-icon" viewBox="0 0 24 24">
-                                            <use href="/public/assets/lucide-sprite.svg#file" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="file-name"></div>
-                            </div>
-
-                            <div class="file-info">
-                                <div class="expires-info" style="display: none;">
-                                    <svg class="lucide-icon" viewBox="0 0 24 24">
-                                        <use href="/public/assets/lucide-sprite.svg#trash-2" />
-                                    </svg>
-                                    <span class="expiry-text"></span>
-                                </div>
-
-                                <div class="views">
-                                    <svg class="lucide-icon" viewBox="0 0 24 24">
-                                        <use href="/public/assets/lucide-sprite.svg#eye" />
-                                    </svg>
-                                    <span class="views-text"></span>
-                                </div>
-
-                                <div class="visbility-status">
-                                    <svg class="lucide-icon" viewBox="0 0 24 24">
-                                        <use class="visibility-icon" />
-                                    </svg>
-                                    <span class="visibility-text"></span>
-                                </div>
-                            </div>
-
-                            <button class="delete-button-form delete-button"
-                                onclick="deleteFileGrid(this)">Delete</button>
-                        </div>
-                    </template>
-
-                    <div id="file-modal" class="file-modal-hidden">
-                        <div class="file-modal-window">
-                            <div class="file-modal-titlebar">
-                                <a id="file-modal-filename-url" target="_blank" rel="noopener noreferrer">
-                                    <span id="file-modal-filename">File</span>
-                                </a>
-                                <button class="file-modal-close" onclick="closeModal()">
-                                    <svg class="lucide-icon" viewBox="0 0 24 24">
-                                        <use href="/public/assets/lucide-sprite.svg#x" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div class="file-modal-contents">
-                                <div class="file-big-preview">
-                                    <img id="file-preview-image" alt="Uploaded image" />
-                                    <video id="file-preview-video" alt="Uploaded video" controls></video>
-                                    <audio id="file-preview-audio" alt="Uploaded audio" controls></audio>
-
-                                    <a id="file-preview-generic">
-                                        <div class="file-icon">
-                                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                                <use href="/public/assets/lucide-sprite.svg#file" />
-                                            </svg>
-                                        </div>
-                                    </a>
-                                </div>
-
-                                <div class="file-modal-info">
-                                    <div class="file-properties">
-                                        <div class="original-file-name">
-                                            <code id="file-modal-original-filename"></code>
-                                        </div>
-                                        <div class="views">
-                                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                                <use href="/public/assets/lucide-sprite.svg#eye" />
-                                            </svg>
-                                            <span id="file-modal-views"></span>
-                                        </div>
-
-                                        <div id="file-modal-filesize-wrapper" class="file-size">
-                                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                                <use href="/public/assets/lucide-sprite.svg#hard-drive" />
-                                            </svg>
-                                            <span id="file-modal-filesize"></span>
-                                        </div>
-
-                                        <div id="file-modal-createdat-wrapper">
-                                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                                <use href="/public/assets/lucide-sprite.svg#clock" />
-                                            </svg>
-                                            <span id="file-modal-createdat"></span>
-                                        </div>
-
-                                        <div id="file-modal-expirydate-wrapper" class="expires-info">
-                                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                                <use href="/public/assets/lucide-sprite.svg#trash-2" />
-                                            </svg>
-                                            <span id="file-modal-expirydate"></span>
-                                        </div>
-
-                                        <div class="visbility-status">
-                                            <svg class="lucide-icon" viewBox="0 0 24 24">
-                                                <use id="file-modal-visibility-icon" />
-                                            </svg>
-                                            <span id="file-modal-visibility"></span>
-                                        </div>
-                                    </div>
-
-                                    <div class="file-actions">
-                                        <button class="toggle-visibility-button create-button"
-                                            id="file-modal-toggle-public-button"></button>
-                                        <button class="delete-button" id="file-modal-delete-button">Delete</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div id="file-library"></div>
             </setting-group>
 
             <setting-group id="upload-tokens">
@@ -319,10 +151,7 @@
 
     <footer>
         <script type="module" src="/public/js/deleteButtonConfirm.js"></script>
-        <script type="module" src="/public/js/fileRenderer.js"></script>
-        <script type="module" src="/public/js/fileModal.js"></script>
-        <script type="module" src="/public/js/fileGrid.js"></script>
-        <script type="module" src="/public/js/fileStats.js"></script>
+        <script type="module" src="/public/dist/fileLibrary.js"></script>
     </footer>
 </body>
 

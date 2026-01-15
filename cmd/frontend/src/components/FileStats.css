@@ -1,0 +1,5 @@
+#files-stats-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}

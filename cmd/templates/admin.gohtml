@@ -115,31 +115,11 @@
 
                             <div class="bottom-row">
                                 {{ if not .You }}
-                                <form action="/api/admin/user" method="DELETE" enctype="multipart/form-data">
-                                    <input type="text" name="id" value="{{ .ID }}" hidden>
-                                    <button class="delete-button" type="submit"
-                                        data-confirm="Are you sure you want to delete this user? This action cannot be undone and all their data will be permanently deleted.">Delete
-                                        user</button>
-                                </form>
+                                <button class="delete-button" onclick="confirmDeleteUser('{{ .ID }}')">Delete user</button>
                                 {{ end }}
-                                <form action="/api/admin/files" method="DELETE" enctype="multipart/form-data">
-                                    <input type="text" name="id" value="{{ .ID }}" hidden>
-                                    <button class="delete-button" type="submit"
-                                        data-confirm="Are you sure you want to delete all files for this user?">Delete
-                                        files</button>
-                                </form>
-                                <form action="/api/admin/sessions" method="DELETE" enctype="multipart/form-data">
-                                    <input type="text" name="id" value="{{ .ID }}" hidden>
-                                    <button class="delete-button" type="submit"
-                                        data-confirm="Are you sure you want to delete all sessions for this user? They will be logged out.">Delete
-                                        sessions</button>
-                                </form>
-                                <form action="/api/admin/upload_tokens" method="DELETE" enctype="multipart/form-data">
-                                    <input type="text" name="id" value="{{ .ID }}" hidden>
-                                    <button class="delete-button" type="submit"
-                                        data-confirm="Are you sure you want to delete all upload tokens for this user?">Delete
-                                        upload tokens</button>
-                                </form>
+                                <button class="delete-button" onclick="confirmDeleteFiles('{{ .ID }}')">Delete files</button>
+                                <button class="delete-button" onclick="confirmDeleteSessions('{{ .ID }}')">Delete sessions</button>
+                                <button class="delete-button" onclick="confirmDeleteUploadTokens('{{ .ID }}')">Delete upload tokens</button>
                                 <form action="/api/admin/give_invite_code" method="POST" enctype="multipart/form-data">
                                     <input type="text" name="id" value="{{ .ID }}" hidden>
                                     <button class="create-button" type="submit">Give invite token</button>
@@ -153,7 +133,9 @@
         </div>
     </main>
 
-    <script src="/public/js/deleteButtonConfirm.js"></script>
+    <footer>
+        <script type="module" src="/public/js/admin.js"></script>
+    </footer>
 </body>
 
 </html>

@@ -1,21 +1,17 @@
 package db
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"errors"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type Files struct {
 	ID        uint `gorm:"primaryKey" json:"-"`
 	CreatedAt time.Time
-	UpdatedAt time.Time      `json:"-"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	UpdatedAt time.Time `json:"-"`
 
 	FileName string // Newly generated file name
 
@@ -36,40 +32,11 @@ type Files struct {
 	Tags []Tag `gorm:"many2many:file_tags;"`
 }
 
-type FileViews struct {
-	gorm.Model
-
-	// Each IP counts once as a view
-	IpHash string `gorm:"index:,unique,composite:hash_collision"`
-
-	FilesID uint `gorm:"index:,unique,composite:hash_collision"`
-}
-
-// TODO: Doesn't work
-func (f *Files) AfterDelete(db *gorm.DB) (err error) {
-	err = db.Model(&FileViews{}).
-		Where("files_id = ?", f.ID).
-		Delete(&FileViews{}).Error
-
-	return
-}
-
-func (db *Database) getFileViews(fileID uint) (count int64, err error) {
-	err = db.Model(&FileViews{}).
-		Where(&FileViews{FilesID: fileID}).
-		Count(&count).Error
-
-	return
-}
-
 // Deletes file entry from database
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
-	var file Files
-	if err = db.Where("file_name = ? AND uploader_id = ?", fileName, accountID).First(&file).Error; err != nil {
-		return
-	}
-
-	return db.Select("Tags", "Views").Delete(&file).Error
+	return db.Model(&Files{}).
+		Where(&Files{FileName: fileName, UploaderID: accountID}).
+		Delete(&Files{}).Error
 }
 
 type CreateFileEntryInput struct {
@@ -170,27 +137,6 @@ func (db *Database) GetFileByName(fileName string) (file Files, err error) {
 		First(&file).Error
 
 	return
-}
-
-func (db *Database) BumpFileViews(fileName string, ip string) (err error) {
-	h := sha1.New()
-	h.Write([]byte(ip))
-	ipHash := hex.EncodeToString(h.Sum(nil))
-
-	var fileID uint
-	if err = db.Model(&Files{}).
-		Where(&Files{FileName: fileName}).
-		Select("id").
-		Scan(&fileID).Error; err != nil {
-		return
-	}
-
-	return db.Model(&FileViews{}).
-		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&FileViews{
-			IpHash:  ipHash,
-			FilesID: fileID,
-		}).Error
 }
 
 func (db *Database) FindExpiredFiles() (files []Files, err error) {

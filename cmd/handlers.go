@@ -214,6 +214,20 @@ func (app *Application) userPage(c *gin.Context) {
 	}
 }
 
+type PageProvider struct {
+	Name string
+	Icon string // lucide-icon name, should probably be replaced with simpleicons.org when supporting more login platforms
+}
+
+func ProviderToIcon(provider string) string {
+	switch provider {
+	case "github":
+		return "github"
+	default:
+		return "key-square"
+	}
+}
+
 func (app *Application) loginPage(c *gin.Context) {
 	_, _, loggedIn, err := app.validateAuthCookie(c)
 	if errors.Is(err, ErrInvalidAuthCookie) {
@@ -223,9 +237,12 @@ func (app *Application) loginPage(c *gin.Context) {
 		return
 	}
 
-	var providers []string
+	var providers []PageProvider
 	for _, provider := range goth.GetProviders() {
-		providers = append(providers, provider.Name())
+		providers = append(providers, PageProvider{
+			Name: provider.Name(),
+			Icon: ProviderToIcon(provider.Name()),
+		})
 	}
 
 	if loggedIn {

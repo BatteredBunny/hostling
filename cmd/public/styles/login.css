@@ -1,0 +1,15 @@
+.lucide-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.provider a {
+    svg {
+        vertical-align: middle;
+        margin-right: 8px;
+    }
+
+    span {
+        vertical-align: middle;
+    }
+}

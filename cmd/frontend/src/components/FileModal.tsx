@@ -217,7 +217,7 @@ export function FileModal() {
                     </div>
                   </Show>
 
-                  <div class="visbility-status">
+                  <div class="visibility-status" title={f().Public ? 'This file can be viewed by anyone with the link.' : 'This file can only be viewed by you.'}>
                     <Icon name={f().Public ? 'lock-open' : 'lock'} />
                     <span id="file-modal-visibility">{f().Public ? 'Public' : 'Private'}</span>
                   </div>

@@ -84,7 +84,7 @@ export function FileEntry(props: FileEntryProps) {
           <span class="views-text">{viewsText()}</span>
         </div>
 
-        <div class="visbility-status">
+        <div class="visibility-status">
           <Icon name={file().Public ? 'lock-open' : 'lock'} />
           <span class="visibility-text">{file().Public ? 'Public' : 'Private'}</span>
         </div>

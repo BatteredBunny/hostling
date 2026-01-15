@@ -69,7 +69,7 @@ func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error)
 		return
 	}
 
-	return db.Select("Tags").Delete(&file).Error
+	return db.Select("Tags", "Views").Delete(&file).Error
 }
 
 type CreateFileEntryInput struct {

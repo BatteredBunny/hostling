@@ -41,6 +41,13 @@ func (app *Application) CleanUpJob() {
 		log.Err(err).Msg("Failed to delete expired invite codes")
 	}
 
+	log.Info().Msg("Starting clean up of orphaned tags")
+	if count, err := app.db.CleanupOrphanedTags(); err != nil {
+		log.Err(err).Msg("Failed to clean up orphaned tags")
+	} else {
+		log.Info().Msgf("Cleaned up %d orphaned tags", count)
+	}
+
 	files, err := app.db.FindExpiredFiles()
 	if err != nil {
 		log.Err(err).Msg("Failed to find expired files")
@@ -62,12 +69,5 @@ func (app *Application) CleanUpJob() {
 	if err = app.db.DeleteExpiredFiles(); err != nil {
 		log.Err(err).Msg("Failed to delete file entries in database")
 		return
-	}
-
-	log.Info().Msg("Starting clean up of orphaned tags")
-	if count, err := app.db.CleanupOrphanedTags(); err != nil {
-		log.Err(err).Msg("Failed to clean up orphaned tags")
-	} else {
-		log.Info().Msgf("Cleaned up %d orphaned tags", count)
 	}
 }

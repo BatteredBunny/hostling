@@ -17,6 +17,7 @@ import {
   setSortDesc,
   removeFileFromList,
   tagFilter,
+  setTagFilter,
 } from '../store';
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
@@ -160,7 +161,15 @@ export async function loadFiles(skip: number) {
   }
 
   try {
-    const data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter());
+    let data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter());
+
+    // Tags can only be filtered if there are files with that tag
+    // If it returns nothing it most likely means the tag was removed recently
+    if (data.files.length === 0 && tagFilter()) {
+      setTagFilter(null);
+      data = await fetchFiles(skip, sortField(), sortDesc(), null);
+    }
+
     setTotalFiles(data.count || 0);
     setFiles(data.files || []);
 

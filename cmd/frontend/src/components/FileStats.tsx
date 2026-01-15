@@ -1,4 +1,4 @@
-import { For, onMount } from 'solid-js';
+import { For, onMount, Show } from 'solid-js';
 import './FileStats.css';
 import { statsCount, statsSizeTotal, statsTags, setStatsCount, setStatsSizeTotal, setStatsTags, tagFilter, setTagFilter, setCurrentPage } from '../store';
 import { fetchFileStats } from '../api';
@@ -19,22 +19,24 @@ export function FileStats() {
           {statsCount() === 1 ? '1 file' : `${statsCount()} files`} • {humanizeBytes(statsSizeTotal())}
         </p>
       </div>
-      <div>
-        <h3>Tags</h3>
-        <div id="files-stats-tags">
-          <For each={statsTags()}>{(tag) =>
-            <Tag
-              name={tag}
-              onClicked={() => {
-                setTagFilter(tagFilter() === tag ? null : tag);
-                setCurrentPage(0);
-                loadFiles(0);
-              }}
-              selected={tagFilter() === tag}
-            />
-          }</For>
+      <Show when={statsTags().length > 0}>
+        <div>
+          <h3>Tags</h3>
+          <div id="files-stats-tags">
+            <For each={statsTags()}>{(tag) =>
+              <Tag
+                name={tag}
+                onClicked={() => {
+                  setTagFilter(tagFilter() === tag ? null : tag);
+                  setCurrentPage(0);
+                  loadFiles(0);
+                }}
+                selected={tagFilter() === tag}
+              />
+            }</For>
+          </div>
         </div>
-      </div>
+      </Show>
     </>
   );
 }

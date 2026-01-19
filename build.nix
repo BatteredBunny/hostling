@@ -14,7 +14,7 @@ let
     pname = "hostling-frontend";
     inherit version;
 
-    src = ./cmd/frontend;
+    src = ./frontend;
 
     nativeBuildInputs = [
       nodejs
@@ -25,7 +25,7 @@ let
     pnpmDeps = fetchPnpmDeps {
       pname = "hostling-frontend";
       inherit version pnpm;
-      src = ./cmd/frontend;
+      src = ./frontend;
       fetcherVersion = 3;
       hash = "sha256-eKImv6YgN8Ebl0ZWLTqbTpcYrwGvLPSNDapsJscPlr0=";
     };
@@ -48,7 +48,7 @@ buildGoModule {
   vendorHash = "sha256-sNQH/mKPEmeU1OVT7SadIyDGB9p57GpefYVMN804U8Y=";
 
   prePatch = ''
-    cp -r ${frontend} ./cmd/public/dist
+    cp -r ${frontend} ./public/dist
   '';
 
   ldflags = [

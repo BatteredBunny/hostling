@@ -1,9 +1,9 @@
-package cmd
+package internal
 
 import (
 	"net/http"
 
-	"github.com/BatteredBunny/hostling/cmd/db"
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"

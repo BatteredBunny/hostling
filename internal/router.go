@@ -1,10 +1,10 @@
-package cmd
+package internal
 
 import (
-	"embed"
 	"html/template"
 	"time"
 
+	embed "github.com/BatteredBunny/hostling"
 	"github.com/didip/tollbooth/v8"
 	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"
@@ -27,9 +27,6 @@ func setupRatelimiting(c Config) *limiter.Limiter {
 	return rateLimiter
 }
 
-//go:embed templates
-var TemplateFiles embed.FS
-
 func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *Application) {
 	app = (*Application)(uninitializedApp)
 	log.Info().Msg("Setting up router")
@@ -50,7 +47,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	app.Router.SetHTMLTemplate(template.Must(template.
 		New("templates").
 		Funcs(app.Router.FuncMap).
-		ParseFS(TemplateFiles, "templates/*.gohtml", "templates/components/*.gohtml"),
+		ParseFS(embed.TemplateFiles, "templates/*.gohtml", "templates/components/*.gohtml"),
 	))
 
 	app.Router.Use(
@@ -114,7 +111,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	adminAPI.POST("/give_invite_code", app.adminGiveInviteCode)
 
 	// Pages
-	app.Router.StaticFS("/public/", PublicFiles())
+	app.Router.StaticFS("/public/", embed.PublicFiles())
 
 	app.Router.GET("/login", app.loginPage)
 	app.Router.GET("/register", app.registerPage)

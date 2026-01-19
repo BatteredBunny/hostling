@@ -5,10 +5,9 @@ config.toml
 result
 .direnv
 hostling-data
-hostling
 hostling.db
 .env
 .nixos-test-history
 tmp
-cmd/frontend/node_modules/
-cmd/public/dist/
+frontend/node_modules/
+public/dist/

@@ -1,16 +1,12 @@
-package cmd
+package internal
 
 import (
-	"embed"
 	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
-	"net/http"
 	"os"
 
-	"github.com/BatteredBunny/hostling/cmd/db"
-	"github.com/BatteredBunny/hostling/cmd/tags"
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/BurntSushi/toml"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -23,24 +19,6 @@ import (
 )
 
 var ErrUnknownStorageMethod = errors.New("unknown file storage method")
-
-//go:embed public/*
-var publicFiles embed.FS
-
-func PublicFiles() http.FileSystem {
-	var files fs.FS = publicFiles
-
-	if tags.DevMode {
-		files = os.DirFS("cmd")
-	}
-
-	sub, err := fs.Sub(files, "public")
-	if err != nil {
-		panic(err)
-	}
-
-	return http.FS(sub)
-}
 
 func prepareStorage(c Config) (s3client *s3.S3) {
 	switch c.FileStorageMethod {

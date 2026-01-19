@@ -4,7 +4,7 @@
 //go:build !wireinject
 // +build !wireinject
 
-package cmd
+package internal
 
 // Injectors from container.go:
 

@@ -1,13 +1,13 @@
 FROM node:23-alpine AS frontend
 
-WORKDIR /app/cmd/frontend
+WORKDIR /app/frontend
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-COPY cmd/frontend/package.json cmd/frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-COPY cmd/frontend/ ./
+COPY frontend/ ./
 RUN pnpm run build
 
 FROM golang:1.25-alpine AS builder
@@ -20,7 +20,7 @@ RUN go mod download
 
 COPY . .
 
-COPY --from=frontend /app/cmd/public/dist ./cmd/public/dist
+COPY --from=frontend /app/public/dist ./public/dist
 
 RUN go build -o /app/hostling
 

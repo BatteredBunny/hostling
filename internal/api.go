@@ -1,4 +1,4 @@
-package cmd
+package internal
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/BatteredBunny/hostling/cmd/db"
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"

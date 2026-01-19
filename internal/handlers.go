@@ -1,4 +1,4 @@
-package cmd
+package internal
 
 import (
 	"errors"
@@ -11,7 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BatteredBunny/hostling/cmd/db"
+	embed "github.com/BatteredBunny/hostling"
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"
@@ -288,7 +289,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 	// Looks if file exists in public folder then redirects there
 	filePath := filepath.Join("public", path.Clean(c.Request.URL.Path))
-	if file, err := publicFiles.Open(filePath); err == nil {
+	if file, err := embed.PublicFiles().Open(filePath); err == nil {
 		file.Close()
 		c.Redirect(http.StatusPermanentRedirect, path.Join("public", path.Clean(c.Request.URL.Path)))
 		return

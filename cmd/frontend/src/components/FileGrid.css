@@ -72,7 +72,7 @@
             padding: 0.6rem 2.5rem 0.6rem 1rem;
             border-radius: 6px;
             border: 1px solid var(--menu-border-color);
-            background-color: var(--menu-bg-color);
+            background-color: var(--menu-bg-color-translucent);
             color: var(--text-color);
             cursor: pointer;
             transition: all 0.2s ease;
@@ -89,7 +89,7 @@
             }
 
             option {
-                background-color: var(--menu-bg-color);
+                background-color: var(--menu-bg-color-translucent);
                 color: var(--text-color);
             }
         }

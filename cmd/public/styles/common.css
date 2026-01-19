@@ -55,10 +55,12 @@ main {
 
     --button-border-color: light-dark(#cccccc, #404040);
 
-    --menu-bg-color: light-dark(rgba(240, 240, 240, 0.7), rgba(26, 26, 26, 0.7));
+    --menu-bg-color: light-dark(rgb(240, 240, 240), rgb(26, 26, 26));
+    --menu-bg-color-translucent: light-dark(rgba(240, 240, 240, 0.7), rgba(26, 26, 26, 0.7));
     --menu-border-color: light-dark(#cccccc, #404040);
 
-    --alternative-bg-color: light-dark(rgba(224, 224, 224, 0.7), rgba(38, 38, 38, 0.7));
+    --alternative-bg-color: light-dark(rgb(224, 224, 224), rgb(38, 38, 38));
+    --alternative-bg-color-translucent: light-dark(rgba(224, 224, 224, 0.7), rgba(38, 38, 38, 0.7));
     --alternative-text-color: light-dark(black, white);
 
     --warning-bg-color: light-dark(#ffcccc, #5a1f1f);
@@ -109,7 +111,7 @@ a {
 
 setting-group {
     border: 1px solid var(--menu-border-color);
-    background-color: var(--menu-bg-color);
+    background-color: var(--menu-bg-color-translucent);
     backdrop-filter: blur(10px);
     border-radius: 12px;
     padding: 0;
@@ -120,7 +122,7 @@ setting-group {
         margin: 0;
         padding: 16px 20px;
         border-bottom: 1px solid var(--menu-border-color);
-        background-color: var(--alternative-bg-color);
+        background-color: var(--alternative-bg-color-translucent);
 
         h2 {
             margin: 0;
@@ -142,7 +144,7 @@ setting-group {
 }
 
 code {
-    background-color: var(--alternative-bg-color);
+    background-color: var(--alternative-bg-color-translucent);
     color: var(--alternative-text-color);
     padding: 5px;
     border-radius: 5px;
@@ -203,7 +205,7 @@ input[type="submit"] {
     display: flex;
     position: relative;
     z-index: 1;
-    background-color: var(--menu-bg-color);
+    background-color: var(--menu-bg-color-translucent);
     backdrop-filter: blur(10px);
 
     .toolbar-brand {
@@ -232,12 +234,12 @@ input[type="submit"] {
 
         &:hover {
             text-decoration: none;
-            background-color: var(--alternative-bg-color);
+            background-color: var(--alternative-bg-color-translucent);
             color: var(--link-color);
         }
 
         &.active {
-            background-color: var(--alternative-bg-color);
+            background-color: var(--alternative-bg-color-translucent);
             color: var(--link-color);
         }
 
@@ -369,7 +371,7 @@ input[type="submit"] {
 }
 
 .social-login {
-    background-color: var(--menu-bg-color);
+    background-color: var(--menu-bg-color-translucent);
     padding: 10px;
 
     border-radius: 8px;
@@ -380,7 +382,7 @@ input {
     padding: 0.6rem 1rem;
     border-radius: 6px;
     border: 1px solid var(--menu-border-color);
-    background-color: var(--menu-bg-color);
+    background-color: var(--menu-bg-color-translucent);
     color: var(--text-color);
     font-family: inherit;
     font-size: inherit;

@@ -79,18 +79,18 @@
 
             &:hover {
                 border-color: var(--link-color);
-                background-color: var(--menu-bg-color);
+                background-color: var(--menu-bg-color-translucent);
             }
 
             &.drag-over {
                 border-color: var(--link-color);
-                background-color: var(--menu-bg-color);
+                background-color: var(--menu-bg-color-translucent);
                 border-style: solid;
             }
 
             &.file-selected {
                 border-color: var(--link-color);
-                background-color: var(--menu-bg-color);
+                background-color: var(--menu-bg-color-translucent);
             }
 
             .drop-content {

@@ -1,6 +1,6 @@
 import { For, onMount, Show } from 'solid-js';
 import './FileStats.css';
-import { statsCount, statsSizeTotal, statsTags, setStatsCount, setStatsSizeTotal, setStatsTags, tagFilter, setTagFilter, setCurrentPage } from '../store';
+import { statsCount, statsSizeTotal, statsTags, setStatsCount, setStatsSizeTotal, setStatsTags, tagFilter, setTagFilter, setFileFilter, setCurrentPage, fileFilter } from '../store';
 import { fetchFileStats } from '../api';
 import { humanizeBytes } from '../utils';
 import { Tag } from './Tag';
@@ -26,8 +26,13 @@ export function FileStats() {
             <For each={statsTags()}>{(tag) =>
               <Tag
                 name={tag}
+                enabled={fileFilter() !== 'untagged'}
                 onClicked={() => {
-                  setTagFilter(tagFilter() === tag ? null : tag);
+                  const newTag = tagFilter() === tag ? null : tag;
+                  setTagFilter(newTag);
+                  if (newTag) {
+                    setFileFilter(null); // Clear untagged filter when selecting a tag
+                  }
                   setCurrentPage(0);
                   loadFiles(0);
                 }}

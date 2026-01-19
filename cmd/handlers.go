@@ -518,10 +518,11 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 }
 
 type FilesApiInput struct {
-	Skip uint   `form:"skip,default=0"`          // Used for pagination
-	Sort string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
-	Desc bool   `form:"desc,default=true"`       // true for descending, false for ascending
-	Tag  string `form:"tag"`                     // optional tag filter
+	Skip   uint   `form:"skip,default=0"`          // Used for pagination
+	Sort   string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
+	Desc   bool   `form:"desc,default=true"`       // true for descending, false for ascending
+	Tag    string `form:"tag"`                     // optional tag filter
+	Filter string `form:"filter"`                  // "untagged" for files without tags
 }
 
 type FilesApiOutput struct {
@@ -552,6 +553,15 @@ func (app *Application) filesAPI(c *gin.Context) {
 		return
 	}
 
+	allowedFilters := []string{
+		"",
+		"untagged",
+	}
+	if !slices.Contains(allowedFilters, input.Filter) {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
 	allowedSorts := []string{
 		"created_at",
 		"views",
@@ -566,7 +576,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 	var limit uint = 8
 
 	var output FilesApiOutput
-	output.Files, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc, input.Tag)
+	output.Files, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc, input.Tag, input.Filter)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)

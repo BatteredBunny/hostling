@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 interface TagProps {
   name: string;
   selected?: boolean;
+  enabled?: boolean; // Disable selecting tag
   onRemove?: (name: string) => void;
   onClicked?: () => void;
 }
@@ -27,7 +28,8 @@ export function Tag(props: TagProps): JSX.Element {
   return (
     <span class="file-tag" style={{
       ...(props.selected ? selectedStyle : normalStyle),
-      "cursor": props.onClicked ? "pointer" : "default"
+      "cursor": props.onClicked ? "pointer" : "default",
+      "opacity": props.enabled === false ? "0.5" : "1"
     }} onClick={props.onClicked}>
       <Show when={props.onRemove} fallback={props.name}>
         <span class="file-modal-tag-text">{props.name}</span>

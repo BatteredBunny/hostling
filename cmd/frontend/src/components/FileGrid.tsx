@@ -18,6 +18,8 @@ import {
   removeFileFromList,
   tagFilter,
   setTagFilter,
+  fileFilter,
+  setFileFilter,
 } from '../store';
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
@@ -46,6 +48,21 @@ export function FileGrid() {
     const [field, order] = value.split(':') as [SortField, string];
     setSortField(field);
     setSortDesc(order === 'desc');
+    setCurrentPage(0);
+    loadFiles(0);
+  };
+
+  const handleFilterChange = (e: Event) => {
+    const value = (e.target as HTMLSelectElement).value;
+
+    if (value === 'all') {
+      setTagFilter(null);
+      setFileFilter(null);
+    } else if (value === 'untagged') {
+      setTagFilter(null);
+      setFileFilter('untagged');
+    }
+
     setCurrentPage(0);
     loadFiles(0);
   };
@@ -82,23 +99,38 @@ export function FileGrid() {
     }
   };
 
+  const currentFilterValue = () => {
+    if (fileFilter() === 'untagged') return 'untagged';
+    return 'all';
+  };
+
   return (
     <>
       <div class="setting-group-header">
         <files-top-row>
           <h2>Files</h2>
-          <select
-            id="sort-dropdown"
-            onChange={handleSortChange}
-            value={`${sortField()}:${sortDesc() ? 'desc' : 'asc'}`}
-          >
-            <option value="created_at:desc">Newest First</option>
-            <option value="created_at:asc">Oldest First</option>
-            <option value="views:desc">Most Views</option>
-            <option value="views:asc">Least Views</option>
-            <option value="file_size:desc">Largest First</option>
-            <option value="file_size:asc">Smallest First</option>
-          </select>
+          <div class="options">
+            <select
+              id="filter-dropdown"
+              onChange={handleFilterChange}
+              value={currentFilterValue()}
+            >
+              <option value="all">All Files</option>
+              <option value="untagged">Untagged</option>
+            </select>
+            <select
+              id="sort-dropdown"
+              onChange={handleSortChange}
+              value={`${sortField()}:${sortDesc() ? 'desc' : 'asc'}`}
+            >
+              <option value="created_at:desc">Newest First</option>
+              <option value="created_at:asc">Oldest First</option>
+              <option value="views:desc">Most Views</option>
+              <option value="views:asc">Least Views</option>
+              <option value="file_size:desc">Largest First</option>
+              <option value="file_size:asc">Smallest First</option>
+            </select>
+          </div>
         </files-top-row>
       </div>
 
@@ -161,13 +193,19 @@ export async function loadFiles(skip: number) {
   }
 
   try {
-    let data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter());
+    let data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter(), fileFilter());
 
     // Tags can only be filtered if there are files with that tag
     // If it returns nothing it most likely means the tag was removed recently
     if (data.files.length === 0 && tagFilter()) {
       setTagFilter(null);
-      data = await fetchFiles(skip, sortField(), sortDesc(), null);
+      data = await fetchFiles(skip, sortField(), sortDesc(), null, fileFilter());
+    }
+
+    // If untagged filter returns nothing, clear it
+    if (data.files.length === 0 && fileFilter() === 'untagged') {
+      setFileFilter(null);
+      data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter(), null);
     }
 
     setTotalFiles(data.count || 0);

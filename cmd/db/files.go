@@ -158,13 +158,17 @@ func (db *Database) GetFilesPaginatedFromAccount(
 	sort string,
 	desc bool,
 	tag string, // Tag to filter by
+	filter string,
 ) (files []Files, err error) {
 	query := db.Model(&Files{}).
 		Where("files.uploader_id = ?", accountID).
 		Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
 
-	// Add tag filter if provided
-	if tag != "" {
+	if filter == "untagged" {
+		// Filter for files without any tags
+		query = query.Where("files.id NOT IN (SELECT files_id FROM file_tags)")
+	} else if tag != "" {
+		// Filter for files with specific tag
 		query = query.Joins("JOIN file_tags ON file_tags.files_id = files.id").
 			Where("file_tags.tag_name = ?", tag)
 	}

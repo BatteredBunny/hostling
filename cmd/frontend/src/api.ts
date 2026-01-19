@@ -1,4 +1,4 @@
-import type { FilesResponse, FileStatsResponse, SortField, SortOrder } from './types';
+import type { FilesResponse, FileStatsResponse, SortField } from './types';
 
 const FILES_PER_PAGE = 8;
 
@@ -6,12 +6,18 @@ export async function fetchFiles(
   skip: number,
   sort: SortField,
   desc: boolean,
-  tagFilter?: string | null
+  tagFilter?: string | null,
+  fileFilter?: string | null
 ): Promise<FilesResponse> {
-  const response = await fetch(
-    `/api/account/files?skip=${skip}&sort=${sort}&desc=${desc}&tag=${tagFilter ?? ''}`,
-    { method: 'GET' }
-  );
+  const params = new URLSearchParams({
+    skip: skip.toString(),
+    sort,
+    desc: desc.toString(),
+    tag: tagFilter ?? '',
+    filter: fileFilter ?? '',
+  });
+
+  const response = await fetch(`/api/account/files?${params}`, { method: 'GET' });
 
   if (!response.ok) {
     throw new Error('Failed to fetch files');

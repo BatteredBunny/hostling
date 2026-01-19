@@ -9,7 +9,7 @@ Main page             | Mobile view             | File modal
 # Features
 - Easy social login via github
 - Account invite codes for enrolling new users
-- Image automatic deletion
+- Image automatic deletion, tagging, filtering, sorting
 - Seperate upload tokens for automation setups (e.g scripts)
 - Store data locally or on a S3/B2 bucket
 - Sqlite and postgresql support

@@ -1,4 +1,5 @@
 import { For, Show, onMount } from 'solid-js';
+import { Portal } from 'solid-js/web';
 import './FileGrid.css';
 import {
   files,
@@ -188,9 +189,11 @@ export function FileGrid() {
             </button>
           </div>
         </Show>
-
-        <FileModal />
       </div>
+
+      <Portal>
+        <FileModal />
+      </Portal>
     </>
   );
 }

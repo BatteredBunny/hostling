@@ -23,7 +23,38 @@ Have a look at the example configs in ``examples/``
 
 # Config reference
 
-TODO
+Configuration is done via a TOML file (default: `config.toml`). Use the `-c` flag to specify a different location.
+
+## Setting up social login
+
+These are required for using Github for social login
+
+* `GITHUB_CLIENT_ID`: GitHub OAuth application ID
+* `GITHUB_SECRET`: GitHub OAuth application secret
+
+## Config options
+
+* `data_folder`: Directory for local file storage. Only used when S3 is not configured.
+* `max_upload_size`: Maximum file upload size in bytes. Defaults to 100MB.
+* `database_type`: Database type: `"sqlite"` or `"postgresql"` |
+* `database_connection_url`: Database connection string. For SQLite: filename (e.g., `"hostling.db"`). For PostgreSQL: connection string (e.g., `"host=localhost port=5432 user=postgres * sslmode=disable"`) |
+* `port`: Port to run the HTTP server on (e.g., `"8080"`) |
+* `behind_reverse_proxy`: Set to `true` if running behind a reverse proxy (nginx, Caddy, etc.) |
+* `trusted_proxy`: Trusted proxy IP address. Used for rate limiting and IP detection. Required when hosting it from behind a reverse proxy.
+* `public_url`: Public URL of the service. Required for GitHub OAuth callbacks. Include protocol and domain (e.g., `"https://files.example.com"`) |
+* `branding`: Custom branding text displayed in the interface. Maximum 20 characters. Defaults to `"Hostling"`
+* `tagline`: Tagline for meta description and index page. Maximum 100 characters. Defaults to `"Simple file hosting service"`
+
+## Bucket storage setup
+
+The below options will go in the `[s3]` section
+
+* `access_key_id`: S3/B2 access key ID
+* `secret_access_key`: S3/B2 secret access key
+* `bucket`: S3/B2 bucket name
+* `region`: S3/B2 region (e.g., `"us-east-1"`)
+* `endpoint`: S3/B2 endpoint URL (e.g., `"https://s3.us-west-002.backblazeb2.com"`)
+* `cdn_domain`: CDN domain for serving files (e.g., `"https://cdn.example.com"`)
 
 # Setup
 ## Setup with nixos module

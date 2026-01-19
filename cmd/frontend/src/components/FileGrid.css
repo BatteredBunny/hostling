@@ -52,10 +52,12 @@
     }
 }
 
-files-top-row {
+.files-top-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
 
     h2 {
         margin: 0;
@@ -64,6 +66,7 @@ files-top-row {
     .options {
         display: flex;
         gap: 0.5rem;
+        flex-wrap: wrap;
 
         #filter-dropdown, #sort-dropdown {
             padding: 0.6rem 2.5rem 0.6rem 1rem;
@@ -89,6 +92,13 @@ files-top-row {
                 background-color: var(--menu-bg-color);
                 color: var(--text-color);
             }
+        }
+    }
+
+    @media (max-width: 640px) {
+        .options {
+            width: 100%;
+            justify-content: flex-start;
         }
     }
 }

@@ -107,7 +107,7 @@ export function FileGrid() {
   return (
     <>
       <div class="setting-group-header">
-        <files-top-row>
+        <div class="files-top-row">
           <h2>Files</h2>
           <div class="options">
             <select
@@ -131,7 +131,7 @@ export function FileGrid() {
               <option value="file_size:asc">Smallest First</option>
             </select>
           </div>
-        </files-top-row>
+        </div>
       </div>
 
       <div class="setting-group-body">

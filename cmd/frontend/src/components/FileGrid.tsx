@@ -61,6 +61,12 @@ export function FileGrid() {
     } else if (value === 'untagged') {
       setTagFilter(null);
       setFileFilter('untagged');
+    } else if (value === 'public') {
+      setTagFilter(null);
+      setFileFilter('public');
+    } else if (value === 'private') {
+      setTagFilter(null);
+      setFileFilter('private');
     }
 
     setCurrentPage(0);
@@ -93,6 +99,8 @@ export function FileGrid() {
         const newPage = currentPage() - 1;
         setCurrentPage(newPage);
         loadFiles(newPage * FILES_PER_PAGE);
+      } else if (tagFilter()) {
+        loadFiles(currentPage() * FILES_PER_PAGE);
       }
     } else {
       alert('Failed to delete file');
@@ -101,6 +109,8 @@ export function FileGrid() {
 
   const currentFilterValue = () => {
     if (fileFilter() === 'untagged') return 'untagged';
+    if (fileFilter() === 'public') return 'public';
+    if (fileFilter() === 'private') return 'private';
     return 'all';
   };
 
@@ -117,6 +127,8 @@ export function FileGrid() {
             >
               <option value="all">All Files</option>
               <option value="untagged">Untagged</option>
+              <option value="public">Public</option>
+              <option value="private">Private</option>
             </select>
             <select
               id="sort-dropdown"
@@ -202,19 +214,17 @@ export async function loadFiles(skip: number) {
       data = await fetchFiles(skip, sortField(), sortDesc(), null, fileFilter());
     }
 
-    // If untagged filter returns nothing, clear it
-    if (data.files.length === 0 && fileFilter() === 'untagged') {
-      setFileFilter(null);
-      data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter(), null);
-    }
-
     setTotalFiles(data.count || 0);
     setFiles(data.files || []);
 
     if (data.files && data.files.length > 0) {
       setLoadingText('');
     } else {
-      setLoadingText('No files uploaded yet.');
+      if (tagFilter() || fileFilter()) {
+        setLoadingText('No files found.');
+      } else {
+        setLoadingText('No files uploaded yet.');
+      }
     }
   } catch {
     setLoadingText('Failed to load files.');

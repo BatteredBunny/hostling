@@ -522,7 +522,7 @@ type FilesApiInput struct {
 	Sort   string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
 	Desc   bool   `form:"desc,default=true"`       // true for descending, false for ascending
 	Tag    string `form:"tag"`                     // optional tag filter
-	Filter string `form:"filter"`                  // "untagged" for files without tags
+	Filter string `form:"filter"`                  // "untagged" for files without tags, "public" for public files, "private" for private files
 }
 
 type FilesApiOutput struct {
@@ -556,6 +556,8 @@ func (app *Application) filesAPI(c *gin.Context) {
 	allowedFilters := []string{
 		"",
 		"untagged",
+		"public",
+		"private",
 	}
 	if !slices.Contains(allowedFilters, input.Filter) {
 		c.AbortWithStatus(http.StatusBadRequest)

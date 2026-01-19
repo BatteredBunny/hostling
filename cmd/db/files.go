@@ -167,6 +167,12 @@ func (db *Database) GetFilesPaginatedFromAccount(
 	if filter == "untagged" {
 		// Filter for files without any tags
 		query = query.Where("files.id NOT IN (SELECT files_id FROM file_tags)")
+	} else if filter == "public" {
+		// Filter for public files only
+		query = query.Where("files.public = ?", true)
+	} else if filter == "private" {
+		// Filter for private files only
+		query = query.Where("files.public = ?", false)
 	} else if tag != "" {
 		// Filter for files with specific tag
 		query = query.Joins("JOIN file_tags ON file_tags.files_id = files.id").

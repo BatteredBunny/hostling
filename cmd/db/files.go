@@ -34,7 +34,7 @@ type Files struct {
 
 // Deletes file entry from database
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
-	return db.Model(&Files{}).
+	return db.Select("Tags").
 		Where(&Files{FileName: fileName, UploaderID: accountID}).
 		Delete(&Files{}).Error
 }
@@ -73,7 +73,7 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) (err error) {
 
 // Only deletes database entry, actual file has to be deleted as well
 func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
-	return db.Model(&Files{}).
+	return db.Select("Tags").
 		Where(&Files{UploaderID: accountID}).
 		Delete(&Files{}).Error
 }
@@ -148,7 +148,7 @@ func (db *Database) FindExpiredFiles() (files []Files, err error) {
 }
 
 func (db *Database) DeleteExpiredFiles() (err error) {
-	return db.Model(&Files{}).
+	return db.Select("Tags").
 		Where("expiry_date is not null AND expiry_date < ?", time.Now()).
 		Delete(&Files{}).Error
 }

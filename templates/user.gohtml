@@ -29,6 +29,7 @@
                     </div>
                     {{ end }}
 
+                    {{ if .GithubEnabled }}
                     {{ if .LinkedWithGithub }}
                     <a href="https://github.com/{{ .GithubUsername }}" target="_blank" class="linked-account">
                         <svg class="lucide-icon" viewBox="0 0 24 24">
@@ -37,7 +38,21 @@
                         <span>{{ .GithubUsername }}</span>
                     </a>
                     {{ else }}
-                    <p><a href="/api/auth/link/github">Link with github</a></p>
+                    <p><a href="/api/auth/link/github">Link with GitHub</a></p>
+                    {{ end }}
+                    {{ end }}
+
+                    {{ if .OIDCEnabled }}
+                    {{ if .LinkedWithOIDC }}
+                    <div class="linked-account">
+                        <svg class="lucide-icon" viewBox="0 0 24 24">
+                            <use href="/public/assets/lucide-sprite.svg#key-round" />
+                        </svg>
+                        <span>{{ .OIDCUsername }}</span>
+                    </div>
+                    {{ else }}
+                    <p><a href="/api/auth/link/openid-connect">Link with OpenID Connect</a></p>
+                    {{ end }}
                     {{ end }}
                 </div>
             </setting-group>

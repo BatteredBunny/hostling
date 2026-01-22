@@ -19,6 +19,9 @@ type Accounts struct {
 	GithubID       uint
 	GithubUsername string
 
+	OIDCID       string `gorm:"column:oidc_id"`
+	OIDCUsername string `gorm:"column:oidc_username"`
+
 	InvitedBy uint // Account ID of the user who invited this account
 
 	AccountType string // Either "USER" or "ADMIN"
@@ -65,6 +68,31 @@ func (db *Database) LinkGithub(accountID uint, username string, rawGithubID stri
 		Updates(map[string]interface{}{
 			"github_username": username,
 			"github_id":       uint(githubID),
+		}).Error
+}
+
+func (db *Database) FindAccountByOIDCID(oidcID string) (account Accounts, err error) {
+	if err = db.Model(&Accounts{}).
+		Where(&Accounts{OIDCID: oidcID}).
+		First(&account).Error; err != nil {
+		return
+	}
+
+	return
+}
+
+func (db *Database) UpdateOIDCUsername(accountID uint, username string) (err error) {
+	return db.Model(&Accounts{}).
+		Where(&Accounts{ID: accountID}).
+		Update("oidc_username", username).Error
+}
+
+func (db *Database) LinkOIDC(accountID uint, username string, oidcID string) (err error) {
+	return db.Model(&Accounts{}).
+		Where(&Accounts{ID: accountID}).
+		Updates(map[string]interface{}{
+			"oidc_username": username,
+			"oidc_id":       oidcID,
 		}).Error
 }
 
@@ -188,3 +216,4 @@ func (db *Database) CreateAccount(accountType string, invitedBy uint) (account A
 
 	return
 }
+

@@ -49,7 +49,6 @@ in
         options = {
           port = lib.mkOption {
             type = lib.types.port;
-            apply = toString;
             default = 8872;
             description = "Port to run service on";
           };
@@ -224,7 +223,7 @@ in
     users.groups.hostling = { };
 
     networking.firewall = lib.mkIf cfg.openFirewall {
-      allowedTCPPorts = [ (builtins.fromJSON cfg.settings.port) ];
+      allowedTCPPorts = [ cfg.settings.port ];
     };
   };
 }

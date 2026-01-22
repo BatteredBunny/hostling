@@ -2,7 +2,7 @@ data_folder = "./data/"
 max_upload_size = 104857600
 database_type = "postgresql"
 database_connection_url = "host=localhost port=5432 user=postgres sslmode=disable"
-port = "8080"
+port = 8080
 behind_reverse_proxy = false
 trusted_proxy = ""
 branding = "S3 Example"

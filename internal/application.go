@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/didip/tollbooth/v8/limiter"
@@ -33,7 +34,7 @@ type Config struct {
 	MaxUploadSize         int64  `toml:"max_upload_size"`
 	DatabaseType          string `toml:"database_type"`
 	DatabaseConnectionUrl string `toml:"database_connection_url"`
-	Port                  string `toml:"port"`
+	Port                  int    `toml:"port"`
 
 	BehindReverseProxy bool   `toml:"behind_reverse_proxy"`
 	TrustedProxy       string `toml:"trusted_proxy"`
@@ -54,6 +55,6 @@ type s3Config struct {
 }
 
 func (app *Application) Run() {
-	log.Info().Msgf("Starting server at http://localhost:%s", app.config.Port)
-	log.Fatal().Err(http.ListenAndServe(":"+app.config.Port, app.Router)).Msg("HTTP server failed")
+	log.Info().Msgf("Starting server at http://localhost:%d", app.config.Port)
+	log.Fatal().Err(http.ListenAndServe(":"+strconv.Itoa(app.config.Port), app.Router)).Msg("HTTP server failed")
 }

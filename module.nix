@@ -106,7 +106,6 @@ in
       #   bucket
       #   region
       #   endpoint
-      #   cdn_domain
       # };
     };
   };

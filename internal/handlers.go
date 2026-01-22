@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -323,7 +324,19 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 	switch app.config.FileStorageMethod {
 	case fileStorageS3:
-		c.Redirect(http.StatusTemporaryRedirect, "https://"+app.config.S3.CdnDomain+"/"+app.config.S3.Bucket+path.Clean(c.Request.URL.Path))
+		presignedURL, err := app.s3client.PresignedGetObject(
+			context.Background(),
+			app.config.S3.Bucket,
+			fileName,
+			time.Hour,
+			nil,
+		)
+		if err != nil {
+			log.Err(err).Msg("Failed to generate presigned URL")
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		c.Redirect(http.StatusTemporaryRedirect, presignedURL.String())
 	case fileStorageLocal:
 		c.File(filepath.Join(app.config.DataFolder, path.Clean(c.Request.URL.Path)))
 	default:

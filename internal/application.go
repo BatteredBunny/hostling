@@ -4,17 +4,17 @@ import (
 	"net/http"
 
 	"github.com/BatteredBunny/hostling/internal/db"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron/v2"
+	"github.com/minio/minio-go/v7"
 	"github.com/rs/zerolog/log"
 )
 
 type Application struct {
 	config      Config
 	db          db.Database
-	s3client    *s3.S3
+	s3client    *minio.Client
 	RateLimiter *limiter.Limiter
 	cron        gocron.Scheduler
 
@@ -51,7 +51,6 @@ type s3Config struct {
 	Bucket          string `toml:"bucket"`
 	Region          string `toml:"region"`
 	Endpoint        string `toml:"endpoint"`
-	CdnDomain       string `toml:"cdn_domain"`
 }
 
 func (app *Application) Run() {

@@ -8,10 +8,8 @@ import (
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/BurntSushi/toml"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
@@ -20,20 +18,19 @@ import (
 
 var ErrUnknownStorageMethod = errors.New("unknown file storage method")
 
-func prepareStorage(c Config) (s3client *s3.S3) {
+func prepareStorage(c Config) (s3client *minio.Client) {
 	switch c.FileStorageMethod {
 	case fileStorageS3:
 		log.Info().Msg("Storing files in s3 bucket")
 
-		if s3session, err := session.NewSession(&aws.Config{
-			Credentials:      credentials.NewStaticCredentials(c.S3.AccessKeyID, c.S3.SecretAccessKey, ""),
-			Endpoint:         aws.String(c.S3.Endpoint),
-			Region:           aws.String(c.S3.Region),
-			S3ForcePathStyle: aws.Bool(true),
-		}); err != nil {
-			log.Fatal().Err(err).Msg("Failed to create s3 session")
-		} else {
-			s3client = s3.New(s3session)
+		var err error
+		s3client, err = minio.New(c.S3.Endpoint, &minio.Options{
+			Creds:  credentials.NewStaticV4(c.S3.AccessKeyID, c.S3.SecretAccessKey, ""),
+			Secure: true,
+			Region: c.S3.Region,
+		})
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to create s3 client")
 		}
 	case fileStorageLocal:
 		log.Info().Msgf("Storing files in %s", c.DataFolder)

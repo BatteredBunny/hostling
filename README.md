@@ -54,7 +54,6 @@ The below options will go in the `[s3]` section
 * `bucket`: S3/B2 bucket name (NOT the bucket ID)
 * `region`: S3/B2 region (e.g., `"us-east-1"`)
 * `endpoint`: S3/B2 endpoint URL (e.g., `"https://s3.us-west-002.backblazeb2.com"`)
-* `cdn_domain`: CDN domain for serving files (e.g., `"https://cdn.example.com"`)
 
 # Setup
 ## Setup with nixos module

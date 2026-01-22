@@ -323,7 +323,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 	switch app.config.FileStorageMethod {
 	case fileStorageS3:
-		c.Redirect(http.StatusTemporaryRedirect, "https://"+app.config.S3.CdnDomain+"/file/"+app.config.S3.Bucket+path.Clean(c.Request.URL.Path))
+		c.Redirect(http.StatusTemporaryRedirect, "https://"+app.config.S3.CdnDomain+"/"+app.config.S3.Bucket+path.Clean(c.Request.URL.Path))
 	case fileStorageLocal:
 		c.File(filepath.Join(app.config.DataFolder, path.Clean(c.Request.URL.Path)))
 	default:

@@ -2,9 +2,9 @@
 
 Simple file hosting service
 
-Main page             | Mobile view             | File modal
+Main page             | Library view             | File modal
 :-------------------------:|:-------------------------:|:-------------------------:
-<img width="1416" height="1338" alt="image" src="https://github.com/user-attachments/assets/27f1cefd-87c3-413e-9b58-79ff2cf69ceb" />  |  <img width="489" height="861" alt="image" src="https://github.com/user-attachments/assets/fd12e620-3741-454b-b12b-7f88d50decdc" />  |  <img width="1408" height="1006" alt="image" src="https://github.com/user-attachments/assets/1b51f0dd-b245-4c0c-8ce5-8e6e13b54132" />
+<img width="1186" height="821" alt="image" src="https://github.com/user-attachments/assets/14747b0b-013b-4d03-8e36-830441704fa5" />  |  <img width="1186" height="821" alt="image" src="https://github.com/user-attachments/assets/e441be70-2c20-4126-aab5-3628c2355782" />  |  <img width="1190" height="1111" alt="image" src="https://github.com/user-attachments/assets/863eb487-653a-4a76-ba40-1724a6b8b1e8" />
 
 # Features
 - Easy social login via github

@@ -1,0 +1,50 @@
+name: Build and Release Binary
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    name: Build x86_64 Linux Binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          pnpm install
+          pnpm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build binary
+        run: make build
+
+      - name: Prepare binary
+        run: mv hostling hostling-x86_64-linux
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: hostling-x86_64-linux
+          generate_release_notes: true

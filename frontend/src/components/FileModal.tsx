@@ -1,4 +1,4 @@
-import { Show, For, createSignal, createEffect } from 'solid-js';
+import { Show, For, createSignal, createEffect, createMemo } from 'solid-js';
 import './FileModal.css';
 import {
   modalFile,
@@ -7,6 +7,7 @@ import {
   updateFileInList,
   removeFileFromList,
   tagFilter,
+  statsTags,
 } from '../store';
 import {
   mimeIsImage,
@@ -26,15 +27,41 @@ import { loadFiles } from './FileGrid';
 export function FileModal() {
   const [tagInput, setTagInput] = createSignal('');
   const [localTags, setLocalTags] = createSignal<string[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = createSignal(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = createSignal(0);
 
   createEffect(() => {
     const file = modalFile();
     if (file) {
       setLocalTags(file.Tags?.map((t) => t.Name) || []);
+      setTagInput('');
+      setShowAutocomplete(false);
+      setSelectedSuggestionIndex(0);
+    }
+  });
+
+  createEffect(() => {
+    const currentSuggestions = suggestions();
+    if (tagInput().trim() && currentSuggestions.length === 0 && showAutocomplete()) {
+      setShowAutocomplete(false);
     }
   });
 
   const file = () => modalFile();
+
+  const suggestions = createMemo(() => {
+    const input = tagInput().trim().toLowerCase();
+    if (!input) return [];
+
+    // Shows 5 first suggestions, should probably be done some other way
+    const existingTags = localTags();
+    return statsTags()
+      .filter(tag =>
+        tag.toLowerCase().includes(input) &&
+        !existingTags.includes(tag)
+      )
+      .slice(0, 5);
+  });
 
   const handleToggleVisibility = async () => {
     const f = file();
@@ -64,19 +91,21 @@ export function FileModal() {
     }
   };
 
-  const handleAddTag = async () => {
+  const handleAddTag = async (tag?: string) => {
     const f = file();
-    const tag = tagInput().trim();
-    if (!f || !tag) return;
+    const tagToAdd = tag || tagInput().trim();
+    if (!f || !tagToAdd) return;
 
-    const success = await addFileTag(f.FileName, tag);
+    const success = await addFileTag(f.FileName, tagToAdd);
     if (success) {
-      const newTags = [...localTags(), tag];
+      const newTags = [...localTags(), tagToAdd];
       setLocalTags(newTags);
       updateFileInList(f.FileName, {
         Tags: newTags.map((name, i) => ({ ID: i, Name: name })),
       });
       setTagInput('');
+      setShowAutocomplete(false);
+      setSelectedSuggestionIndex(0);
       loadStats();
     } else {
       alert('Failed to add tag');
@@ -104,10 +133,41 @@ export function FileModal() {
     }
   };
 
+  const handleTagInputChange = (value: string) => {
+    setTagInput(value);
+    setShowAutocomplete(value.trim().length > 0 && suggestions().length > 0);
+    setSelectedSuggestionIndex(0);
+  };
+
+  const handleSelectSuggestion = (tag: string) => {
+    handleAddTag(tag);
+  };
+
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    const suggestionList = suggestions();
+
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      handleAddTag();
+      if (showAutocomplete() && suggestionList.length > 0) {
+        setSelectedSuggestionIndex((prev) =>
+          prev < suggestionList.length - 1 ? prev + 1 : prev
+        );
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (showAutocomplete() && suggestionList.length > 0) {
+        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (showAutocomplete() && suggestionList.length > 0) {
+        handleSelectSuggestion(suggestionList[selectedSuggestionIndex()]);
+      } else {
+        handleAddTag();
+      }
+    } else if (e.key === 'Escape') {
+      setShowAutocomplete(false);
+      setSelectedSuggestionIndex(0);
     }
   };
 
@@ -234,15 +294,44 @@ export function FileModal() {
                     </For>
                   </div>
                   <div class="file-modal-add-tag">
-                    <input
-                      type="text"
-                      id="file-modal-tag-input"
-                      placeholder="Add tag..."
-                      value={tagInput()}
-                      onInput={(e) => setTagInput(e.currentTarget.value)}
-                      onKeyDown={handleKeyDown}
-                    />
-                    <button id="file-modal-add-tag-btn" class="create-button" onClick={handleAddTag}>
+                    <div class="tag-input-wrapper">
+                      <input
+                        type="text"
+                        id="file-modal-tag-input"
+                        placeholder="Add tag..."
+                        value={tagInput()}
+                        onInput={(e) => handleTagInputChange(e.currentTarget.value)}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => {
+                          if (tagInput().trim() && suggestions().length > 0) {
+                            setShowAutocomplete(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          // Delay to allow click on suggestion
+                          setTimeout(() => setShowAutocomplete(false), 200);
+                        }}
+                      />
+                      <Show when={showAutocomplete() && suggestions().length > 0}>
+                        <div class="tag-autocomplete-dropdown">
+                          <For each={suggestions()}>
+                            {(suggestion, index) => (
+                              <div
+                                class="tag-autocomplete-item"
+                                classList={{
+                                  selected: index() === selectedSuggestionIndex(),
+                                }}
+                                onClick={() => handleSelectSuggestion(suggestion)}
+                                onMouseEnter={() => setSelectedSuggestionIndex(index())}
+                              >
+                                {suggestion}
+                              </div>
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                    </div>
+                    <button id="file-modal-add-tag-btn" class="create-button" onClick={() => handleAddTag()}>
                       Add
                     </button>
                   </div>

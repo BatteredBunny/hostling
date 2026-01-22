@@ -227,9 +227,48 @@
                     .file-modal-add-tag {
                         display: flex;
                         gap: 8px;
-                        input {
+
+                        .tag-input-wrapper {
                             flex: 1;
-                            padding: 8px 12px;
+                            position: relative;
+                            min-width: 0;
+
+                            input {
+                                width: 100%;
+                                padding: 8px 12px;
+                                box-sizing: border-box;
+                            }
+
+                            .tag-autocomplete-dropdown {
+                                position: absolute;
+                                top: calc(100% + 4px);
+                                left: 0;
+                                right: 0;
+                                background-color: var(--menu-bg-color);
+                                border: 1px solid var(--menu-border-color);
+                                border-radius: 8px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                                z-index: 10;
+                                overflow: hidden;
+                                max-height: 200px;
+                                overflow-y: auto;
+
+                                .tag-autocomplete-item {
+                                    padding: 8px 12px;
+                                    cursor: pointer;
+                                    transition: background-color 0.1s ease;
+                                    font-size: 14px;
+
+                                    &:hover,
+                                    &.selected {
+                                        background-color: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.1));
+                                    }
+
+                                    &:active {
+                                        background-color: light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.15));
+                                    }
+                                }
+                            }
                         }
 
                         button {

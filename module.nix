@@ -49,6 +49,7 @@ in
         options = {
           port = lib.mkOption {
             type = lib.types.port;
+            apply = toString;
             default = 8872;
             description = "Port to run service on";
           };

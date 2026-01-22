@@ -63,7 +63,30 @@ func initializeConfig() (c Config) {
 		log.Fatal().Err(err).Msg("Can't parse config file")
 	}
 
+	if envAccessKeyID := os.Getenv("S3_ACCESS_KEY_ID"); envAccessKeyID != "" {
+		c.S3.AccessKeyID = envAccessKeyID
+	}
+	if envSecretAccessKey := os.Getenv("S3_SECRET_ACCESS_KEY"); envSecretAccessKey != "" {
+		c.S3.SecretAccessKey = envSecretAccessKey
+	}
+
 	if c.S3 != (s3Config{}) {
+		if c.S3.Bucket == "" {
+			log.Warn().Msg("S3 bucket is not defined, file uploads will not work")
+		}
+		if c.S3.AccessKeyID == "" {
+			log.Warn().Msg("S3 Access Key ID is not defined, file uploads will not work")
+		}
+		if c.S3.SecretAccessKey == "" {
+			log.Warn().Msg("S3 Secret Access Key is not defined, file uploads will not work")
+		}
+		if c.S3.Endpoint == "" {
+			log.Warn().Msg("S3 endpoint is not defined, file uploads will not work")
+		}
+		if c.S3.Region == "" {
+			log.Warn().Msg("S3 region is not defined, file uploads will not work")
+		}
+
 		c.FileStorageMethod = fileStorageS3
 	} else {
 		c.FileStorageMethod = fileStorageLocal

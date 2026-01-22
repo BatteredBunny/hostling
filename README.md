@@ -27,7 +27,7 @@ Configuration is done via a TOML file (default: `config.toml`). Use the `-c` fla
 
 ## Setting up social login
 
-These are required for using Github for social login
+These environment variables are required for using Github for social login:
 
 * `GITHUB_CLIENT_ID`: GitHub OAuth application ID
 * `GITHUB_SECRET`: GitHub OAuth application secret
@@ -49,8 +49,8 @@ These are required for using Github for social login
 
 The below options will go in the `[s3]` section
 
-* `access_key_id`: S3/B2 access key ID
-* `secret_access_key`: S3/B2 secret access key
+* `access_key_id`: S3/B2 access key ID (can also be set via `S3_ACCESS_KEY_ID` environment variable)
+* `secret_access_key`: S3/B2 secret access key (can also be set via `S3_SECRET_ACCESS_KEY` environment variable)
 * `bucket`: S3/B2 bucket name (NOT the bucket ID)
 * `region`: S3/B2 region (e.g., `"us-east-1"`)
 * `endpoint`: S3/B2 endpoint URL (e.g., `"https://s3.us-west-002.backblazeb2.com"`)

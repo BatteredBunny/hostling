@@ -14,8 +14,9 @@ in
     enable = lib.mkEnableOption "hostling";
 
     package = lib.mkOption {
-      description = "package to use";
+      type = lib.types.package;
       default = pkgs.callPackage ./build.nix { };
+      description = "The hostling package to use";
     };
 
     openFirewall = lib.mkEnableOption "" // {
@@ -28,94 +29,151 @@ in
     environmentFile = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
-      description = "Used for specifying GITHUB_CLIENT_ID and GITHUB_SECRET";
+      description = ''
+        Environment file for specifying secrets. Supported variables:
+        - GITHUB_CLIENT_ID: GitHub OAuth app ID
+        - GITHUB_SECRET: GitHub OAuth app secret
+        - S3_ACCESS_KEY_ID: S3 access key ID (overrides config)
+        - S3_SECRET_ACCESS_KEY: S3 secret access key (overrides config)
+      '';
     };
 
-    settings = {
-      port = lib.mkOption {
-        type = lib.types.int;
-        apply = toString;
-        description = "port to run service on";
-        default = 8872;
-      };
+    settings = lib.mkOption {
+      description = ''
+        Configuration for Hostling. More important options are exposed via nix, others can be simply defined without nix options
+      '';
+      default = { };
+      type = lib.types.submodule {
+        freeformType = toml.type;
 
-      branding = lib.mkOption {
-        type = lib.types.str;
-        default = "";
-        description = "Branding name for the instance";
-      };
+        options = {
+          port = lib.mkOption {
+            type = lib.types.port;
+            default = 8872;
+            description = "Port to run service on";
+          };
 
-      tagline = lib.mkOption {
-        type = lib.types.str;
-        default = "";
-        description = "Tagline for the instance, used for meta description and homepage";
-      };
+          branding = lib.mkOption {
+            type = lib.types.str;
+            default = "Hostling";
+            description = "Branding name for the instance (max 20 chars)";
+          };
 
-      database_type = lib.mkOption {
-        type = lib.types.enum [
-          "postgresql"
-          "sqlite"
-        ];
-        default = "postgresql";
-        example = "sqlite";
-        description = "Database type";
-      };
+          tagline = lib.mkOption {
+            type = lib.types.str;
+            default = "Simple file hosting service";
+            description = "Tagline for the instance, used for meta description and homepage (max 100 chars)";
+          };
 
-      database_connection_url = lib.mkOption {
-        type = lib.types.str;
-        default = "";
-        description = "Database connection string";
-      };
+          database_type = lib.mkOption {
+            type = lib.types.enum [
+              "postgresql"
+              "sqlite"
+            ];
+            default = "postgresql";
+            example = "sqlite";
+            description = "Database type";
+          };
 
-      max_upload_size = lib.mkOption {
-        type = lib.types.int;
-        default = 104857600;
-        description = "Max upload size in bytes";
-      };
+          database_connection_url = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            description = "Database connection string";
+          };
 
-      data_folder = lib.mkOption {
-        type = lib.types.path;
-        default = "/var/lib/hostling/data";
-        description = "Folder to store local image data in";
-      };
+          max_upload_size = lib.mkOption {
+            type = lib.types.int;
+            default = 104857600;
+            description = "Max upload size in bytes";
+          };
 
-      behind_reverse_proxy = lib.mkOption {
-        type = lib.types.bool;
-        default = false;
-        example = true;
-        description = "Allows using trusted proxy settings";
-      };
+          data_folder = lib.mkOption {
+            type = lib.types.path;
+            default = "/var/lib/hostling/data";
+            description = "Folder to store local file data in. Relative to the state directory";
+          };
 
-      trusted_proxy = lib.mkOption {
-        type = lib.types.str;
-        default = "";
-        example = "127.0.0.1";
-        description = "Which proxy to trust for IP information";
-      };
+          behind_reverse_proxy = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            example = true;
+            description = "Whether the service is behind a reverse proxy. Enables trusted proxy settings";
+          };
 
-      public_url = lib.mkOption {
-        type = lib.types.str;
-        default = "";
-        example = "https://cdn.example.com";
-        description = "Public url that its hosted on";
-      };
+          trusted_proxy = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            example = "127.0.0.1";
+            description = "Which proxy to trust for IP information. Required if behind_reverse_proxy is true.";
+          };
 
-      # s3 = {
-      #   access_key_id
-      #   secret_access_key
-      #   bucket
-      #   region
-      #   endpoint
-      # };
+          public_url = lib.mkOption {
+            type = lib.types.str;
+            default = "";
+            example = "https://cdn.example.com";
+            description = "Public url that its hosted on";
+          };
+
+          s3 = lib.mkOption {
+            description = "S3-compatible storage configuration.";
+            default = { };
+            type = lib.types.submodule {
+              freeformType = toml.type;
+              options = {
+                access_key_id = lib.mkOption {
+                  type = lib.types.str;
+                  default = "";
+                  description = "S3 access key ID";
+                };
+
+                secret_access_key = lib.mkOption {
+                  type = lib.types.str;
+                  default = "";
+                  description = "S3 secret access key";
+                };
+
+                bucket = lib.mkOption {
+                  type = lib.types.str;
+                  default = "";
+                  description = "S3 bucket name";
+                };
+
+                region = lib.mkOption {
+                  type = lib.types.str;
+                  default = "";
+                  example = "us-east-1";
+                  description = "S3 region";
+                };
+
+                endpoint = lib.mkOption {
+                  type = lib.types.str;
+                  default = "";
+                  example = "s3.us-east-005.backblazeb2.com";
+                  description = "S3 endpoint URL. Required for S3-compatible services like Backblaze B2";
+                };
+              };
+            };
+          };
+        };
+      };
     };
   };
 
   config = lib.mkIf cfg.enable {
     systemd.services.hostling = {
       enable = true;
+      description = "File hosting service";
+
       serviceConfig = {
+        ExecStart = "${lib.getExe cfg.package} -c=${tomlSetting}";
+        Restart = "always";
+        StateDirectory = "hostling";
+        WorkingDirectory = "/var/lib/hostling";
         User = "hostling";
         Group = "hostling";
+        EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
+
+        # Hardening
         ProtectSystem = "full";
         ProtectHome = "yes";
         DeviceAllow = [ "" ];
@@ -134,10 +192,6 @@ in
         RestrictSUIDSGID = true;
         SystemCallArchitectures = "native";
         PrivateUsers = true;
-        StateDirectory = "hostling";
-        EnvironmentFile = cfg.environmentFile;
-        ExecStart = "${lib.getExe cfg.package} -c=${tomlSetting}";
-        Restart = "always";
       };
 
       environment.GIN_MODE = "release";
@@ -147,9 +201,8 @@ in
       requires = lib.mkIf (cfg.settings.database_type == "postgresql") [ "postgresql.service" ];
     };
 
-    services.hostling = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql") {
-      settings.database_connection_url = "postgresql:///hostling?host=/run/postgresql&user=hostling";
-    };
+    services.hostling.settings.database_connection_url = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql")
+      (lib.mkDefault "postgresql:///hostling?host=/run/postgresql&user=hostling");
 
     services.postgresql = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql") {
       enable = true;

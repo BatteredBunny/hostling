@@ -5,6 +5,7 @@
   pnpm_10,
   nodejs,
   stdenv,
+  lib,
 }:
 let
   pnpm = pnpm_10;
@@ -59,6 +60,7 @@ buildGoModule {
   meta = {
     description = "Simple file hosting service";
     homepage = "https://github.com/BatteredBunny/hostling";
+    license = lib.licenses.mit;
     mainProgram = "hostling";
   };
 }

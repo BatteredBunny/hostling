@@ -21,7 +21,7 @@ type Files struct {
 
 	Public bool // If false, only the uploader can see the file
 
-	Views      []FileViews `gorm:"foreignKey:FilesID" json:"-"`
+	Views      []FileViews `gorm:"foreignKey:FilesID;constraint:OnDelete:CASCADE" json:"-"`
 	ViewsCount uint        `gorm:"-"` // Used for export
 
 	ExpiryDate time.Time `gorm:"default:null"` // Time when the file will be deleted
@@ -34,7 +34,7 @@ type Files struct {
 
 // Deletes file entry from database
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
-	return db.Select("Tags").
+	return db.Select("Tags", "Views").
 		Where(&Files{FileName: fileName, UploaderID: accountID}).
 		Delete(&Files{}).Error
 }
@@ -73,7 +73,7 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) (err error) {
 
 // Only deletes database entry, actual file has to be deleted as well
 func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
-	return db.Select("Tags").
+	return db.Select("Tags", "Views").
 		Where(&Files{UploaderID: accountID}).
 		Delete(&Files{}).Error
 }
@@ -148,7 +148,7 @@ func (db *Database) FindExpiredFiles() (files []Files, err error) {
 }
 
 func (db *Database) DeleteExpiredFiles() (err error) {
-	return db.Select("Tags").
+	return db.Select("Tags", "Views").
 		Where("expiry_date is not null AND expiry_date < ?", time.Now()).
 		Delete(&Files{}).Error
 }

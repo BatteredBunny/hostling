@@ -150,7 +150,7 @@ func (app *Application) adminPage(c *gin.Context) {
 			stats = append(stats, stat)
 		}
 
-		var providers = goth.GetProviders()
+		providers := goth.GetProviders()
 		noProvidersConfigured := len(providers) == 0
 
 		var loginProviders []string
@@ -182,73 +182,89 @@ func (app *Application) userPage(c *gin.Context) {
 		return
 	}
 
+	if !loggedIn {
+		c.Redirect(http.StatusTemporaryRedirect, "/login")
+		return
+	}
+
 	templateInput := gin.H{
 		"CurrentPage": "user",
 		"Branding":    app.config.Branding,
 		"Tagline":     app.config.Tagline,
 	}
 
-	if loggedIn && account.GithubID > 0 {
-		templateInput["LinkedWithGithub"] = true
-		templateInput["GithubUsername"] = account.GithubUsername
-	}
-
-	if loggedIn && account.OIDCID != "" {
-		templateInput["LinkedWithOIDC"] = true
-		templateInput["OIDCUsername"] = account.OIDCUsername
-	}
-
-	// Check which providers are enabled
-	// TODO: refactor code
 	enabledProviders := goth.GetProviders()
-	githubEnabled := false
-	oidcEnabled := false
-	for _, p := range enabledProviders {
-		switch p.Name() {
-		case "github":
-			githubEnabled = true
-		case "openid-connect":
-			oidcEnabled = true
+	var providers []ProviderInfo
+	unlinkedAccount := true
+
+	for _, provider := range enabledProviders {
+		providerName := provider.Name()
+		info := ProviderInfo{
+			Name:        providerName,
+			Icon:        ProviderToIcon(providerName),
+			LinkingText: ProviderToLinkingText(providerName),
 		}
+
+		if loggedIn {
+			switch providerName {
+			case "github":
+				if account.GithubID > 0 {
+					info.IsLinked = true
+					info.Username = account.GithubUsername
+					info.ProfileURL = "https://github.com/" + account.GithubUsername
+					unlinkedAccount = false
+				}
+			case "openid-connect":
+				if account.OIDCID != "" {
+					info.IsLinked = true
+					info.Username = account.OIDCUsername
+					unlinkedAccount = false
+				}
+			}
+		}
+
+		providers = append(providers, info)
 	}
-	templateInput["GithubEnabled"] = githubEnabled
-	templateInput["OIDCEnabled"] = oidcEnabled
+
+	// Linking panel
+	templateInput["Providers"] = providers
 	templateInput["NoProvidersConfigured"] = len(enabledProviders) == 0
+	templateInput["UnlinkedAccount"] = unlinkedAccount // Check if account is unlinked (no provider linked at all)
 
-	if loggedIn {
-		// For top bar
-		templateInput["LoggedIn"] = true
-		templateInput["AccountID"] = account.ID
-		templateInput["IsAdmin"] = account.AccountType == "ADMIN"
+	// For top bar
+	templateInput["LoggedIn"] = true
+	templateInput["AccountID"] = account.ID
+	templateInput["IsAdmin"] = account.AccountType == "ADMIN"
 
-		// Check if account is unlinked (no provider linked at all)
-		templateInput["UnlinkedAccount"] = account.GithubID == 0 && account.OIDCID == ""
-
-		templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)
-		if err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		uploadTokens, err := app.db.GetUploadTokens(account.ID)
-		if err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
-		}
-
-		templateInput["UploadTokens"] = uploadTokens
+	templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
 	}
 
-	if loggedIn {
-		c.HTML(http.StatusOK, "user.gohtml", templateInput)
-	} else {
-		c.Redirect(http.StatusTemporaryRedirect, "/login")
+	uploadTokens, err := app.db.GetUploadTokens(account.ID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
 	}
+
+	templateInput["UploadTokens"] = uploadTokens
+
+	c.HTML(http.StatusOK, "user.gohtml", templateInput)
 }
 
 type LoginProvider struct {
 	Name string
 	Icon string // lucide-icon name, should probably be replaced with simpleicons.org when supporting more login platforms
+}
+
+type ProviderInfo struct {
+	Name        string
+	Icon        string // lucide-icon name, should probably be replaced with simpleicons.org when supporting more login platforms
+	LinkingText string // e.g., "Link with GitHub"
+	IsLinked    bool   // whether the account is linked to this provider
+	Username    string // Used for displaying linked username
+	ProfileURL  string // Profile URL if the provider supports it, e.g for github you can open your profile
 }
 
 func ProviderToIcon(provider string) string {
@@ -259,6 +275,17 @@ func ProviderToIcon(provider string) string {
 		return "key-round"
 	default:
 		return "key-square"
+	}
+}
+
+func ProviderToLinkingText(provider string) string {
+	switch provider {
+	case "github":
+		return "Link with GitHub"
+	case "openid-connect":
+		return "Link with OpenID Connect"
+	default:
+		return "Link with " + provider
 	}
 }
 

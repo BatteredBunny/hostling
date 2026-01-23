@@ -24,7 +24,7 @@
             {{ range .Providers }}
                 <p class="provider">
                     <a class="social-login" href="/api/auth/login/{{ .Name }}">
-                        <svg class="lucide-icon" viewBox="0 0 24 24">
+                        <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
                             <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
                         </svg>
                         <span>Login with {{ .Name }}</span>

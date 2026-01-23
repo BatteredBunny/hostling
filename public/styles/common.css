@@ -171,6 +171,11 @@ input[type="submit"] {
     fill: none;
 }
 
+.login-provider-icon {
+    width: 20px;
+    height: 20px;
+}
+
 .delete-button {
     color: light-dark(rgb(220, 0, 0), rgb(255, 80, 80));
     border-color: light-dark(rgb(220, 0, 0), rgb(255, 80, 80)) !important;
@@ -376,6 +381,17 @@ input[type="submit"] {
 
     border-radius: 8px;
     border: 1px solid var(--menu-border-color);
+}
+
+.provider a {
+    svg {
+        vertical-align: middle;
+        margin-right: 8px;
+    }
+
+    span {
+        vertical-align: middle;
+    }
 }
 
 input {

@@ -33,30 +33,33 @@
                     </div>
                     {{ end }}
 
-                    {{ if .GithubEnabled }}
-                    {{ if .LinkedWithGithub }}
-                    <a href="https://github.com/{{ .GithubUsername }}" target="_blank" class="linked-account">
-                        <svg class="lucide-icon" viewBox="0 0 24 24">
-                            <use href="/public/assets/lucide-sprite.svg#github" />
-                        </svg>
-                        <span>{{ .GithubUsername }}</span>
-                    </a>
-                    {{ else }}
-                    <p><a href="/api/auth/link/github">Link with GitHub</a></p>
-                    {{ end }}
-                    {{ end }}
-
-                    {{ if .OIDCEnabled }}
-                    {{ if .LinkedWithOIDC }}
-                    <div class="linked-account">
-                        <svg class="lucide-icon" viewBox="0 0 24 24">
-                            <use href="/public/assets/lucide-sprite.svg#key-round" />
-                        </svg>
-                        <span>{{ .OIDCUsername }}</span>
-                    </div>
-                    {{ else }}
-                    <p><a href="/api/auth/link/openid-connect">Link with OpenID Connect</a></p>
-                    {{ end }}
+                    {{ range .Providers }}
+                        {{ if .IsLinked }}
+                            {{ if .ProfileURL }}
+                            <a href="{{ .ProfileURL }}" target="_blank" class="linked-account">
+                                <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                </svg>
+                                <span>{{ .Username }}</span>
+                            </a>
+                            {{ else }}
+                            <div class="linked-account">
+                                <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                </svg>
+                                <span>{{ .Username }}</span>
+                            </div>
+                            {{ end }}
+                        {{ else }}
+                            <p class="provider">
+                                <a class="social-login" href="/api/auth/link/{{ .Name }}">
+                                    <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                        <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                    </svg>
+                                    <span>{{ .LinkingText }}</span>
+                                </a>
+                            </p>
+                        {{ end }}
                     {{ end }}
                 </div>
             </setting-group>

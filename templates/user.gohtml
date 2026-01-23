@@ -22,7 +22,11 @@
                 </div>
 
                 <div class="setting-group-body">
-                    {{ if .UnlinkedAccount }}
+                    {{ if .NoProvidersConfigured }}
+                    <div class="warning-modal">
+                        <p><strong>Server Configuration Error:</strong> No authentication providers are configured. You will not be able to log in after your session expires. Please contact the server administrator to set up hostling correctly.</p>
+                    </div>
+                    {{ else if .UnlinkedAccount }}
                     <div class="warning-modal">
                         <p>Link your account with at least one platform otherwise you won't be able to login after this!
                         </p>

@@ -150,9 +150,12 @@ func (app *Application) adminPage(c *gin.Context) {
 			stats = append(stats, stat)
 		}
 
+		noProvidersConfigured := len(goth.GetProviders()) == 0
+
 		templateInput["Accounts"] = stats
 		templateInput["MaxUploadSize"] = uint(app.config.MaxUploadSize)
 		templateInput["Version"] = Version
+		templateInput["NoProvidersConfigured"] = noProvidersConfigured
 	}
 
 	if loggedIn {
@@ -188,6 +191,7 @@ func (app *Application) userPage(c *gin.Context) {
 	}
 
 	// Check which providers are enabled
+	// TODO: refactor code
 	enabledProviders := goth.GetProviders()
 	githubEnabled := false
 	oidcEnabled := false
@@ -201,6 +205,7 @@ func (app *Application) userPage(c *gin.Context) {
 	}
 	templateInput["GithubEnabled"] = githubEnabled
 	templateInput["OIDCEnabled"] = oidcEnabled
+	templateInput["NoProvidersConfigured"] = len(enabledProviders) == 0
 
 	if loggedIn {
 		// For top bar
@@ -233,7 +238,7 @@ func (app *Application) userPage(c *gin.Context) {
 	}
 }
 
-type PageProvider struct {
+type LoginProvider struct {
 	Name string
 	Icon string // lucide-icon name, should probably be replaced with simpleicons.org when supporting more login platforms
 }
@@ -258,9 +263,9 @@ func (app *Application) loginPage(c *gin.Context) {
 		return
 	}
 
-	var providers []PageProvider
+	var providers []LoginProvider
 	for _, provider := range goth.GetProviders() {
-		providers = append(providers, PageProvider{
+		providers = append(providers, LoginProvider{
 			Name: provider.Name(),
 			Icon: ProviderToIcon(provider.Name()),
 		})
@@ -270,10 +275,11 @@ func (app *Application) loginPage(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, "/user")
 	} else {
 		c.HTML(http.StatusOK, "login.gohtml", gin.H{
-			"Providers":   providers,
-			"CurrentPage": "login",
-			"Branding":    app.config.Branding,
-			"Tagline":     app.config.Tagline,
+			"Providers":             providers,
+			"NoProvidersConfigured": len(providers) == 0,
+			"CurrentPage":           "login",
+			"Branding":              app.config.Branding,
+			"Tagline":               app.config.Tagline,
 		})
 	}
 }

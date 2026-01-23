@@ -15,6 +15,12 @@
         <div class="container">
             <h1>Login</h1>
 
+            {{ if .NoProvidersConfigured }}
+            <div class="warning-modal">
+                <p><strong>Server Configuration Error:</strong> No authentication providers are configured. Please contact the server administrator to set up hostling correctly.</p>
+            </div>
+            {{ end }}
+
             {{ range .Providers }}
                 <p class="provider">
                     <a class="social-login" href="/api/auth/login/{{ .Name }}">

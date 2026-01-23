@@ -15,6 +15,18 @@
         <div class="container">
             <h1>Admin</h1>
 
+            {{ if .NoProvidersConfigured }}
+            <div class="warning-modal">
+                <p><strong>Critical Server Configuration Error:</strong> No authentication providers are configured on this server.</p>
+                <p>To fix this issue, you must configure at least one authentication provider:</p>
+                <ul>
+                    <li><strong>GitHub OAuth:</strong> Set environment variables <strong>GITHUB_CLIENT_ID</strong> and <strong>GITHUB_SECRET</strong></li>
+                    <li><strong>OpenID Connect:</strong> Set environment variables <strong>OPENID_CONNECT_CLIENT_ID</strong>, <strong>OPENID_CONNECT_CLIENT_SECRET</strong>, and <strong>OPENID_CONNECT_DISCOVERY_URL</strong></li>
+                </ul>
+                <p>Without authentication providers, users cannot log in or link their accounts. Restart the server after setting the required environment variables.</p>
+            </div>
+            {{ end }}
+
             <setting-group id="server-config-panel">
                 <div class="setting-group-header">
                     <h2>Server info</h2>

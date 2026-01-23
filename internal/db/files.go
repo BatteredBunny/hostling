@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -34,9 +35,20 @@ type Files struct {
 
 // Deletes file entry from database
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
-	return db.Select("Tags", "Views").
-		Where(&Files{FileName: fileName, UploaderID: accountID}).
-		Delete(&Files{}).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var file Files
+		if err := tx.Where(&Files{FileName: fileName, UploaderID: accountID}).First(&file).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Where(&FileViews{FilesID: file.ID}).Delete(&FileViews{}).Error; err != nil {
+			return err
+		}
+
+		return tx.Select("Tags").
+			Where(&Files{FileName: fileName, UploaderID: accountID}).
+			Delete(&Files{}).Error
+	})
 }
 
 type CreateFileEntryInput struct {
@@ -73,9 +85,24 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) (err error) {
 
 // Only deletes database entry, actual file has to be deleted as well
 func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
-	return db.Select("Tags", "Views").
-		Where(&Files{UploaderID: accountID}).
-		Delete(&Files{}).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var fileIDs []uint
+		if err := tx.Model(&Files{}).
+			Where(&Files{UploaderID: accountID}).
+			Pluck("id", &fileIDs).Error; err != nil {
+			return err
+		}
+
+		if len(fileIDs) > 0 {
+			if err := tx.Where("files_id IN ?", fileIDs).Delete(&FileViews{}).Error; err != nil {
+				return err
+			}
+		}
+
+		return tx.Select("Tags").
+			Where(&Files{UploaderID: accountID}).
+			Delete(&Files{}).Error
+	})
 }
 
 func (db *Database) FilesAmountOnAccount(accountID uint) (count int64, err error) {

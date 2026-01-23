@@ -36,7 +36,9 @@
           pkgs = nixpkgsFor.${system};
         in
         {
-          service = pkgs.callPackage ./test.nix { };
+          service = pkgs.callPackage ./test.nix {
+            inherit self;
+          };
         }
       );
 

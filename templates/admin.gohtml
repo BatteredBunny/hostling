@@ -50,9 +50,18 @@
                                         <svg class="lucide-icon" viewBox="0 0 24 24">
                                             <use href="/public/assets/lucide-sprite.svg#github" />
                                         </svg>
-                                        <span>Github</s>
+                                        <span>GitHub</span>
                                     </div>
-                                    <div class="value">{{ .GithubUsername }}</div>
+                                    <div class="value">{{ if .GithubUsername }}{{ .GithubUsername }}{{ else }}-{{ end }}</div>
+                                </div>
+                                <div class="entry">
+                                    <div class="name">
+                                        <svg class="lucide-icon" viewBox="0 0 24 24">
+                                            <use href="/public/assets/lucide-sprite.svg#key-round" />
+                                        </svg>
+                                        <span>OIDC</span>
+                                    </div>
+                                    <div class="value">{{ if .OIDCUsername }}{{ .OIDCUsername }}{{ else }}-{{ end }}</div>
                                 </div>
                                 <div class="entry">
                                     <div class="name">

@@ -31,6 +31,9 @@ These environment variables are required for using Github for social login:
 
 * `GITHUB_CLIENT_ID`: GitHub OAuth application ID
 * `GITHUB_SECRET`: GitHub OAuth application secret
+* `OPENID_CONNECT_CLIENT_ID`: OpenID Connect client ID
+* `OPENID_CONNECT_CLIENT_SECRET`: OpenID Connect client secret
+* `OPENID_CONNECT_DISCOVERY_URL`: OpenID Connect discovery URL
 
 ## Config options
 

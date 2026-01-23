@@ -104,10 +104,6 @@ func (app *Application) toAccountStats(account *db.Accounts, requesterAccountID 
 		stats.FilesUploaded++
 	}
 
-	if stats.GithubUsername == "" {
-		stats.GithubUsername = "none"
-	}
-
 	return
 }
 
@@ -186,13 +182,34 @@ func (app *Application) userPage(c *gin.Context) {
 		templateInput["GithubUsername"] = account.GithubUsername
 	}
 
+	if loggedIn && account.OIDCID != "" {
+		templateInput["LinkedWithOIDC"] = true
+		templateInput["OIDCUsername"] = account.OIDCUsername
+	}
+
+	// Check which providers are enabled
+	enabledProviders := goth.GetProviders()
+	githubEnabled := false
+	oidcEnabled := false
+	for _, p := range enabledProviders {
+		switch p.Name() {
+		case "github":
+			githubEnabled = true
+		case "openid-connect":
+			oidcEnabled = true
+		}
+	}
+	templateInput["GithubEnabled"] = githubEnabled
+	templateInput["OIDCEnabled"] = oidcEnabled
+
 	if loggedIn {
 		// For top bar
 		templateInput["LoggedIn"] = true
 		templateInput["AccountID"] = account.ID
 		templateInput["IsAdmin"] = account.AccountType == "ADMIN"
 
-		templateInput["UnlinkedAccount"] = account.GithubID == 0
+		// Check if account is unlinked (no provider linked at all)
+		templateInput["UnlinkedAccount"] = account.GithubID == 0 && account.OIDCID == ""
 
 		templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)
 		if err != nil {
@@ -225,6 +242,8 @@ func ProviderToIcon(provider string) string {
 	switch provider {
 	case "github":
 		return "github"
+	case "openid-connect":
+		return "key-round"
 	default:
 		return "key-square"
 	}
@@ -610,3 +629,4 @@ func (app *Application) filesAPI(c *gin.Context) {
 
 	c.JSON(http.StatusOK, output)
 }
+

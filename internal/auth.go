@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
 	"github.com/markbates/goth/providers/github"
+	"github.com/markbates/goth/providers/openidConnect"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -31,15 +33,49 @@ func generateSecureKey(length int) []byte {
 }
 
 func (app *Application) setupSocialLogin() {
-	githubApiKey := os.Getenv("GITHUB_CLIENT_ID")
-	githubSecret := os.Getenv("GITHUB_SECRET")
-
 	// Goth creates its own cookie for the auth flow
 	gothic.Store = sessions.NewCookieStore(generateSecureKey(32))
 
-	goth.UseProviders(
-		github.New(githubApiKey, githubSecret, fmt.Sprintf("%s/api/auth/login/github/callback", app.config.PublicUrl)),
-	)
+	var providers []goth.Provider
+
+	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
+	githubSecret := os.Getenv("GITHUB_SECRET")
+	githubEnabled := githubClientID != "" && githubSecret != ""
+
+	if githubEnabled {
+		providers = append(providers, github.New(
+			githubClientID,
+			githubSecret,
+			fmt.Sprintf("%s/api/auth/login/github/callback", app.config.PublicUrl),
+		))
+		log.Info().Msg("GitHub authentication enabled")
+	}
+
+	oidcClientID := os.Getenv("OPENID_CONNECT_CLIENT_ID")
+	oidcClientSecret := os.Getenv("OPENID_CONNECT_CLIENT_SECRET")
+	oidcDiscoveryURL := os.Getenv("OPENID_CONNECT_DISCOVERY_URL")
+	oidcEnabled := oidcClientID != "" && oidcClientSecret != "" && oidcDiscoveryURL != ""
+
+	if oidcEnabled {
+		oidcProvider, err := openidConnect.New(
+			oidcClientID,
+			oidcClientSecret,
+			fmt.Sprintf("%s/api/auth/login/openid-connect/callback", app.config.PublicUrl),
+			oidcDiscoveryURL,
+		)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize OpenID Connect provider")
+		}
+		providers = append(providers, oidcProvider)
+		log.Info().Msg("OpenID Connect authentication enabled")
+	}
+
+	// At least one authentication provider must be enabled
+	if !githubEnabled && !oidcEnabled {
+		log.Warn().Msg("At least one authentication provider must be enabled (GitHub or OpenID Connect)")
+	}
+
+	goth.UseProviders(providers...)
 }
 
 func (app *Application) setupAuth(api *gin.RouterGroup) {
@@ -85,25 +121,65 @@ func (app *Application) loginCallback(c *gin.Context) {
 
 		app.clearLinkingCookie(c)
 
-		if loggedIn && account.GithubID == 0 {
-			if err := app.db.LinkGithub(account.ID, user.NickName, user.UserID); err != nil {
-				c.String(http.StatusInternalServerError, "Failed to link github")
+		if loggedIn {
+			switch provider {
+			case "github":
+				if account.GithubID == 0 {
+					if err := app.db.LinkGithub(account.ID, user.NickName, user.UserID); err != nil {
+						c.String(http.StatusInternalServerError, "Failed to link github")
+						return
+					}
+					c.Redirect(http.StatusTemporaryRedirect, "/user")
+					return
+				}
+			case "openid-connect":
+				if account.OIDCID == "" {
+					username := user.NickName
+					if username == "" {
+						username = user.Name
+					}
+					if err := app.db.LinkOIDC(account.ID, username, user.UserID); err != nil {
+						c.String(http.StatusInternalServerError, "Failed to link OpenID Connect")
+						return
+					}
+					c.Redirect(http.StatusTemporaryRedirect, "/user")
+					return
+				}
+			}
+		}
+		c.Redirect(http.StatusTemporaryRedirect, "/login")
+	} else {
+		var account db.Accounts
+		var err error
+
+		switch provider {
+		case "github":
+			account, err = app.db.FindAccountByGithubID(user.UserID)
+			if err != nil {
+				c.Redirect(http.StatusTemporaryRedirect, "/login")
 				return
 			}
 
-			c.Redirect(http.StatusTemporaryRedirect, "/user")
-		} else {
-			c.Redirect(http.StatusTemporaryRedirect, "/login")
-		}
-	} else {
-		account, err := app.db.FindAccountByGithubID(user.UserID)
-		if err != nil {
+			if err := app.db.UpdateGithubUsername(account.ID, user.NickName); err != nil {
+				log.Warn().Err(err).Msg("Failed to update github username")
+			}
+		case "openid-connect":
+			account, err = app.db.FindAccountByOIDCID(user.UserID)
+			if err != nil {
+				c.Redirect(http.StatusTemporaryRedirect, "/login")
+				return
+			}
+
+			username := user.NickName
+			if username == "" {
+				username = user.Name
+			}
+			if err := app.db.UpdateOIDCUsername(account.ID, username); err != nil {
+				log.Warn().Err(err).Msg("Failed to update OIDC username")
+			}
+		default:
 			c.Redirect(http.StatusTemporaryRedirect, "/login")
 			return
-		}
-
-		if err := app.db.UpdateGithubUsername(account.ID, user.NickName); err != nil {
-			log.Warn().Err(err).Msg("Failed to update github username")
 		}
 
 		sessionToken, err := app.db.CreateSessionToken(account.ID)
@@ -130,7 +206,15 @@ func (app *Application) linkApi(c *gin.Context) {
 		return
 	}
 
-	if !loggedIn || account.GithubID > 0 {
+	alreadyLinked := false
+	switch provider {
+	case "github":
+		alreadyLinked = account.GithubID > 0
+	case "openid-connect":
+		alreadyLinked = account.OIDCID != ""
+	}
+
+	if !loggedIn || alreadyLinked {
 		c.Redirect(http.StatusTemporaryRedirect, "/")
 		return
 	}
@@ -208,3 +292,4 @@ func (app *Application) logoutHandler(c *gin.Context) {
 
 	c.Redirect(http.StatusTemporaryRedirect, "/")
 }
+

@@ -13,3 +13,4 @@ secret_access_key = "SECRET_KEY_HERE"
 bucket = "BUCKET_NAME_HERE"
 region = "BUCKET_REGION_HERE"
 endpoint = "S3_ENDPOINT_HERE"
+proxyfiles = false

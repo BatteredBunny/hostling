@@ -52,6 +52,7 @@ type s3Config struct {
 	Bucket          string `toml:"bucket"`
 	Region          string `toml:"region"`
 	Endpoint        string `toml:"endpoint"`
+	ProxyFiles      bool   `toml:"proxyfiles"`
 }
 
 func (app *Application) Run() {

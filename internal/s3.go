@@ -30,3 +30,12 @@ func (app *Application) deleteFileS3(fileName string) (err error) {
 
 	return
 }
+
+func (app *Application) streamS3File(fileName string) (*minio.Object, error) {
+	return app.s3client.GetObject(
+		context.Background(),
+		app.config.S3.Bucket,
+		fileName,
+		minio.GetObjectOptions{},
+	)
+}

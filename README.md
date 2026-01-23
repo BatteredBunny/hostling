@@ -57,6 +57,7 @@ The below options will go in the `[s3]` section
 * `bucket`: S3/B2 bucket name (NOT the bucket ID)
 * `region`: S3/B2 region (e.g., `"us-east-1"`)
 * `endpoint`: S3/B2 endpoint URL (e.g., `"https://s3.us-west-002.backblazeb2.com"`)
+* `proxyfiles`: More demanding option for serving s3 files to the user. In some cases its better to stream the content to the user instead of redirecting to the s3 presigned url, enable it only if you need it. (e.g files dont display properly)
 
 # Setup
 ## Setup with nixos module

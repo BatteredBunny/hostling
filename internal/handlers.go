@@ -343,6 +343,45 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 	switch app.config.FileStorageMethod {
 	case fileStorageS3:
+		app.handles3File(fileName, fileRecord, c)
+	case fileStorageLocal:
+		c.File(filepath.Join(app.config.DataFolder, path.Clean(c.Request.URL.Path)))
+	default:
+		log.Err(ErrUnknownStorageMethod).Msg("No storage method chosen")
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+}
+
+func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gin.Context) {
+	if app.config.S3.ProxyFiles {
+		object, err := app.streamS3File(fileName)
+		if err != nil {
+			log.Err(err).Str("file", fileName).Msg("Failed to retrieve file from S3")
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		defer object.Close()
+
+		objectInfo, err := object.Stat()
+		if err != nil {
+			log.Err(err).Str("file", fileName).Msg("Failed to get S3 object info")
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+
+		extraHeaders := map[string]string{
+			"Content-Disposition": fmt.Sprintf("inline; filename=\"%s\"", fileRecord.OriginalFileName),
+		}
+
+		// Stream file to client
+		c.DataFromReader(
+			http.StatusOK,
+			objectInfo.Size,
+			fileRecord.MimeType,
+			object,
+			extraHeaders,
+		)
+	} else {
 		presignedURL, err := app.s3client.PresignedGetObject(
 			context.Background(),
 			app.config.S3.Bucket,
@@ -356,11 +395,6 @@ func (app *Application) indexFiles(c *gin.Context) {
 			return
 		}
 		c.Redirect(http.StatusTemporaryRedirect, presignedURL.String())
-	case fileStorageLocal:
-		c.File(filepath.Join(app.config.DataFolder, path.Clean(c.Request.URL.Path)))
-	default:
-		log.Err(ErrUnknownStorageMethod).Msg("No storage method chosen")
-		c.AbortWithStatus(http.StatusInternalServerError)
 	}
 }
 

@@ -49,7 +49,11 @@
         {
           inherit (overlay) hostling;
           default = overlay.hostling;
-          test-service = pkgs.callPackage ./test.nix { };
+
+          # nix run .#test-service.driverInteractive
+          test-service = pkgs.callPackage ./test.nix {
+            inherit self;
+          };
         }
       );
 

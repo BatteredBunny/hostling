@@ -1,4 +1,4 @@
-{ testers }:
+{ self, testers }:
 let
   port = 8080;
 in
@@ -11,7 +11,7 @@ testers.nixosTest {
     virtualisation.forwardPorts = [
       {
         from = "host";
-        host.port = 8080;
+        host.port = 8839;
         guest.port = port;
       }
     ];
@@ -20,12 +20,17 @@ testers.nixosTest {
   nodes.machine =
     { ... }:
     {
-      imports = [ ./module.nix ];
+      imports = [
+        self.nixosModules.default
+      ];
+
       services.hostling = {
         enable = true;
         createDbLocally = true;
-        settings.database_type = "postgresql";
-        settings.port = port;
+        settings = {
+          database_type = "postgresql";
+          inherit port;
+        };
       };
 
       services.postgresql.enable = true;

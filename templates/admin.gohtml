@@ -35,6 +35,8 @@
                 <div class="setting-group-body">
                     <p>Max upload size: <span title="{{ .MaxUploadSize }} bytes">{{ humanizeBytes .MaxUploadSize }}</span>
                     </p>
+                    <p>File storage method: {{ .FileStorageMethod }}</p>
+                    <p>Login providers: {{ if .LoginProviders }}{{ range $index, $provider := .LoginProviders }}{{ if $index }}, {{ end }}{{ $provider }}{{ end }}{{ else }}<span style="color: #ff6b6b;">None configured</span>{{ end }}</p>
                     <p>Hostling version: {{ .Version }}</p>
                 </div>
             </setting-group>

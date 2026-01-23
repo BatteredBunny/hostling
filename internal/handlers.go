@@ -150,12 +150,20 @@ func (app *Application) adminPage(c *gin.Context) {
 			stats = append(stats, stat)
 		}
 
-		noProvidersConfigured := len(goth.GetProviders()) == 0
+		var providers = goth.GetProviders()
+		noProvidersConfigured := len(providers) == 0
+
+		var loginProviders []string
+		for _, provider := range providers {
+			loginProviders = append(loginProviders, provider.Name())
+		}
 
 		templateInput["Accounts"] = stats
 		templateInput["MaxUploadSize"] = uint(app.config.MaxUploadSize)
 		templateInput["Version"] = Version
 		templateInput["NoProvidersConfigured"] = noProvidersConfigured
+		templateInput["FileStorageMethod"] = string(app.config.FileStorageMethod)
+		templateInput["LoginProviders"] = loginProviders
 	}
 
 	if loggedIn {
@@ -669,4 +677,3 @@ func (app *Application) filesAPI(c *gin.Context) {
 
 	c.JSON(http.StatusOK, output)
 }
-

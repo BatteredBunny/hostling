@@ -7,13 +7,13 @@ Main page             | Library view             | File modal
 <img width="1186" height="821" alt="image" src="https://github.com/user-attachments/assets/14747b0b-013b-4d03-8e36-830441704fa5" />  |  <img width="1186" height="821" alt="image" src="https://github.com/user-attachments/assets/e441be70-2c20-4126-aab5-3628c2355782" />  |  <img width="1190" height="1111" alt="image" src="https://github.com/user-attachments/assets/863eb487-653a-4a76-ba40-1724a6b8b1e8" />
 
 # Features
-- Easy social login via github
+- Login via Github and OpenID connect
 - Account invite codes for enrolling new users
 - Image automatic deletion, tagging, filtering, sorting
 - Seperate upload tokens for automation setups (e.g scripts)
 - Store data locally or on a S3/B2 bucket
 - Sqlite and postgresql support
-- View tracking
+- File view count tracking
 
 # Usage
 
@@ -25,9 +25,9 @@ Have a look at the example configs in ``examples/``
 
 Configuration is done via a TOML file (default: `config.toml`). Use the `-c` flag to specify a different location.
 
-## Setting up social login
+## Setting up login providers
 
-These environment variables are required for using Github for social login:
+Login provider credentials are given only via env variables due to their sensitive nature.
 
 * `GITHUB_CLIENT_ID`: GitHub OAuth application ID
 * `GITHUB_SECRET`: GitHub OAuth application secret
@@ -57,11 +57,15 @@ The below options will go in the `[s3]` section
 * `bucket`: S3/B2 bucket name (NOT the bucket ID)
 * `region`: S3/B2 region (e.g., `"us-east-1"`)
 * `endpoint`: S3/B2 endpoint URL (e.g., `"https://s3.us-west-002.backblazeb2.com"`)
-* `proxyfiles`: More demanding option for serving s3 files to the user. In some cases its better to stream the content to the user instead of redirecting to the s3 presigned url, enable it only if you need it. (e.g files dont display properly)
+* `proxyfiles`: More demanding option for serving s3 files to the user. In some cases its better to stream the content to the user instead of redirecting to the s3 presigned url, enable it only if you need it. (e.g files dont display properly without it)
 
 # Setup
-## Setup with nixos module
 
+## Setup with NixOS module
+
+<details>
+<summary><b>Setup with NixOS module</b></summary>
+    
 ```nix
 inputs = {
     hostling.url = "github:BatteredBunny/hostling";
@@ -83,6 +87,8 @@ services = {
 };
 ```
 
+</details>
+
 ## Setup with docker
 
 Have a look at docker-compose.yml
@@ -93,5 +99,6 @@ Have a look at docker-compose.yml
 
 ```
 nix run .#test-service.driverInteractive
-# Then visit http://localhost:8080
+# run start_all() 
+# Then visit http://localhost:8839
 ```

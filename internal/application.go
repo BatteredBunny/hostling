@@ -47,11 +47,12 @@ type Config struct {
 }
 
 type s3Config struct {
-	AccessKeyID     string `toml:"access_key_id"`
-	SecretAccessKey string `toml:"secret_access_key"`
-	Bucket          string `toml:"bucket"`
-	Region          string `toml:"region"`
-	Endpoint        string `toml:"endpoint"`
+	AccessKeyID          string `toml:"access_key_id"`
+	SecretAccessKey      string `toml:"secret_access_key"`
+	Bucket               string `toml:"bucket"`
+	Region               string `toml:"region"`
+	Endpoint             string `toml:"endpoint"`
+	ServerSideEncryption string `toml:"server_side_encryption"` // e.g., "AES256" or "aws:kms"
 }
 
 func (app *Application) Run() {

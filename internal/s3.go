@@ -5,16 +5,22 @@ import (
 	"context"
 
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/encrypt"
 )
 
 func (app *Application) uploadFileS3(file []byte, fileName string) (err error) {
+	opts := minio.PutObjectOptions{}
+	if app.config.S3.ServerSideEncryption != "" {
+		opts.ServerSideEncryption = encrypt.NewSSE()
+	}
+
 	_, err = app.s3client.PutObject(
 		context.Background(),
 		app.config.S3.Bucket,
 		fileName,
 		bytes.NewReader(file),
 		int64(len(file)),
-		minio.PutObjectOptions{},
+		opts,
 	)
 
 	return

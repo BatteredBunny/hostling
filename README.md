@@ -57,6 +57,7 @@ The below options will go in the `[s3]` section
 * `bucket`: S3/B2 bucket name (NOT the bucket ID)
 * `region`: S3/B2 region (e.g., `"us-east-1"`)
 * `endpoint`: S3/B2 endpoint URL (e.g., `"https://s3.us-west-002.backblazeb2.com"`)
+* `server_side_encryption`: Server-side encryption method. Use `"AES256"` for SSE-S3 encryption. Required if your bucket has encryption enabled.
 
 # Setup
 ## Setup with nixos module

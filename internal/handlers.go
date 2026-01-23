@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path"
 	"path/filepath"
 	"slices"
@@ -343,12 +344,18 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 	switch app.config.FileStorageMethod {
 	case fileStorageS3:
+		var reqParams url.Values
+		if app.config.S3.ServerSideEncryption != "" {
+			reqParams = make(url.Values)
+			reqParams.Set("x-amz-server-side-encryption", app.config.S3.ServerSideEncryption)
+		}
+
 		presignedURL, err := app.s3client.PresignedGetObject(
 			context.Background(),
 			app.config.S3.Bucket,
 			fileName,
 			time.Hour,
-			nil,
+			reqParams,
 		)
 		if err != nil {
 			log.Err(err).Msg("Failed to generate presigned URL")

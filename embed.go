@@ -15,6 +15,9 @@ var publicFiles embed.FS
 //go:embed templates
 var TemplateFiles embed.FS
 
+//go:embed migrations
+var MigrationFiles embed.FS
+
 func PublicFiles() http.FileSystem {
 	var files fs.FS = publicFiles
 

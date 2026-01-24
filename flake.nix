@@ -70,6 +70,10 @@
               cloudflared # cloudflared tunnel --url localhost:8081
               go
               wire
+              # TODO: needs atlas non-community edition
+              # wget https://atlasbinaries.com/atlas/atlas-linux-amd64-latest
+              # chmod +x atlas-linux-amd64-latest
+              # atlas
               sqlite
               pnpm_10
               nodejs

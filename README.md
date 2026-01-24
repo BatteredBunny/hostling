@@ -65,7 +65,7 @@ The below options will go in the `[s3]` section
 
 <details>
 <summary><b>Setup with NixOS module</b></summary>
-    
+
 ```nix
 inputs = {
     hostling.url = "github:BatteredBunny/hostling";
@@ -99,6 +99,10 @@ Have a look at docker-compose.yml
 
 ```
 nix run .#test-service.driverInteractive
-# run start_all() 
+# run start_all()
 # Then visit http://localhost:8839
 ```
+
+## Creating new sql migrations
+
+./atlas-linux-amd64-latest migrate diff --env gorm

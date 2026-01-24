@@ -63,6 +63,31 @@
         system:
         let
           pkgs = nixpkgsFor.${system};
+
+          # TODO: make it non hacky
+          atlas-unfree = pkgs.stdenvNoCC.mkDerivation {
+            pname = "atlas";
+            version = "latest";
+            src = pkgs.fetchurl {
+              url =
+                if pkgs.stdenv.isLinux && pkgs.stdenv.isx86_64 then
+                  "https://release.ariga.io/atlas/atlas-linux-amd64-latest"
+                else if pkgs.stdenv.isLinux && pkgs.stdenv.isAarch64 then
+                  "https://release.ariga.io/atlas/atlas-linux-arm64-latest"
+                else if pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64 then
+                  "https://release.ariga.io/atlas/atlas-darwin-amd64-latest"
+                else if pkgs.stdenv.isDarwin && pkgs.stdenv.isAarch64 then
+                  "https://release.ariga.io/atlas/atlas-darwin-arm64-latest"
+                else
+                  throw "Unsupported system for Atlas: ${system}";
+              sha256 = "sha256-Yc7S8mGWk7Z9lsDBsMVXBNQtwtG26/puNGqcO08AeMM=";
+            };
+            dontUnpack = true;
+            installPhase = ''
+              mkdir -p $out/bin
+              install -m755 $src $out/bin/atlas
+            '';
+          };
         in
         {
           default = pkgs.mkShell {
@@ -70,6 +95,7 @@
               cloudflared # cloudflared tunnel --url localhost:8081
               go
               wire
+              atlas-unfree # Unfree version of atlas
               sqlite
               pnpm_10
               nodejs

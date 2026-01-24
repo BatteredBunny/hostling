@@ -138,16 +138,8 @@ func prepareDB(c Config) (database db.Database) {
 		log.Fatal().Err(err).Msg("Failed to open database connection")
 	}
 
-	if err := database.DB.AutoMigrate(
-		&db.Accounts{},
-		&db.Files{},
-		&db.FileViews{},
-		&db.InviteCodes{},
-		&db.SessionTokens{},
-		&db.UploadTokens{},
-		&db.Tag{},
-	); err != nil {
-		log.Fatal().Err(err).Msg("Migration failed")
+	if err := RunMigrations(database.DB, c.DatabaseType, c.DatabaseConnectionUrl); err != nil {
+		log.Fatal().Err(err).Msg("Failed to run migrations")
 	}
 
 	// Create the first admin account if no account with ID 1 exists

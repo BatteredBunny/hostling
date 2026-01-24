@@ -19,10 +19,11 @@ import (
 )
 
 // Hacky way to get the migration files from virtual fs
-func loadEmbeddedMigrations() (dir *migrate.MemDir, err error) {
-	dir = migrate.OpenMemDir("migrations")
+func loadEmbeddedMigrations(databaseType string) (dir *migrate.MemDir, err error) {
+	dir = migrate.OpenMemDir(databaseType)
 
-	err = fs.WalkDir(embed.MigrationFiles, "migrations", func(path string, d fs.DirEntry, err error) (outerr error) {
+	migrationsPath := "migrations/" + databaseType
+	err = fs.WalkDir(embed.MigrationFiles, migrationsPath, func(path string, d fs.DirEntry, err error) (outerr error) {
 		if err != nil {
 			return err
 		}
@@ -67,7 +68,7 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 		return
 	}
 
-	dir, err := loadEmbeddedMigrations()
+	dir, err := loadEmbeddedMigrations(databaseType)
 	if err != nil {
 		err = fmt.Errorf("failed to load embedded migrations: %w", err)
 		return
@@ -87,9 +88,6 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 			err = fmt.Errorf("failed to open sqlite driver: %w", err)
 			return
 		}
-	default:
-		err = fmt.Errorf("unsupported database type: %s", databaseType)
-		return
 	}
 
 	migrator := db.NewRevisionReaderWriter(database)

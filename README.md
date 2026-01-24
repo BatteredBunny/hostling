@@ -105,4 +105,8 @@ nix run .#test-service.driverInteractive
 
 ## Creating new sql migrations
 
-./atlas-linux-amd64-latest migrate diff --env gorm
+Create migration for both sqlite and postgresql. Needs docker on your system.
+
+```
+make migration
+```

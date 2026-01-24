@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -11,7 +12,10 @@ import (
 )
 
 func main() {
-	stmts, err := gormschema.New("sqlite").Load(
+	dialect := flag.String("dialect", "sqlite", "Database dialect (sqlite or postgres)")
+	flag.Parse()
+
+	stmts, err := gormschema.New(*dialect).Load(
 		&db.Accounts{},
 		&db.Files{},
 		&db.FileViews{},

@@ -91,7 +91,7 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 	}
 
 	migrator := db.NewRevisionReaderWriter(database)
-	executor, err := migrate.NewExecutor(driver, dir, migrator)
+	executor, err := migrate.NewExecutor(driver, dir, migrator, migrate.WithAllowDirty(true))
 	if err != nil {
 		err = fmt.Errorf("failed to create migration executor: %w", err)
 		return
@@ -155,9 +155,12 @@ func MigrateExistingDatabase(
 	// If tables exist (excluding atlas_schema_revisions since that gets created automatically before),
 	// Mark the first migration as done since that adds the tables
 	if tableCount > 1 {
-		files, err := dir.Files()
+		var files []migrate.File
+		files, err = dir.Files()
 		if err != nil {
 			return fmt.Errorf("failed to read migration files: %w", err)
+		} else if len(files) == 0 {
+			return
 		}
 
 		firstFile := files[0]

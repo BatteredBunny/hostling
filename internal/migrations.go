@@ -116,6 +116,7 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 			err = fmt.Errorf("failed to execute migrations: %w", err)
 			return
 		}
+		err = nil
 	} else {
 		log.Info().Msg("Migrations applied successfully")
 	}

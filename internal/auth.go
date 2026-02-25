@@ -168,11 +168,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 				}
 			case "openid-connect":
 				if account.OIDCID == "" {
-					username := user.NickName
-					if username == "" {
-						username = user.Name
-					}
-					if err := app.db.LinkOIDC(account.ID, username, user.UserID); err != nil {
+					if err := app.db.LinkOIDC(account.ID, oidcUsername(user), user.UserID); err != nil {
 						c.String(http.StatusInternalServerError, "Failed to link OpenID Connect")
 						return
 					}
@@ -204,11 +200,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 				return
 			}
 
-			username := user.NickName
-			if username == "" {
-				username = user.Name
-			}
-			if err := app.db.UpdateOIDCUsername(account.ID, username); err != nil {
+			if err := app.db.UpdateOIDCUsername(account.ID, oidcUsername(user)); err != nil {
 				log.Warn().Err(err).Msg("Failed to update OIDC username")
 			}
 		default:
@@ -307,6 +299,16 @@ func (app *Application) registerApi(c *gin.Context) {
 
 	app.setAuthCookie(token, c)
 	c.Redirect(http.StatusTemporaryRedirect, "/user")
+}
+
+func oidcUsername(user goth.User) string {
+	for _, v := range []string{user.NickName, user.Name, user.Email, user.UserID} {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func (app *Application) logoutHandler(c *gin.Context) {

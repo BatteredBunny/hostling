@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
@@ -36,46 +37,70 @@ func (app *Application) setupSocialLogin() {
 	// Goth creates its own cookie for the auth flow
 	gothic.Store = sessions.NewCookieStore(generateSecureKey(32))
 
-	var providers []goth.Provider
-
-	githubClientID := os.Getenv("GITHUB_CLIENT_ID")
-	githubSecret := os.Getenv("GITHUB_SECRET")
-	githubEnabled := githubClientID != "" && githubSecret != ""
-
-	if githubEnabled {
-		providers = append(providers, github.New(
-			githubClientID,
-			githubSecret,
-			fmt.Sprintf("%s/api/auth/login/github/callback", app.config.PublicUrl),
-		))
-		log.Info().Msg("GitHub authentication enabled")
+	providerInits := map[string]func() (bool, error){
+		"github": app.initGithubProvider,
+		"oidc":   app.initOIDCProvider,
 	}
 
-	oidcClientID := os.Getenv("OPENID_CONNECT_CLIENT_ID")
-	oidcClientSecret := os.Getenv("OPENID_CONNECT_CLIENT_SECRET")
-	oidcDiscoveryURL := os.Getenv("OPENID_CONNECT_DISCOVERY_URL")
-	oidcEnabled := oidcClientID != "" && oidcClientSecret != "" && oidcDiscoveryURL != ""
+	providerNames := make([]string, 0, len(providerInits))
+	for name := range providerInits {
+		providerNames = append(providerNames, name)
+	}
 
-	if oidcEnabled {
-		oidcProvider, err := openidConnect.New(
-			oidcClientID,
-			oidcClientSecret,
-			fmt.Sprintf("%s/api/auth/login/openid-connect/callback", app.config.PublicUrl),
-			oidcDiscoveryURL,
-		)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize OpenID Connect provider")
+	hasEnabledProvider := false
+	for name, init := range providerInits {
+		if enabled, err := init(); err != nil {
+			log.Warn().Err(err).Str("provider", name).Msg("Failed to initialize provider, will retry on login")
+		} else if enabled {
+			hasEnabledProvider = true
 		}
-		providers = append(providers, oidcProvider)
-		log.Info().Msg("OpenID Connect authentication enabled")
 	}
 
-	// At least one authentication provider must be enabled
-	if !githubEnabled && !oidcEnabled {
-		log.Warn().Msg("At least one authentication provider must be enabled (GitHub or OpenID Connect)")
+	if !hasEnabledProvider {
+		log.Warn().Msgf("No authentication providers enabled, configure at least one (%s)", strings.Join(providerNames, ", "))
+	}
+}
+
+func (app *Application) initGithubProvider() (enabled bool, err error) {
+	clientID := os.Getenv("GITHUB_CLIENT_ID")
+	secret := os.Getenv("GITHUB_SECRET")
+	enabled = clientID != "" && secret != ""
+	if !enabled {
+		return
 	}
 
-	goth.UseProviders(providers...)
+	goth.UseProviders(github.New(
+		clientID,
+		secret,
+		fmt.Sprintf("%s/api/auth/login/github/callback", app.config.PublicUrl),
+	))
+	log.Info().Msg("GitHub authentication enabled")
+	return
+}
+
+func (app *Application) initOIDCProvider() (enabled bool, err error) {
+	clientID := os.Getenv("OPENID_CONNECT_CLIENT_ID")
+	clientSecret := os.Getenv("OPENID_CONNECT_CLIENT_SECRET")
+	discoveryURL := os.Getenv("OPENID_CONNECT_DISCOVERY_URL")
+	enabled = clientID != "" && clientSecret != "" && discoveryURL != ""
+	if !enabled {
+		return
+	}
+
+	if _, err = goth.GetProvider("openid-connect"); err == nil {
+		return
+	}
+	err = nil
+
+	callback := fmt.Sprintf("%s/api/auth/login/openid-connect/callback", app.config.PublicUrl)
+	oidcProvider, err := openidConnect.New(clientID, clientSecret, callback, discoveryURL)
+	if err != nil {
+		return
+	}
+
+	goth.UseProviders(oidcProvider)
+	log.Info().Msg("OpenID Connect authentication enabled")
+	return
 }
 
 func (app *Application) setupAuth(api *gin.RouterGroup) {
@@ -92,6 +117,15 @@ func (app *Application) setupAuth(api *gin.RouterGroup) {
 func (app *Application) loginApi(c *gin.Context) {
 	provider := c.Param("provider")
 	c.Request = contextWithProviderName(c, provider)
+
+	// TODO: refactor retry logic if needed by any further providers
+	if provider == "openid-connect" {
+		if _, err := app.initOIDCProvider(); err != nil {
+			log.Error().Err(err).Msg("OpenID Connect provider unavailable")
+			c.String(http.StatusServiceUnavailable, "OpenID Connect provider is temporarily unavailable")
+			return
+		}
+	}
 
 	if _, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
 		c.JSON(http.StatusOK, "logged in")
@@ -219,6 +253,15 @@ func (app *Application) linkApi(c *gin.Context) {
 		return
 	}
 
+	// TODO: refactor retry logic if needed by any further providers
+	if provider == "openid-connect" {
+		if _, err := app.initOIDCProvider(); err != nil {
+			log.Error().Err(err).Msg("OpenID Connect provider unavailable")
+			c.String(http.StatusServiceUnavailable, "OpenID Connect provider is temporarily unavailable")
+			return
+		}
+	}
+
 	if _, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
 		c.JSON(http.StatusOK, "linked")
 	} else {
@@ -292,4 +335,3 @@ func (app *Application) logoutHandler(c *gin.Context) {
 
 	c.Redirect(http.StatusTemporaryRedirect, "/")
 }
-

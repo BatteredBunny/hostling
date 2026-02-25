@@ -42,7 +42,7 @@ func (g *GormRevisionReadWriter) Ident() *migrate.TableIdent {
 
 func (g *GormRevisionReadWriter) ReadRevisions(ctx context.Context) (revisions []*migrate.Revision, err error) {
 	var dbRevisions []AtlasSchemaRevision
-	if err = g.db.WithContext(ctx).Order("applied ASC").Find(&dbRevisions).Error; err != nil {
+	if err = g.db.WithContext(ctx).Order("version ASC").Find(&dbRevisions).Error; err != nil {
 		err = fmt.Errorf("failed to read revisions: %w", err)
 		return
 	}

@@ -1,0 +1,9 @@
+form {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+
+    button {
+        padding: 0.6rem 1rem;
+    }
+}

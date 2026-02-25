@@ -80,7 +80,7 @@
                   "https://release.ariga.io/atlas/atlas-darwin-arm64-latest"
                 else
                   throw "Unsupported system for Atlas: ${system}";
-              sha256 = "sha256-Yc7S8mGWk7Z9lsDBsMVXBNQtwtG26/puNGqcO08AeMM=";
+              hash = "sha256-0Er3V5Fiud87KUPin22xb34iJmVgnQv1hJ9NQXXvrY8=";
             };
             dontUnpack = true;
             installPhase = ''

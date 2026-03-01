@@ -13,9 +13,9 @@ for img in upload gallery modal admin; do
 done
 
 echo "Updating README.md..."
-sed -i "s|src=\"https://files.catbox.moe/[^\"]*\" alt=\"upload\"|src=\"${urls[upload]}\" alt=\"upload\"|" README.md
-sed -i "s|src=\"https://files.catbox.moe/[^\"]*\" alt=\"gallery\"|src=\"${urls[gallery]}\" alt=\"gallery\"|" README.md
-sed -i "s|src=\"https://files.catbox.moe/[^\"]*\" alt=\"modal\"|src=\"${urls[modal]}\" alt=\"modal\"|" README.md
-sed -i "s|src=\"https://files.catbox.moe/[^\"]*\" alt=\"admin\"|src=\"${urls[admin]}\" alt=\"admin\"|" README.md
+sed -i "s|alt=\"upload\" src=\"[^\"]*\"|alt=\"upload\" src=\"${urls[upload]}\"|" README.md
+sed -i "s|alt=\"gallery\" src=\"[^\"]*\"|alt=\"gallery\" src=\"${urls[gallery]}\"|" README.md
+sed -i "s|alt=\"modal\" src=\"[^\"]*\"|alt=\"modal\" src=\"${urls[modal]}\"|" README.md
+sed -i "s|alt=\"admin\" src=\"[^\"]*\"|alt=\"admin\" src=\"${urls[admin]}\"|" README.md
 
 echo "Don't forget to commit the updated README.md!"

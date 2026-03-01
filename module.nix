@@ -35,6 +35,7 @@ in
         - GITHUB_SECRET: GitHub OAuth app secret
         - S3_ACCESS_KEY_ID: S3 access key ID (overrides config)
         - S3_SECRET_ACCESS_KEY: S3 secret access key (overrides config)
+        - INITIAL_REGISTER_TOKEN: If set, uses this value as the initial admin registration token on first run instead of generating a random one. Useful for automated deployments and testing.
       '';
     };
 

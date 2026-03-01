@@ -36,8 +36,13 @@
           pkgs = nixpkgsFor.${system};
         in
         {
-          service = pkgs.callPackage ./test.nix {
+          service-postgresql = pkgs.callPackage ./nix/test.nix {
             inherit self;
+            dbType = "postgresql";
+          };
+          service-sqlite = pkgs.callPackage ./nix/test.nix {
+            inherit self;
+            dbType = "sqlite";
           };
         }
       );
@@ -52,9 +57,15 @@
           inherit (overlay) hostling;
           default = overlay.hostling;
 
-          # nix run .#test-service.driverInteractive
-          test-service = pkgs.callPackage ./test.nix {
+          # nix run .#test-service-postgresql.driverInteractive
+          test-service-postgresql = pkgs.callPackage ./nix/test.nix {
             inherit self;
+            dbType = "postgresql";
+          };
+          # nix run .#test-service-sqlite.driverInteractive
+          test-service-sqlite = pkgs.callPackage ./nix/test.nix {
+            inherit self;
+            dbType = "sqlite";
           };
         }
       );

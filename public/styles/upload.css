@@ -27,6 +27,48 @@
     gap: 15px;
     margin-top: 10px;
 
+    .upload-progress {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        .progress-bar {
+            flex: 1;
+            height: 8px;
+            background-color: var(--menu-border-color);
+            border-radius: 4px;
+            overflow: hidden;
+
+            .progress-fill {
+                height: 100%;
+                width: 0%;
+                background-color: var(--link-color);
+                border-radius: 4px;
+                transition: width 0.1s ease;
+            }
+        }
+
+        .progress-text {
+            font-size: 14px;
+            color: var(--text-color);
+            min-width: 40px;
+            text-align: right;
+        }
+    }
+
+    .upload-result {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--link-color);
+
+        &.error {
+            color: var(--error-color);
+        }
+    }
+
     .form-group {
         display: flex;
         flex-direction: column;
@@ -91,6 +133,11 @@
             &.file-selected {
                 border-color: var(--link-color);
                 background-color: var(--menu-bg-color-translucent);
+            }
+
+            &.disabled {
+                opacity: 0.5;
+                pointer-events: none;
             }
 
             .drop-content {

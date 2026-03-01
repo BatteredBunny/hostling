@@ -63,6 +63,8 @@ main {
     --alternative-bg-color-translucent: light-dark(rgba(224, 224, 224, 0.7), rgba(38, 38, 38, 0.7));
     --alternative-text-color: light-dark(black, white);
 
+    --error-color: light-dark(rgb(220, 0, 0), rgb(255, 80, 80));
+
     --warning-bg-color: light-dark(#ffcccc, #5a1f1f);
     --warning-border-color: #ff0000;
     --warning-text-color: #ff0000;

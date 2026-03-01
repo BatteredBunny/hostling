@@ -68,6 +68,18 @@
                             <input type="date" id="expiry_date" name="expiry_date">
                         </div>
 
+                        <div class="upload-progress js-only" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <span class="progress-text" id="progressText">0%</span>
+                        </div>
+
+                        <div class="upload-result js-only" id="uploadResult" style="display: none;">
+                            <span id="uploadResultText"></span>
+                            <a id="uploadResultLink" href="#">View file</a>
+                        </div>
+
                         <div class="form-group">
                             <button type="submit" class="upload-button bold">Upload File</button>
                         </div>

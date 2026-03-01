@@ -195,10 +195,13 @@ curl -F 'upload_token=1234567890' -F 'file=@yourfile.png'
 Additional inputs:
 expiry_timestamp: unix timestamp in seconds
 expiry_date: YYYY-MM-DD in string, expiry_timestamp gets priority
+plain: if set to true, api will return plain url instead of redirecting
 tag: tags to add to the file
 */
 func (app *Application) uploadFileAPI(c *gin.Context) {
 	var expiryDate time.Time
+
+	plainRedirect := c.PostForm("plain") == "true"
 
 	tags, tags_exists := c.GetPostFormArray("tag")
 
@@ -308,7 +311,11 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, "/"+fullFileName)
+	if plainRedirect {
+		c.String(http.StatusOK, "/"+fullFileName)
+	} else {
+		c.Redirect(http.StatusTemporaryRedirect, "/"+fullFileName)
+	}
 }
 
 type TagInput struct {

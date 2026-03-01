@@ -67,6 +67,7 @@
             inherit self;
             dbType = "sqlite";
           };
+          example-screenshots = pkgs.callPackage ./nix/example-screenshots.nix { inherit self; };
         }
       );
 

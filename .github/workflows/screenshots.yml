@@ -21,8 +21,25 @@ jobs:
       - name: Upload screenshots to Litterbox
         id: upload
         run: |
+          upload() {
+            local file="$1"
+            for attempt in 1 2 3; do
+              url=$(curl --max-time 120 -F "reqtype=fileupload" -F "time=72h" \
+                -F "fileToUpload=@${file}" \
+                https://litterbox.catbox.moe/resources/internals/api.php 2>/dev/null)
+              if [[ "$url" == https://litter.catbox.moe/* ]]; then
+                echo "$url"
+                return 0
+              fi
+              echo "Attempt $attempt failed for $(basename "$file"), retrying..." >&2
+              sleep 5
+            done
+            echo "Failed to upload $(basename "$file") after 3 attempts" >&2
+            return 1
+          }
+
           for img in upload gallery modal admin; do
-            url=$(curl -F "reqtype=fileupload" -F "time=72h" -F "fileToUpload=@/tmp/screenshots/${img}.png" https://litterbox.catbox.moe/resources/internals/api.php)
+            url=$(upload "/tmp/screenshots/${img}.png")
             echo "${img}=${url}" >> "$GITHUB_OUTPUT"
           done
 

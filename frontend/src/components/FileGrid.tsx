@@ -21,6 +21,9 @@ import {
   setTagFilter,
   fileFilter,
   setFileFilter,
+  pendingModalFile,
+  setPendingModalFile,
+  openModal,
 } from '../store';
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
@@ -32,7 +35,7 @@ import type { SortField } from '../types';
 
 export function FileGrid() {
   onMount(() => {
-    loadFiles(0);
+    loadFiles(currentPage() * FILES_PER_PAGE);
   });
 
   const totalPages = () => Math.ceil(totalFiles() / FILES_PER_PAGE);
@@ -219,6 +222,13 @@ export async function loadFiles(skip: number) {
 
     setTotalFiles(data.count || 0);
     setFiles(data.files || []);
+
+    const pending = pendingModalFile();
+    if (pending && data.files) {
+      const match = data.files.find((f) => f.FileName === pending);
+      if (match) openModal(match);
+      setPendingModalFile(null);
+    }
 
     if (data.files && data.files.length > 0) {
       setLoadingText('');

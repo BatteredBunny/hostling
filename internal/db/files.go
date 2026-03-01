@@ -174,6 +174,13 @@ func (db *Database) GetFilesPaginatedFromAccount(
 		return
 	}
 
+	orderClause := clause.OrderByColumn{Desc: desc}
+	if sort == "views" {
+		orderClause.Column = clause.Column{Name: "COUNT(file_views.id)", Raw: true}
+	} else {
+		orderClause.Column = clause.Column{Table: "files", Name: sort}
+	}
+
 	if err = query.
 		Offset(int(skip)).
 		Limit(int(limit)).
@@ -182,10 +189,7 @@ func (db *Database) GetFilesPaginatedFromAccount(
 		Joins("LEFT JOIN file_views ON file_views.files_id = files.id").
 		Select("files.*").
 		Group("files.id").
-		Order(clause.OrderByColumn{
-			Column: clause.Column{Table: "files", Name: sort},
-			Desc:   desc,
-		}).Find(&files).Error; err != nil {
+		Order(orderClause).Find(&files).Error; err != nil {
 		return
 	}
 

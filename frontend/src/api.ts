@@ -13,9 +13,9 @@ export async function fetchFiles(
     skip: skip.toString(),
     sort,
     desc: desc.toString(),
-    tag: tagFilter ?? '',
-    filter: fileFilter ?? '',
   });
+  if (tagFilter) params.set('tag', tagFilter);
+  if (fileFilter) params.set('filter', fileFilter);
 
   const response = await fetch(`/api/account/files?${params}`, { method: 'GET' });
 

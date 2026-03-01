@@ -163,7 +163,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 						c.String(http.StatusInternalServerError, "Failed to link github")
 						return
 					}
-					c.Redirect(http.StatusTemporaryRedirect, "/user")
+					c.Redirect(http.StatusTemporaryRedirect, "/settings")
 					return
 				}
 			case "openid-connect":
@@ -172,7 +172,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 						c.String(http.StatusInternalServerError, "Failed to link OpenID Connect")
 						return
 					}
-					c.Redirect(http.StatusTemporaryRedirect, "/user")
+					c.Redirect(http.StatusTemporaryRedirect, "/settings")
 					return
 				}
 			}
@@ -215,7 +215,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 		}
 
 		app.setAuthCookie(sessionToken, c)
-		c.Redirect(http.StatusTemporaryRedirect, "/user")
+		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
 	}
 }
 
@@ -298,7 +298,7 @@ func (app *Application) registerApi(c *gin.Context) {
 	}
 
 	app.setAuthCookie(token, c)
-	c.Redirect(http.StatusTemporaryRedirect, "/user")
+	c.Redirect(http.StatusTemporaryRedirect, "/gallery")
 }
 
 func oidcUsername(user goth.User) string {

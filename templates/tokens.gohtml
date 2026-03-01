@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {{ template "header.gohtml" . }}
+    <link rel="stylesheet" href="/public/styles/common.css">
+    <link rel="stylesheet" href="/public/styles/tokens.css">
+    {{ template "meta-title.gohtml" "Tokens" }}
+</head>
+
+<body>
+    {{ template "toolbar.gohtml" . }}
+
+    <main>
+        <div class="container">
+            <h1>Tokens</h1>
+
+            <setting-group id="upload-tokens">
+                <div class="setting-group-header">
+                    <h2>Upload tokens</h2>
+                </div>
+
+                <div class="setting-group-body">
+                    <p>For script usage, its recommended to give programs or scripts specific tokens instead of general ones
+                        for
+                        security purposes.</p>
+
+                    <form action="/api/account/upload_token" method="POST" enctype="multipart/form-data">
+                        <input type="text" name="nickname" placeholder="Nickname">
+                        <input class="create-button" type="submit" value="Create upload token" autocomplete="off">
+                    </form>
+
+                    {{ if .UploadTokens }}
+                    <div class="upload-tokens-list">
+                        {{ range .UploadTokens }}
+                        <div class="upload-token-entry">
+                            <div class="info-row">
+                                <div class="nickname">{{ .Nickname }}</div>
+
+                                <div class="extra-info">
+                                    {{ if .LastUsed }}
+                                    <div>Last used: <span title="{{ formatTimeDate .LastUsed }}">{{ relativeTime .LastUsed
+                                            }}</span></div>
+                                    {{ else }}
+                                    <div>Last used: Never</div>
+                                    {{ end }}
+
+                                    <button class="delete-button" onclick="confirmDeleteUploadToken('{{ .Token }}')">Delete</button>
+                                </div>
+                            </div>
+
+                            <div><code>{{ .Token }}</code></div>
+                        </div>
+                        {{ end }}
+                    </div>
+                    {{ end }}
+                </div>
+            </setting-group>
+
+            {{ if .InviteCodes }}
+            <setting-group id="invite-codes">
+                <div class="setting-group-header">
+                    <h2>Invite codes</h2>
+                </div>
+
+                <div class="setting-group-body">
+                    <p>Shareable account registration codes on your account. You are soley responsible for any users you
+                        invite.
+                    </p>
+
+                    <div class="codes">
+                        {{ range .InviteCodes }}
+                        <div class="code">
+                            <code class="code-text">{{ .Code }}</code>
+                            <div class="info">
+                                <div class="uses-left">Uses left {{ .Uses }}</div>
+                                <div class="invite-code-expires" title="{{ formatTimeDate .ExpiryDate }}">Expires {{ relativeTime .ExpiryDate }}</div>
+                                <button class="delete-button" onclick="confirmDeleteInvite('{{ .Code }}')">Delete</button>
+                            </div>
+                        </div>
+                        {{ end }}
+                    </div>
+                </div>
+            </setting-group>
+            {{ end }}
+        </div>
+    </main>
+
+    <footer>
+        <script type="module" src="/public/js/tokens.js"></script>
+    </footer>
+</body>
+
+</html>

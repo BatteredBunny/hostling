@@ -1,9 +1,3 @@
-#social-login {
-    .linked-account {
-        color: var(--text-color);
-    }
-}
-
 #upload-tokens {
     form input[type="text"] {
         padding: 5px;

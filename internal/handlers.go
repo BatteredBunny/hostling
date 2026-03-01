@@ -173,7 +173,31 @@ func (app *Application) adminPage(c *gin.Context) {
 	}
 }
 
-func (app *Application) userPage(c *gin.Context) {
+func (app *Application) galleryPage(c *gin.Context) {
+	_, account, loggedIn, err := app.validateAuthCookie(c)
+	if errors.Is(err, ErrInvalidAuthCookie) {
+		app.clearAuthCookie(c)
+	} else if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if !loggedIn {
+		c.Redirect(http.StatusTemporaryRedirect, "/login")
+		return
+	}
+
+	c.HTML(http.StatusOK, "gallery.gohtml", gin.H{
+		"CurrentPage": "gallery",
+		"Branding":    app.config.Branding,
+		"Tagline":     app.config.Tagline,
+		"LoggedIn":    true,
+		"AccountID":   account.ID,
+		"IsAdmin":     account.AccountType == "ADMIN",
+	})
+}
+
+func (app *Application) settingsPage(c *gin.Context) {
 	_, account, loggedIn, err := app.validateAuthCookie(c)
 	if errors.Is(err, ErrInvalidAuthCookie) {
 		app.clearAuthCookie(c)
@@ -188,9 +212,12 @@ func (app *Application) userPage(c *gin.Context) {
 	}
 
 	templateInput := gin.H{
-		"CurrentPage": "user",
+		"CurrentPage": "settings",
 		"Branding":    app.config.Branding,
 		"Tagline":     app.config.Tagline,
+		"LoggedIn":    true,
+		"AccountID":   account.ID,
+		"IsAdmin":     account.AccountType == "ADMIN",
 	}
 
 	enabledProviders := goth.GetProviders()
@@ -205,36 +232,54 @@ func (app *Application) userPage(c *gin.Context) {
 			LinkingText: ProviderToLinkingText(providerName),
 		}
 
-		if loggedIn {
-			switch providerName {
-			case "github":
-				if account.GithubID > 0 {
-					info.IsLinked = true
-					info.Username = account.GithubUsername
-					info.ProfileURL = "https://github.com/" + account.GithubUsername
-					unlinkedAccount = false
-				}
-			case "openid-connect":
-				if account.OIDCID != "" {
-					info.IsLinked = true
-					info.Username = account.OIDCUsername
-					unlinkedAccount = false
-				}
+		switch providerName {
+		case "github":
+			if account.GithubID > 0 {
+				info.IsLinked = true
+				info.Username = account.GithubUsername
+				info.ProfileURL = "https://github.com/" + account.GithubUsername
+				unlinkedAccount = false
+			}
+		case "openid-connect":
+			if account.OIDCID != "" {
+				info.IsLinked = true
+				info.Username = account.OIDCUsername
+				unlinkedAccount = false
 			}
 		}
 
 		providers = append(providers, info)
 	}
 
-	// Linking panel
 	templateInput["Providers"] = providers
 	templateInput["NoProvidersConfigured"] = len(enabledProviders) == 0
-	templateInput["UnlinkedAccount"] = unlinkedAccount // Check if account is unlinked (no provider linked at all)
+	templateInput["UnlinkedAccount"] = unlinkedAccount
 
-	// For top bar
-	templateInput["LoggedIn"] = true
-	templateInput["AccountID"] = account.ID
-	templateInput["IsAdmin"] = account.AccountType == "ADMIN"
+	c.HTML(http.StatusOK, "settings.gohtml", templateInput)
+}
+
+func (app *Application) tokensPage(c *gin.Context) {
+	_, account, loggedIn, err := app.validateAuthCookie(c)
+	if errors.Is(err, ErrInvalidAuthCookie) {
+		app.clearAuthCookie(c)
+	} else if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	if !loggedIn {
+		c.Redirect(http.StatusTemporaryRedirect, "/login")
+		return
+	}
+
+	templateInput := gin.H{
+		"CurrentPage": "tokens",
+		"Branding":    app.config.Branding,
+		"Tagline":     app.config.Tagline,
+		"LoggedIn":    true,
+		"AccountID":   account.ID,
+		"IsAdmin":     account.AccountType == "ADMIN",
+	}
 
 	templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)
 	if err != nil {
@@ -250,7 +295,7 @@ func (app *Application) userPage(c *gin.Context) {
 
 	templateInput["UploadTokens"] = uploadTokens
 
-	c.HTML(http.StatusOK, "user.gohtml", templateInput)
+	c.HTML(http.StatusOK, "tokens.gohtml", templateInput)
 }
 
 type LoginProvider struct {
@@ -307,7 +352,7 @@ func (app *Application) loginPage(c *gin.Context) {
 	}
 
 	if loggedIn {
-		c.Redirect(http.StatusTemporaryRedirect, "/user")
+		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
 	} else {
 		c.HTML(http.StatusOK, "login.gohtml", gin.H{
 			"Providers":             providers,
@@ -329,7 +374,7 @@ func (app *Application) registerPage(c *gin.Context) {
 	}
 
 	if loggedIn {
-		c.Redirect(http.StatusTemporaryRedirect, "/user")
+		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
 	} else {
 		c.HTML(http.StatusOK, "register.gohtml", gin.H{
 			"CurrentPage": "register",

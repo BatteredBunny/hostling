@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {{ template "header.gohtml" . }}
+    <link rel="stylesheet" href="/public/styles/common.css">
+    <link rel="stylesheet" href="/public/dist/fileLibrary.css">
+    {{ template "meta-title.gohtml" "Gallery" }}
+</head>
+
+<body>
+    {{ template "toolbar.gohtml" . }}
+
+    <main>
+        <div class="container">
+            <h1>Gallery</h1>
+
+            <setting-group id="files">
+                <div id="file-library"></div>
+            </setting-group>
+        </div>
+    </main>
+
+    <footer>
+        <script type="module" src="/public/dist/fileLibrary.js"></script>
+    </footer>
+</body>
+
+</html>

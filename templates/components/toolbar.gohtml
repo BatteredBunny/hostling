@@ -11,12 +11,6 @@
             <span>Home</span>
         </a>
         {{ if .LoggedIn }}
-        <a class="toolbar-option{{ if eq .CurrentPage "user" }} active{{ end }}" href="/user" title="account">
-            <svg class="lucide-icon" viewBox="0 0 24 24">
-                <use href="/public/assets/lucide-sprite.svg#user" />
-            </svg>
-            <span>Account</span>
-        </a>
         {{ if .IsAdmin }}
         <a class="toolbar-option{{ if eq .CurrentPage "admin" }} active{{ end }}" href="/admin" title="admin panel">
             <svg class="lucide-icon" viewBox="0 0 24 24">
@@ -25,6 +19,26 @@
             <span>Admin</span>
         </a>
         {{ end }}
+        <div class="toolbar-divider"></div>
+        <a class="toolbar-option{{ if eq .CurrentPage "gallery" }} active{{ end }}" href="/gallery" title="gallery">
+            <svg class="lucide-icon" viewBox="0 0 24 24">
+                <use href="/public/assets/lucide-sprite.svg#images" />
+            </svg>
+            <span>Gallery</span>
+        </a>
+        <a class="toolbar-option{{ if eq .CurrentPage "settings" }} active{{ end }}" href="/settings" title="settings">
+            <svg class="lucide-icon" viewBox="0 0 24 24">
+                <use href="/public/assets/lucide-sprite.svg#settings" />
+            </svg>
+            <span>Settings</span>
+        </a>
+        <a class="toolbar-option{{ if eq .CurrentPage "tokens" }} active{{ end }}" href="/tokens" title="tokens">
+            <svg class="lucide-icon" viewBox="0 0 24 24">
+                <use href="/public/assets/lucide-sprite.svg#key-round" />
+            </svg>
+            <span>Tokens</span>
+        </a>
+        <div class="toolbar-divider"></div>
         <a class="toolbar-option" href="/logout" title="logout">
             <svg class="lucide-icon" viewBox="0 0 24 24">
                 <use href="/public/assets/lucide-sprite.svg#log-out" />

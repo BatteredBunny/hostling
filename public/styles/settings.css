@@ -1,0 +1,13 @@
+#social-login {
+    .linked-account {
+        color: var(--text-color);
+    }
+}
+
+#account-settings {
+    .account-settings-button-row {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+    }
+}

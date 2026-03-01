@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {{ template "header.gohtml" . }}
+    <link rel="stylesheet" href="/public/styles/common.css">
+    <link rel="stylesheet" href="/public/styles/settings.css">
+    {{ template "meta-title.gohtml" "Settings" }}
+</head>
+
+<body>
+    {{ template "toolbar.gohtml" . }}
+
+    <main>
+        <div class="container">
+            <h1>Settings</h1>
+
+            <setting-group id="social-login">
+                <div class="setting-group-header">
+                    <h2>Social login</h2>
+                </div>
+
+                <div class="setting-group-body">
+                    {{ if .NoProvidersConfigured }}
+                    <div class="warning-modal">
+                        <p><strong>Server Configuration Error:</strong> No authentication providers are configured. You will not be able to log in after your session expires. Please contact the server administrator to set up hostling correctly.</p>
+                    </div>
+                    {{ else if .UnlinkedAccount }}
+                    <div class="warning-modal">
+                        <p>Link your account with at least one platform otherwise you won't be able to login after this!
+                        </p>
+                    </div>
+                    {{ end }}
+
+                    {{ range .Providers }}
+                        {{ if .IsLinked }}
+                            {{ if .ProfileURL }}
+                            <a href="{{ .ProfileURL }}" target="_blank" class="linked-account">
+                                <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                </svg>
+                                <span>{{ .Username }}</span>
+                            </a>
+                            {{ else }}
+                            <div class="linked-account">
+                                <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                </svg>
+                                <span>{{ .Username }}</span>
+                            </div>
+                            {{ end }}
+                        {{ else }}
+                            <p class="provider">
+                                <a class="social-login" href="/api/auth/link/{{ .Name }}">
+                                    <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                        <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                    </svg>
+                                    <span>{{ .LinkingText }}</span>
+                                </a>
+                            </p>
+                        {{ end }}
+                    {{ end }}
+                </div>
+            </setting-group>
+
+            <setting-group id="account-settings">
+                <div class="setting-group-header">
+                    <h2>Account</h2>
+                </div>
+
+                <div class="setting-group-body">
+                    <div class="account-settings-button-row">
+                        <button class="delete-button" onclick="confirmDeleteAccount()">Delete my account</button>
+                        <button class="delete-button" onclick="confirmDeleteAllFiles()">Delete all files</button>
+                    </div>
+                </div>
+            </setting-group>
+        </div>
+    </main>
+
+    <footer>
+        <script type="module" src="/public/js/settings.js"></script>
+    </footer>
+</body>
+
+</html>

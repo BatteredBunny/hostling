@@ -230,6 +230,12 @@ input[type="submit"] {
         gap: 5px;
     }
 
+    .toolbar-divider {
+        border: none;
+        margin: 4px 16px;
+        background-color: var(--menu-border-color);
+    }
+
     .toolbar-option {
         display: flex;
         align-items: center;
@@ -284,6 +290,10 @@ input[type="submit"] {
             justify-content: center;
         }
 
+        .toolbar-divider {
+            height: 1px;
+        }
+
         .toolbar-option {
             &.active {
                 border-left: 3px solid var(--link-color);
@@ -326,6 +336,12 @@ input[type="submit"] {
             gap: 4px;
         }
 
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            margin: 4px 2px;
+        }
+
         .toolbar-footer {
             flex-direction: row;
             padding: 0;
@@ -365,14 +381,6 @@ input[type="submit"] {
     border: 1px solid var(--menu-border-color);
     border-radius: 10px;
     padding: 4px;
-}
-
-#account-settings {
-    .account-settings-button-row {
-        display: flex;
-        flex-direction: row;
-        gap: 10px;
-    }
 }
 
 .social-login {

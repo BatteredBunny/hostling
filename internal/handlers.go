@@ -21,6 +21,18 @@ import (
 	"gorm.io/gorm"
 )
 
+func (app *Application) hasAdminWarning() bool {
+	app.failedProvidersMutex.RLock()
+	defer app.failedProvidersMutex.RUnlock()
+	return len(app.configuredProviders) == 0 || len(app.failedProviders) > 0
+}
+
+func (app *Application) getFailedProviders() []string {
+	app.failedProvidersMutex.RLock()
+	defer app.failedProvidersMutex.RUnlock()
+	return append([]string(nil), app.failedProviders...)
+}
+
 func (app *Application) indexPage(c *gin.Context) {
 	templateInput := gin.H{
 		"Host":        c.Request.Host,
@@ -41,7 +53,13 @@ func (app *Application) indexPage(c *gin.Context) {
 		// For top bar
 		templateInput["LoggedIn"] = true
 		templateInput["AccountID"] = account.ID
-		templateInput["IsAdmin"] = account.AccountType == "ADMIN"
+
+		isAdmin := account.AccountType == "ADMIN"
+		templateInput["IsAdmin"] = isAdmin
+
+		if isAdmin {
+			templateInput["HasAdminWarning"] = app.hasAdminWarning()
+		}
 	}
 
 	c.HTML(http.StatusOK, "index.gohtml", templateInput)
@@ -131,6 +149,7 @@ func (app *Application) adminPage(c *gin.Context) {
 		templateInput["LoggedIn"] = true
 		templateInput["AccountID"] = account.ID
 		templateInput["IsAdmin"] = account.AccountType == "ADMIN"
+		templateInput["HasAdminWarning"] = app.hasAdminWarning()
 
 		accounts, err := app.db.GetAccounts()
 		if err != nil {
@@ -153,6 +172,7 @@ func (app *Application) adminPage(c *gin.Context) {
 		templateInput["MaxUploadSize"] = uint(app.config.MaxUploadSize)
 		templateInput["Version"] = Version
 		templateInput["NoProvidersConfigured"] = len(app.configuredProviders) == 0
+		templateInput["FailedProviders"] = app.getFailedProviders()
 		templateInput["FileStorageMethod"] = string(app.config.FileStorageMethod)
 		templateInput["LoginProviders"] = app.configuredProviders
 	}
@@ -178,14 +198,21 @@ func (app *Application) galleryPage(c *gin.Context) {
 		return
 	}
 
-	c.HTML(http.StatusOK, "gallery.gohtml", gin.H{
+	isAdmin := account.AccountType == "ADMIN"
+	templateInput := gin.H{
 		"CurrentPage": "gallery",
 		"Branding":    app.config.Branding,
 		"Tagline":     app.config.Tagline,
 		"LoggedIn":    true,
 		"AccountID":   account.ID,
-		"IsAdmin":     account.AccountType == "ADMIN",
-	})
+		"IsAdmin":     isAdmin,
+	}
+
+	if isAdmin {
+		templateInput["HasAdminWarning"] = app.hasAdminWarning()
+	}
+
+	c.HTML(http.StatusOK, "gallery.gohtml", templateInput)
 }
 
 func (app *Application) settingsPage(c *gin.Context) {
@@ -202,13 +229,18 @@ func (app *Application) settingsPage(c *gin.Context) {
 		return
 	}
 
+	isAdmin := account.AccountType == "ADMIN"
 	templateInput := gin.H{
 		"CurrentPage": "settings",
 		"Branding":    app.config.Branding,
 		"Tagline":     app.config.Tagline,
 		"LoggedIn":    true,
 		"AccountID":   account.ID,
-		"IsAdmin":     account.AccountType == "ADMIN",
+		"IsAdmin":     isAdmin,
+	}
+
+	if isAdmin {
+		templateInput["HasAdminWarning"] = app.hasAdminWarning()
 	}
 
 	var providers []ProviderInfo
@@ -261,13 +293,18 @@ func (app *Application) tokensPage(c *gin.Context) {
 		return
 	}
 
+	isAdmin := account.AccountType == "ADMIN"
 	templateInput := gin.H{
 		"CurrentPage": "tokens",
 		"Branding":    app.config.Branding,
 		"Tagline":     app.config.Tagline,
 		"LoggedIn":    true,
 		"AccountID":   account.ID,
-		"IsAdmin":     account.AccountType == "ADMIN",
+		"IsAdmin":     isAdmin,
+	}
+
+	if isAdmin {
+		templateInput["HasAdminWarning"] = app.hasAdminWarning()
 	}
 
 	templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)

@@ -50,13 +50,15 @@ func (app *Application) setupSocialLogin() {
 
 	hasEnabledProvider := false
 	for _, p := range providers {
-		enabled, err := initWithRetry(p.gothName, p.init)
-		if err != nil {
-			log.Warn().Err(err).Str("provider", p.gothName).Msg("Failed to initialize provider after retries, will retry on login")
-		}
+		enabled, err := p.init()
 		if enabled {
 			app.configuredProviders = append(app.configuredProviders, p.gothName)
 			hasEnabledProvider = true
+		}
+		if err != nil {
+			log.Warn().Err(err).Str("provider", p.gothName).Msg("Failed to initialize provider, retrying in background")
+			app.addFailedProvider(p.gothName)
+			go app.retryProviderInit(p.gothName, p.init)
 		}
 	}
 
@@ -69,28 +71,40 @@ func (app *Application) setupSocialLogin() {
 	}
 }
 
-func initWithRetry(name string, init func() (bool, error)) (bool, error) {
-	enabled, err := init()
-	if err == nil {
-		return enabled, nil
-	}
-	if !enabled {
-		return false, nil
-	}
+func (app *Application) addFailedProvider(name string) {
+	app.failedProvidersMutex.Lock()
+	defer app.failedProvidersMutex.Unlock()
+	app.failedProviders = append(app.failedProviders, name)
+}
 
+func (app *Application) removeFailedProvider(name string) {
+	app.failedProvidersMutex.Lock()
+	defer app.failedProvidersMutex.Unlock()
+	for i, n := range app.failedProviders {
+		if n == name {
+			app.failedProviders = append(app.failedProviders[:i], app.failedProviders[i+1:]...)
+			return
+		}
+	}
+}
+
+func (app *Application) retryProviderInit(name string, init func() (bool, error)) {
 	const maxRetries = 10
-	delay := 5 * time.Second // delay doubles with each attempt
+	delay := 5 * time.Second
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		log.Warn().Err(err).Str("provider", name).Int("attempt", attempt).Dur("retry_in", delay).Msg("Provider initialization failed, retrying")
+		log.Warn().Str("provider", name).Int("attempt", attempt).Dur("retry_in", delay).Msg("Provider initialization failed, retrying")
 		time.Sleep(delay)
 
-		enabled, err = init()
+		_, err := init()
 		if err == nil {
-			return enabled, nil
+			log.Info().Str("provider", name).Msg("Provider initialized successfully after retry")
+			app.removeFailedProvider(name)
+			return
 		}
+		log.Warn().Err(err).Str("provider", name).Int("attempt", attempt).Msg("Provider retry failed")
 		delay *= 2
 	}
-	return enabled, err
+	log.Error().Str("provider", name).Msg("Provider initialization failed after all retries, will retry on login")
 }
 
 func (app *Application) initGithubProvider() (enabled bool, err error) {

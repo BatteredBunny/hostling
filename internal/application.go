@@ -3,6 +3,7 @@ package internal
 import (
 	"net/http"
 	"strconv"
+	"sync"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/didip/tollbooth/v8/limiter"
@@ -21,6 +22,9 @@ type Application struct {
 
 	Router              *gin.Engine
 	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
+
+	failedProvidersMutex sync.RWMutex
+	failedProviders      []string // provider names that are configured but failed to initialize
 }
 
 type fileStorageMethod string

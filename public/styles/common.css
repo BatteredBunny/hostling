@@ -301,6 +301,10 @@ input[type="submit"] {
                 border-left: 3px solid var(--link-color);
                 padding-left: 17px;
             }
+
+            .admin-warning-icon {
+                color: var(--warning-text-color);
+            }
         }
     }
 }
@@ -370,6 +374,10 @@ input[type="submit"] {
                 border-bottom: 3px solid var(--link-color);
                 padding-left: 12px;
                 padding-top: 5px;
+            }
+
+            &.admin-warning svg {
+                color: var(--warning-text-color);
             }
         }
     }

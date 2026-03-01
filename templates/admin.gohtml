@@ -27,6 +27,18 @@
             </div>
             {{ end }}
 
+            {{ if .FailedProviders }}
+            <div class="warning-modal">
+                <p><strong>Provider Initialization Error:</strong> The following authentication providers are configured but failed to initialize:</p>
+                <ul>
+                    {{ range .FailedProviders }}
+                    <li><strong>{{ . }}</strong></li>
+                    {{ end }}
+                </ul>
+                <p>Login will be attempted on demand, but may fail if the provider remains unreachable. Check that the provider is running and the configuration is correct.</p>
+            </div>
+            {{ end }}
+
             <setting-group id="server-config-panel">
                 <div class="setting-group-header">
                     <h2>Server info</h2>

@@ -2,9 +2,9 @@
 
 Simple file hosting service
 
-Main page             | Library view             | File modal
-:-------------------------:|:-------------------------:|:-------------------------:
-<img width="1186" height="821" alt="image" src="https://github.com/user-attachments/assets/14747b0b-013b-4d03-8e36-830441704fa5" />  |  <img width="1186" height="821" alt="image" src="https://github.com/user-attachments/assets/e441be70-2c20-4126-aab5-3628c2355782" />  |  <img width="1190" height="1111" alt="image" src="https://github.com/user-attachments/assets/863eb487-653a-4a76-ba40-1724a6b8b1e8" />
+Main page             | Library view             | File modal             | Admin panel
+:-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
+<img width="1280" height="900" alt="upload" src="screenshots/upload.png" />  |  <img width="1280" height="900" alt="gallery" src="screenshots/gallery.png" />  |  <img width="1280" height="900" alt="modal" src="screenshots/modal.png" />  |  <img width="1280" height="900" alt="admin" src="screenshots/admin.png" />
 
 # Features
 - Login via Github and OpenID connect

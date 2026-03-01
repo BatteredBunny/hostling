@@ -686,21 +686,12 @@ func (app *Application) filesAPI(c *gin.Context) {
 	var limit uint = 8
 
 	var output FilesApiOutput
-	output.Files, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc, input.Tag, input.Filter)
+	output.Files, output.Count, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc, input.Tag, input.Filter)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
-
-	count, err := app.db.FilesAmountOnAccount(account.ID)
-	if err != nil {
-		log.Err(err).Msg("Failed to get files amount on account")
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-
-	output.Count = count
 
 	c.JSON(http.StatusOK, output)
 }

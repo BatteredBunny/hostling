@@ -78,15 +78,6 @@ func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
 		Delete(&Files{}).Error
 }
 
-func (db *Database) FilesAmountOnAccount(accountID uint) (count int64, err error) {
-	err = db.Model(&Files{}).
-		Where(&Files{UploaderID: accountID}).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()). // Filters expired files
-		Count(&count).Error
-
-	return
-}
-
 func (db *Database) GetAllFilesFromAccount(accountID uint) (files []Files, err error) {
 	err = db.Model(&Files{}).
 		Where(&Files{UploaderID: accountID}).
@@ -159,7 +150,7 @@ func (db *Database) GetFilesPaginatedFromAccount(
 	desc bool,
 	tag string, // Tag to filter by
 	filter string,
-) (files []Files, err error) {
+) (files []Files, totalCount int64, err error) {
 	query := db.Model(&Files{}).
 		Where("files.uploader_id = ?", accountID).
 		Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
@@ -177,6 +168,10 @@ func (db *Database) GetFilesPaginatedFromAccount(
 		// Filter for files with specific tag
 		query = query.Joins("JOIN file_tags ON file_tags.files_id = files.id").
 			Where("file_tags.tag_name = ?", tag)
+	}
+
+	if err = query.Count(&totalCount).Error; err != nil {
+		return
 	}
 
 	if err = query.

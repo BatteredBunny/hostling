@@ -93,6 +93,8 @@ uploadForm.addEventListener("submit", (e) => {
 
         if (xhr.status >= 200 && xhr.status < 400) {
             showResult(true, "Upload successful", xhr.responseText.trim());
+        } else if (xhr.status === 401) {
+            showResult(false, "Upload failed: Unauthorized");
         } else {
             showResult(false, xhr.responseText || "Upload failed");
         }

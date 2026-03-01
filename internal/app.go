@@ -153,7 +153,12 @@ func prepareDB(c Config) (database db.Database) {
 	}
 
 	if accountAmount == 0 && inviteCodeAmount == 0 {
-		inviteCode, err := database.CreateInviteCode(1, "ADMIN", 0)
+		var inviteCode db.InviteCodes
+		if initialToken := os.Getenv("INITIAL_REGISTER_TOKEN"); initialToken != "" {
+			inviteCode, err = database.CreateInviteCodeWithCode(initialToken, 1, "ADMIN", 0)
+		} else {
+			inviteCode, err = database.CreateInviteCode(1, "ADMIN", 0)
+		}
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to create initial invite")
 		}

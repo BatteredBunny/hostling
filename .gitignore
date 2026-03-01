@@ -11,3 +11,4 @@ hostling.db
 tmp
 frontend/node_modules/
 public/dist/
+hostling

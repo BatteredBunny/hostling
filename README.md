@@ -35,6 +35,9 @@ Login provider credentials are given only via env variables due to their sensiti
 * `OPENID_CONNECT_CLIENT_SECRET`: OpenID Connect client secret
 * `OPENID_CONNECT_DISCOVERY_URL`: OpenID Connect discovery URL
 
+## Extra environment variables
+* `INITIAL_REGISTER_TOKEN`: If set, uses this value as the initial admin registration token on first run instead of generating a random one. Useful for automated deployments and testing.
+
 ## Config options
 
 * `data_folder`: Directory for local file storage. Only used when S3 is not configured.

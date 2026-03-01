@@ -71,7 +71,7 @@ The below options will go in the `[s3]` section
 
 ```nix
 inputs = {
-    hostling.url = "github:BatteredBunny/hostling";
+    hostling.url = "github:BatteredBunny/hostling?ref=v0.3.1";
 };
 ```
 

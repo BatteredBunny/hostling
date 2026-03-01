@@ -15,20 +15,20 @@ const (
 )
 
 func (app *Application) setLinkingCookie(c *gin.Context) {
-	c.SetCookie("linking", "true", 500, "/", app.config.PublicUrl, gin.Mode() == gin.ReleaseMode, true)
+	c.SetCookie("linking", "true", 500, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
 }
 
 func (app *Application) clearLinkingCookie(c *gin.Context) {
-	c.SetCookie("linking", "", -1, "/", app.config.PublicUrl, gin.Mode() == gin.ReleaseMode, true)
+	c.SetCookie("linking", "", -1, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
 }
 
 func (app *Application) setAuthCookie(sessionToken uuid.UUID, c *gin.Context) {
 	// TODO: use actual max age
-	c.SetCookie(AUTH_COOKIE, sessionToken.String(), 86400*7, "/", app.config.PublicUrl, gin.Mode() == gin.ReleaseMode, true)
+	c.SetCookie(AUTH_COOKIE, sessionToken.String(), 86400*7, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
 }
 
 func (app *Application) clearAuthCookie(c *gin.Context) {
-	c.SetCookie(AUTH_COOKIE, "", -1, "/", app.config.PublicUrl, gin.Mode() == gin.ReleaseMode, true)
+	c.SetCookie(AUTH_COOKIE, "", -1, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
 }
 
 var ErrInvalidAuthCookie = errors.New("Invalid session token")

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
@@ -33,32 +34,63 @@ func generateSecureKey(length int) []byte {
 	return key
 }
 
+type providerInit struct {
+	gothName string // the name goth uses for this provider (e.g. "openid-connect")
+	init     func() (bool, error)
+}
+
 func (app *Application) setupSocialLogin() {
 	// Goth creates its own cookie for the auth flow
 	gothic.Store = sessions.NewCookieStore(generateSecureKey(32))
 
-	providerInits := map[string]func() (bool, error){
-		"github": app.initGithubProvider,
-		"oidc":   app.initOIDCProvider,
-	}
-
-	providerNames := make([]string, 0, len(providerInits))
-	for name := range providerInits {
-		providerNames = append(providerNames, name)
+	providers := []providerInit{
+		{gothName: "github", init: app.initGithubProvider},
+		{gothName: "openid-connect", init: app.initOIDCProvider},
 	}
 
 	hasEnabledProvider := false
-	for name, init := range providerInits {
-		if enabled, err := init(); err != nil {
-			log.Warn().Err(err).Str("provider", name).Msg("Failed to initialize provider, will retry on login")
-		} else if enabled {
+	for _, p := range providers {
+		enabled, err := initWithRetry(p.gothName, p.init)
+		if err != nil {
+			log.Warn().Err(err).Str("provider", p.gothName).Msg("Failed to initialize provider after retries, will retry on login")
+		}
+		if enabled {
+			app.configuredProviders = append(app.configuredProviders, p.gothName)
 			hasEnabledProvider = true
 		}
 	}
 
 	if !hasEnabledProvider {
-		log.Warn().Msgf("No authentication providers enabled, configure at least one (%s)", strings.Join(providerNames, ", "))
+		names := make([]string, len(providers))
+		for i, p := range providers {
+			names[i] = p.gothName
+		}
+		log.Warn().Msgf("No authentication providers enabled, configure at least one (%s)", strings.Join(names, ", "))
 	}
+}
+
+func initWithRetry(name string, init func() (bool, error)) (bool, error) {
+	enabled, err := init()
+	if err == nil {
+		return enabled, nil
+	}
+	if !enabled {
+		return false, nil
+	}
+
+	const maxRetries = 10
+	delay := 5 * time.Second // delay doubles with each attempt
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		log.Warn().Err(err).Str("provider", name).Int("attempt", attempt).Dur("retry_in", delay).Msg("Provider initialization failed, retrying")
+		time.Sleep(delay)
+
+		enabled, err = init()
+		if err == nil {
+			return enabled, nil
+		}
+		delay *= 2
+	}
+	return enabled, err
 }
 
 func (app *Application) initGithubProvider() (enabled bool, err error) {

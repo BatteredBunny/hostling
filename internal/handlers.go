@@ -17,7 +17,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"
-	"github.com/markbates/goth"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -150,20 +149,12 @@ func (app *Application) adminPage(c *gin.Context) {
 			stats = append(stats, stat)
 		}
 
-		providers := goth.GetProviders()
-		noProvidersConfigured := len(providers) == 0
-
-		var loginProviders []string
-		for _, provider := range providers {
-			loginProviders = append(loginProviders, provider.Name())
-		}
-
 		templateInput["Accounts"] = stats
 		templateInput["MaxUploadSize"] = uint(app.config.MaxUploadSize)
 		templateInput["Version"] = Version
-		templateInput["NoProvidersConfigured"] = noProvidersConfigured
+		templateInput["NoProvidersConfigured"] = len(app.configuredProviders) == 0
 		templateInput["FileStorageMethod"] = string(app.config.FileStorageMethod)
-		templateInput["LoginProviders"] = loginProviders
+		templateInput["LoginProviders"] = app.configuredProviders
 	}
 
 	if loggedIn {
@@ -220,12 +211,10 @@ func (app *Application) settingsPage(c *gin.Context) {
 		"IsAdmin":     account.AccountType == "ADMIN",
 	}
 
-	enabledProviders := goth.GetProviders()
 	var providers []ProviderInfo
 	unlinkedAccount := true
 
-	for _, provider := range enabledProviders {
-		providerName := provider.Name()
+	for _, providerName := range app.configuredProviders {
 		info := ProviderInfo{
 			Name:        providerName,
 			Icon:        ProviderToIcon(providerName),
@@ -252,7 +241,7 @@ func (app *Application) settingsPage(c *gin.Context) {
 	}
 
 	templateInput["Providers"] = providers
-	templateInput["NoProvidersConfigured"] = len(enabledProviders) == 0
+	templateInput["NoProvidersConfigured"] = len(app.configuredProviders) == 0
 	templateInput["UnlinkedAccount"] = unlinkedAccount
 
 	c.HTML(http.StatusOK, "settings.gohtml", templateInput)
@@ -344,10 +333,10 @@ func (app *Application) loginPage(c *gin.Context) {
 	}
 
 	var providers []LoginProvider
-	for _, provider := range goth.GetProviders() {
+	for _, name := range app.configuredProviders {
 		providers = append(providers, LoginProvider{
-			Name: provider.Name(),
-			Icon: ProviderToIcon(provider.Name()),
+			Name: name,
+			Icon: ProviderToIcon(name),
 		})
 	}
 
@@ -356,7 +345,7 @@ func (app *Application) loginPage(c *gin.Context) {
 	} else {
 		c.HTML(http.StatusOK, "login.gohtml", gin.H{
 			"Providers":             providers,
-			"NoProvidersConfigured": len(providers) == 0,
+			"NoProvidersConfigured": len(app.configuredProviders) == 0,
 			"CurrentPage":           "login",
 			"Branding":              app.config.Branding,
 			"Tagline":               app.config.Tagline,

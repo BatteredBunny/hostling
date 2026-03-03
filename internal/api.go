@@ -111,7 +111,7 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	// Makes sure the file exists
+	// Makes sure the file exists in the database
 	var fileExists bool
 	if fileExists, err = app.db.FileExists(input.FileName); err != nil {
 		log.Err(err).Msg("Failed to check if file exists")
@@ -122,11 +122,19 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	// Deletes file
-	if err = app.deleteFile(input.FileName); err != nil {
-		log.Err(err).Msg("Failed to delete file")
+	// Only delete from storage if the file still exists there
+	var existsInStorage bool
+	if existsInStorage, err = app.fileExistsInStorage(input.FileName); err != nil {
+		log.Err(err).Msg("Failed to check if file exists in storage")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
+	}
+	if existsInStorage {
+		if err = app.deleteFile(input.FileName); err != nil {
+			log.Err(err).Msg("Failed to delete file")
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if err = app.db.DeleteFileEntry(input.FileName, account.ID); err != nil { // Deletes file entry from database

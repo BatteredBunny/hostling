@@ -181,5 +181,12 @@ testers.nixosTest {
 
       stats = api_get("/api/account/files/stats")
       assert stats["count"] == 1, f"Expected 1 file in stats after deletion, got {stats['count']}"
+
+      # Delete a file that has tags
+      machine.succeed(f"curl -f -b /tmp/cookies.txt -X DELETE -F 'file_name={small_file}' 'http://localhost:${port}/api/account/file'")
+
+      # Verify its deleted
+      listing = api_get("/api/account/files")
+      assert listing["count"] == 0, f"Expected 0 files after deleting tagged file, got {listing['count']}"
     '';
 }

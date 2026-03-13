@@ -180,12 +180,12 @@ in
         Restart = "always";
         StateDirectory = "hostling";
         RuntimeDirectory = "hostling";
-        RuntimeDirectoryMode = "0750";
+        RuntimeDirectoryMode = "0755";
         WorkingDirectory = "/var/lib/hostling";
         User = "hostling";
         Group = "hostling";
         EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
-        UMask = lib.mkIf cfg.socket.enable "0007";
+        UMask = lib.mkIf cfg.socket.enable "0111";
 
         # Hardening
         ProtectSystem = "full";

@@ -39,6 +39,16 @@ in
       '';
     };
 
+    socket = {
+      enable = lib.mkEnableOption "listening on a Unix socket instead of a TCP port";
+
+      path = lib.mkOption {
+        type = lib.types.str;
+        default = "/run/hostling/hostling.sock";
+        description = "Unix socket path for the HTTP server";
+      };
+    };
+
     settings = lib.mkOption {
       description = ''
         Configuration for Hostling. More important options are exposed via nix, others can be simply defined without nix options
@@ -169,10 +179,13 @@ in
         ExecStart = "${lib.getExe cfg.package} -c=${tomlSetting}";
         Restart = "always";
         StateDirectory = "hostling";
+        RuntimeDirectory = "hostling";
+        RuntimeDirectoryMode = "0750";
         WorkingDirectory = "/var/lib/hostling";
         User = "hostling";
         Group = "hostling";
         EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
+        UMask = lib.mkIf cfg.socket.enable "0007";
 
         # Hardening
         ProtectSystem = "full";
@@ -204,6 +217,7 @@ in
 
     services.hostling.settings.database_connection_url = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql")
       (lib.mkDefault "postgresql:///hostling?host=/run/postgresql&user=hostling");
+    services.hostling.settings.unix_socket = lib.mkIf cfg.socket.enable (lib.mkDefault cfg.socket.path);
 
     services.postgresql = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql") {
       enable = true;
@@ -223,7 +237,7 @@ in
 
     users.groups.hostling = { };
 
-    networking.firewall = lib.mkIf cfg.openFirewall {
+    networking.firewall = lib.mkIf (cfg.openFirewall && !cfg.socket.enable) {
       allowedTCPPorts = [ cfg.settings.port ];
     };
   };

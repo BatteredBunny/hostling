@@ -1,7 +1,10 @@
 package internal
 
 import (
+	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 
@@ -39,7 +42,9 @@ type Config struct {
 	MaxUploadSize         int64  `toml:"max_upload_size"`
 	DatabaseType          string `toml:"database_type"`
 	DatabaseConnectionUrl string `toml:"database_connection_url"`
-	Port                  int    `toml:"port"`
+
+	Port       int    `toml:"port"`
+	UnixSocket string `toml:"unix_socket"`
 
 	BehindReverseProxy bool   `toml:"behind_reverse_proxy"`
 	TrustedProxy       string `toml:"trusted_proxy"`
@@ -63,6 +68,53 @@ type s3Config struct {
 }
 
 func (app *Application) Run() {
-	log.Info().Msgf("Starting server at http://localhost:%d", app.config.Port)
-	log.Fatal().Err(http.ListenAndServe(":"+strconv.Itoa(app.config.Port), app.Router)).Msg("HTTP server failed")
+	listener, err := app.listen()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to start listener")
+	}
+
+	log.Fatal().Err(http.Serve(listener, app.Router)).Msg("HTTP server failed")
+}
+
+func (app *Application) verifySocketUsable() (err error) {
+	socketDir := filepath.Dir(app.config.UnixSocket)
+	if err := os.MkdirAll(socketDir, 0o750); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(app.config.UnixSocket); err == nil {
+		if err := os.Remove(app.config.UnixSocket); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	return
+}
+
+func (app *Application) listen() (listener net.Listener, err error) {
+	if app.config.UnixSocket != "" {
+		if err = app.verifySocketUsable(); err != nil {
+			return
+		}
+
+		listener, err = net.Listen("unix", app.config.UnixSocket)
+		if err != nil {
+			return
+		}
+
+		log.Info().Msgf("Starting server on unix socket %s", app.config.UnixSocket)
+	} else {
+		// Maybe verify port taken first?
+
+		listener, err = net.Listen("tcp", ":"+strconv.Itoa(app.config.Port))
+		if err != nil {
+			return
+		}
+
+		log.Info().Msgf("Starting server at http://localhost:%d", app.config.Port)
+	}
+
+	return
 }

@@ -45,6 +45,7 @@ Login provider credentials are given only via env variables due to their sensiti
 * `database_type`: Database type: `"sqlite"` or `"postgresql"` |
 * `database_connection_url`: Database connection string. For SQLite: filename (e.g., `"hostling.db"`). For PostgreSQL: connection string (e.g., `"host=localhost port=5432 user=postgres * sslmode=disable"`) |
 * `port`: Port to run the HTTP server on (e.g., `"8080"`) |
+* `unix_socket`: Unix socket path to listen on instead of a TCP port (e.g., `"/run/hostling/hostling.sock"`) |
 * `behind_reverse_proxy`: Set to `true` if running behind a reverse proxy (nginx, Caddy, etc.) |
 * `trusted_proxy`: Trusted proxy IP address. Used for rate limiting and IP detection. Required when hosting it from behind a reverse proxy.
 * `public_url`: Public URL of the service. Required for GitHub OAuth callbacks. Include protocol and domain (e.g., `"https://files.example.com"`) |

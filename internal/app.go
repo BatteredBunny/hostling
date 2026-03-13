@@ -100,7 +100,11 @@ func initializeConfig() (c Config) {
 
 	if c.PublicUrl == "" {
 		log.Warn().Msg("Warning no public_url option set in toml, github login might not work")
-		c.PublicUrl = fmt.Sprintf("http://localhost:%d", c.Port)
+		if c.UnixSocket != "" {
+			c.PublicUrl = "http://localhost"
+		} else {
+			c.PublicUrl = fmt.Sprintf("http://localhost:%d", c.Port)
+		}
 	}
 
 	if parsed, err := url.Parse(c.PublicUrl); err == nil {

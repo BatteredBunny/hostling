@@ -26,19 +26,25 @@ jobs:
         with:
           version: 9
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install just
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
+
       - name: Build frontend
         working-directory: ./frontend
         run: |
           pnpm install
           pnpm run build
 
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.mod'
 
       - name: Build binary
-        run: make build
+        run: just build
 
       - name: Prepare binary
         run: mv hostling hostling-x86_64-linux

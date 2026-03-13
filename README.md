@@ -112,5 +112,5 @@ nix run .#test-service.driverInteractive
 Create migration for both sqlite and postgresql. Needs docker on your system.
 
 ```
-make migration
+just migration
 ```

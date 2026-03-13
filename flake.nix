@@ -111,6 +111,7 @@
               sqlite
               pnpm_10
               nodejs
+              just
 
               # hot reloading during development
               # air -- -c examples/example_local_sqlite.toml

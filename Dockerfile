@@ -1,4 +1,4 @@
-FROM node:23-alpine AS frontend
+FROM node:25-alpine AS frontend
 
 WORKDIR /app/frontend
 
@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
 RUN pnpm run build
 
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY --from=frontend /app/public/dist ./public/dist
 
 RUN go build -o /app/hostling
 
-FROM alpine:3.23
+FROM alpine:3.25
 
 VOLUME [ "/app/data" ]
 EXPOSE 80

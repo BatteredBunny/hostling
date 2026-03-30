@@ -16,7 +16,7 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/markbates/goth v1.82.0
 	github.com/minio/minio-go/v7 v7.0.99
-	github.com/rs/zerolog v1.34.0
+	github.com/rs/zerolog v1.35.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1

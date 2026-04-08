@@ -46,7 +46,7 @@ buildGoModule {
 
   src = ./.;
 
-  vendorHash = "sha256-eDD0+N44u+/HVP+JsAjwxz4gOsv3DLXHNRC0/lvihJ0=";
+  vendorHash = "sha256-zilBCWVwcJhw8tcipT41wH1ryQkzjjA3Ip/+zaeHD84=";
 
   prePatch = ''
     cp -r ${frontend} ./public/dist

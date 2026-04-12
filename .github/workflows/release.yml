@@ -50,7 +50,7 @@ jobs:
         run: mv hostling hostling-x86_64-linux
 
       - name: Upload to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: hostling-x86_64-linux
           generate_release_notes: true

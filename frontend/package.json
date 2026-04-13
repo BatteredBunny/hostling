@@ -12,6 +12,7 @@
   "devDependencies": {
     "typescript": "^6.0.2",
     "vite": "^8.0.8",
-    "vite-plugin-solid": "^2.11.12"
+    "@oxc-solid-js/compiler": "^1.1.4",
+    "@oxc-solid-js/vite": "0.1.0-alpha.15"
   }
 }

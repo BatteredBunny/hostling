@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
-import solid from 'vite-plugin-solid';
+import solidOxc from '@oxc-solid-js/vite';
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [solidOxc()],
   build: {
     outDir: '../public/dist',
     emptyOutDir: true,

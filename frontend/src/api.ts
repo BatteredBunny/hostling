@@ -1,6 +1,7 @@
 import type { FilesResponse, FileStatsResponse, SortField } from './types';
 
 const FILES_PER_PAGE = 8;
+const TAG_MAX_LENGTH = 25;
 
 export async function fetchFiles(
   skip: number,
@@ -86,4 +87,4 @@ export async function removeFileTag(fileName: string, tag: string): Promise<bool
   return response.ok;
 }
 
-export { FILES_PER_PAGE };
+export { FILES_PER_PAGE, TAG_MAX_LENGTH };

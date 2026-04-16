@@ -17,7 +17,7 @@ import {
   humanizeBytes,
   hasExpiry,
 } from '../utils';
-import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag } from '../api';
+import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag, TAG_MAX_LENGTH } from '../api';
 import { loadStats } from './FileStats';
 import { Icon } from './Icon';
 import { Tag } from './Tag';
@@ -93,6 +93,10 @@ export function FileModal(props: { file: FileData }) {
     const f = file();
     const tagToAdd = tag || tagInput().trim();
     if (!tagToAdd) return;
+    if (tagToAdd.length > TAG_MAX_LENGTH) {
+      console.error(`Tag must be ${TAG_MAX_LENGTH} characters or fewer`);
+      return;
+    }
 
     const success = await addFileTag(f.FileName, tagToAdd);
     if (success) {
@@ -288,6 +292,7 @@ export function FileModal(props: { file: FileData }) {
                       type="text"
                       id="file-modal-tag-input"
                       placeholder="Add tag..."
+                      maxLength={TAG_MAX_LENGTH}
                       value={tagInput()}
                       onInput={(e) => handleTagInputChange(e.currentTarget.value)}
                       onKeyDown={handleKeyDown}

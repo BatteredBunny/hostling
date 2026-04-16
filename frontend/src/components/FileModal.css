@@ -178,6 +178,8 @@
                         code {
                             font-size: 13px;
                             padding: 4px 8px;
+                            overflow-wrap: anywhere;
+                            min-width: 0;
                         }
                     }
                 }

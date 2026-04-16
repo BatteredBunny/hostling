@@ -173,7 +173,7 @@ func (app *Application) setupAuth(api *gin.RouterGroup) {
 	api.GET("/auth/login/:provider/callback", app.loginCallback)
 	api.GET("/auth/login/:provider", app.loginApi)
 
-	api.GET("/auth/register", app.registerApi)
+	api.POST("/auth/register", app.registerApi)
 
 	api.GET("/auth/link/:provider", app.linkApi)
 }

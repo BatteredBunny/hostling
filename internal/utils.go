@@ -1,6 +1,8 @@
 package internal
 
 import (
+	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -40,6 +42,23 @@ func mimeIsAudio(mimeType string) bool {
 
 func humanizeBytes(size uint) string {
 	return humanize.Bytes(uint64(size))
+}
+
+func formatContentDisposition(disposition, filename string) string {
+	var ascii strings.Builder
+	for _, r := range filename {
+		if r < ' ' || r > '~' || r == '"' || r == '\\' {
+			ascii.WriteByte('_')
+			continue
+		}
+		ascii.WriteRune(r)
+	}
+	return fmt.Sprintf(
+		`%s; filename="%s"; filename*=UTF-8''%s`,
+		disposition,
+		ascii.String(),
+		url.PathEscape(filename),
+	)
 }
 
 func Sum[T any](slice []T, getValue func(T) int) int {

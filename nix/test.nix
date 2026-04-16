@@ -62,7 +62,7 @@ testers.nixosTest {
       machine.succeed("curl -f http://localhost:${port}/")
 
       # These are supposed to be called by a browser usually, thats why the usage of cookies
-      machine.succeed("curl -f -c /tmp/cookies.txt -L 'http://localhost:${port}/api/auth/register?code=${token}'")
+      machine.succeed("curl -f -c /tmp/cookies.txt -L -X POST --data-urlencode 'code=${token}' 'http://localhost:${port}/api/auth/register'")
 
       # Make sure upload works
       uploaded_path = machine.succeed("curl -f -b /tmp/cookies.txt -F 'file=@${dummyFile}' -F 'plain=true' 'http://localhost:${port}/api/file/upload'").strip()

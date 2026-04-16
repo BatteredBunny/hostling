@@ -51,6 +51,24 @@ type SessionTokenVerification struct {
 	SessionToken string `form:"token"`
 }
 
+func getSessionToken(c *gin.Context) (uuid.UUID, bool) {
+	v, ok := c.Get("sessionToken")
+	if !ok {
+		return uuid.Nil, false
+	}
+	id, ok := v.(uuid.UUID)
+	return id, ok
+}
+
+func getUploadToken(c *gin.Context) (uuid.UUID, bool) {
+	v, ok := c.Get("uploadToken")
+	if !ok {
+		return uuid.Nil, false
+	}
+	id, ok := v.(uuid.UUID)
+	return id, ok
+}
+
 func (app *Application) parseSessionTokenFromForm(c *gin.Context) (sessionToken uuid.UUID, err error) {
 	var form SessionTokenVerification
 	if err = c.ShouldBindWith(&form, binding.FormPost); err != nil {
@@ -96,15 +114,14 @@ func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 // Makes sure the authenticated account is admin
 func (app *Application) isAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Verify the field exists
-		sessionToken, exists := c.Get("sessionToken")
-		if !exists {
+		sessionToken, ok := getSessionToken(c)
+		if !ok {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
 		if account, err := app.db.GetAccountBySessionToken(
-			sessionToken.(uuid.UUID),
+			sessionToken,
 		); errors.Is(
 			err,
 			gorm.ErrRecordNotFound,
@@ -127,14 +144,13 @@ func (app *Application) isAdmin() gin.HandlerFunc {
 // Makes sure the account token provided is valid
 func (app *Application) isSessionAuthenticated() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Verify the field exists
-		sessionToken, exists := c.Get("sessionToken")
-		if !exists {
+		sessionToken, ok := getSessionToken(c)
+		if !ok {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		if _, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); errors.Is(err, gorm.ErrRecordNotFound) {
+		if _, err := app.db.GetAccountBySessionToken(sessionToken); errors.Is(err, gorm.ErrRecordNotFound) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if err != nil {

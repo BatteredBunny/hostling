@@ -20,13 +20,13 @@ import (
 
 // Api for deleting your own account
 func (app *Application) accountDeleteAPI(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -95,13 +95,13 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -163,13 +163,13 @@ func (app *Application) toggleFilePublicAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -292,19 +292,10 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		}
 	}
 
-	sessionToken, sessionTokenExists := c.Get("sessionToken")
-	uploadToken, uploadTokenExists := c.Get("uploadToken")
-
-	if sessionTokenExists {
-		input.SessionToken = uuid.NullUUID{
-			UUID:  sessionToken.(uuid.UUID),
-			Valid: true,
-		}
-	} else if uploadTokenExists {
-		input.UploadToken = uuid.NullUUID{
-			UUID:  uploadToken.(uuid.UUID),
-			Valid: true,
-		}
+	if sid, ok := getSessionToken(c); ok {
+		input.SessionToken = uuid.NullUUID{UUID: sid, Valid: true}
+	} else if uid, ok := getUploadToken(c); ok {
+		input.UploadToken = uuid.NullUUID{UUID: uid, Valid: true}
 	} else {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -348,13 +339,13 @@ func (app *Application) addTagAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -396,13 +387,13 @@ func (app *Application) deleteTagAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return

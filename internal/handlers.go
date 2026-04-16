@@ -490,7 +490,7 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 			return
 		}
 
-		c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", fileRecord.OriginalFileName))
+		c.Header("Content-Disposition", formatContentDisposition("inline", fileRecord.OriginalFileName))
 		c.Header("Content-Type", fileRecord.MimeType)
 		http.ServeContent(c.Writer, c.Request, fileRecord.OriginalFileName, objectInfo.LastModified, object)
 	} else {
@@ -511,13 +511,13 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 }
 
 func (app *Application) newUploadTokenApi(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -541,13 +541,13 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 }
 
 func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -580,13 +580,13 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 }
 
 func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -608,13 +608,13 @@ func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
 }
 
 func (app *Application) deleteFilesAPI(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -659,13 +659,13 @@ type FileStatsOutput struct {
 }
 
 func (app *Application) fileStatsAPI(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
@@ -711,13 +711,13 @@ type FilesApiOutput struct {
 }
 
 func (app *Application) filesAPI(c *gin.Context) {
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID))
+	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return

@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -29,15 +28,15 @@ func (app *Application) adminDeleteAccount(c *gin.Context) {
 		return
 	}
 
-	sessionToken, exists := c.Get("sessionToken")
-	if !exists {
+	sessionToken, ok := getSessionToken(c)
+	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 
 		return
 	}
 
 	// You can't delete yourself
-	if account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); err != nil {
+	if account, err := app.db.GetAccountBySessionToken(sessionToken); err != nil {
 		_ = c.AbortWithError(http.StatusInternalServerError, err)
 
 		return

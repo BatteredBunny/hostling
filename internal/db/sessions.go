@@ -16,7 +16,7 @@ type SessionTokens struct {
 	ExpiryDate time.Time
 	Token      uuid.UUID `gorm:"uniqueIndex"`
 
-	AccountID uint
+	AccountID uint     `gorm:"index"`
 	Account   Accounts `gorm:"foreignKey:AccountID"`
 }
 

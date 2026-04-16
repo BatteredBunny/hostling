@@ -27,7 +27,7 @@ def curl(*args: str) -> str:
 
 
 # Register account
-curl("-c", COOKIES, "-L", f"{BASE}/api/auth/register?code={TOKEN}")
+curl("-c", COOKIES, "-L", "-X", "POST", "--data-urlencode", f"code={TOKEN}", f"{BASE}/api/auth/register")
 print("Registered")
 
 # Upload the example images

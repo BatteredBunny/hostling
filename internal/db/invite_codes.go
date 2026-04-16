@@ -17,7 +17,7 @@ type InviteCodes struct {
 	ExpiryDate  time.Time
 	AccountType string // Either registers normal or admin users
 
-	InviteCreatorID uint     `gorm:"default:null"`
+	InviteCreatorID uint     `gorm:"default:null;index"`
 	InviteCreator   Accounts `gorm:"foreignKey:InviteCreatorID"`
 }
 
@@ -68,17 +68,23 @@ func (db *Database) DeleteInviteCode(code string, accountID uint) (err error) {
 
 func (db *Database) UseCode(code string) (accountType string, invitedBy uint, err error) {
 	var inviteCode InviteCodes
-	if err = db.Model(&InviteCodes{}).
-		Where(&InviteCodes{Code: code}).
-		Where("expiry_date > ?", time.Now()).
-		Where("uses > 0").
-		First(&inviteCode).Error; err != nil {
-		return
-	}
 
-	if err = db.Model(&InviteCodes{}).
-		Where(&InviteCodes{ID: inviteCode.ID}).
-		Update("uses", gorm.Expr("uses - 1")).Error; err != nil {
+	err = db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&InviteCodes{}).
+			Where("code = ? AND uses > 0 AND expiry_date > ?", code, time.Now()).
+			Update("uses", gorm.Expr("uses - 1"))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		return tx.Model(&InviteCodes{}).
+			Where(&InviteCodes{Code: code}).
+			First(&inviteCode).Error
+	})
+	if err != nil {
 		return
 	}
 

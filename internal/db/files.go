@@ -26,7 +26,7 @@ type Files struct {
 
 	ExpiryDate time.Time `gorm:"default:null"` // Time when the file will be deleted
 
-	UploaderID uint     `json:"-"`
+	UploaderID uint     `json:"-" gorm:"index"`
 	Uploader   Accounts `json:"-" gorm:"foreignKey:UploaderID"`
 
 	Tags []Tag `gorm:"many2many:file_tags;constraint:OnDelete:CASCADE"`

@@ -16,7 +16,7 @@ type UploadTokens struct {
 
 	Token uuid.UUID `gorm:"uniqueIndex"`
 
-	AccountID uint
+	AccountID uint     `gorm:"index"`
 	Account   Accounts `gorm:"foreignKey:AccountID"`
 }
 

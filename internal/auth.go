@@ -185,6 +185,46 @@ func (app *Application) setupAuth(api *gin.RouterGroup) {
 	auth.POST("/register", app.registerApi)
 
 	auth.POST("/link/:provider", app.linkApi)
+	auth.POST("/unlink/:provider", app.unlinkApi)
+}
+
+func (app *Application) unlinkApi(c *gin.Context) {
+	provider := c.Param("provider")
+
+	_, account, loggedIn, err := app.validateAuthCookie(c)
+	if errors.Is(err, ErrInvalidAuthCookie) || !loggedIn {
+		c.Redirect(http.StatusSeeOther, "/login")
+		return
+	} else if err != nil {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
+	var unlinkErr error
+	switch provider {
+	case "github":
+		if account.GithubID == 0 {
+			c.Redirect(http.StatusSeeOther, "/settings")
+			return
+		}
+		unlinkErr = app.db.UnlinkGithub(account.ID)
+	case "openid-connect":
+		if account.OIDCID == "" {
+			c.Redirect(http.StatusSeeOther, "/settings")
+			return
+		}
+		unlinkErr = app.db.UnlinkOIDC(account.ID)
+	default:
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	if unlinkErr != nil {
+		log.Err(unlinkErr).Str("provider", provider).Msg("Failed to unlink provider")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	c.Redirect(http.StatusSeeOther, "/settings")
 }
 
 func (app *Application) loginApi(c *gin.Context) {

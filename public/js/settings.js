@@ -35,3 +35,13 @@ function confirmDeleteAccount() {
 }
 
 window.confirmDeleteAccount = confirmDeleteAccount;
+
+function confirmUnlink(event) {
+    if (!confirm("Unlink this provider? You won't be able to log in with it anymore.")) {
+        event.preventDefault();
+        return false;
+    }
+    return true;
+}
+
+window.confirmUnlink = confirmUnlink;

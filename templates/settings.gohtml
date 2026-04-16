@@ -34,21 +34,30 @@
 
                     {{ range .Providers }}
                         {{ if .IsLinked }}
-                            {{ if .ProfileURL }}
-                            <a href="{{ .ProfileURL }}" target="_blank" class="linked-account">
-                                <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
-                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
-                                </svg>
-                                <span>{{ .Username }}</span>
-                            </a>
-                            {{ else }}
-                            <div class="linked-account">
-                                <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
-                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
-                                </svg>
-                                <span>{{ .Username }}</span>
+                            <div class="linked-provider">
+                                {{ if .ProfileURL }}
+                                <a href="{{ .ProfileURL }}" target="_blank" class="linked-account">
+                                    <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                        <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                    </svg>
+                                    <span>{{ .Username }}</span>
+                                </a>
+                                {{ else }}
+                                <div class="linked-account">
+                                    <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
+                                        <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                    </svg>
+                                    <span>{{ .Username }}</span>
+                                </div>
+                                {{ end }}
+                                <form method="POST" action="/api/auth/unlink/{{ .Name }}" class="unlink-form" onsubmit="return confirmUnlink(event)">
+                                    <button type="submit" class="unlink-button" title="Unlink {{ .Name }}">
+                                        <svg class="lucide-icon" viewBox="0 0 24 24">
+                                            <use href="/public/assets/lucide-sprite.svg#unlink" />
+                                        </svg>
+                                    </button>
+                                </form>
                             </div>
-                            {{ end }}
                         {{ else }}
                             <form class="provider" method="POST" action="/api/auth/link/{{ .Name }}">
                                 <button type="submit" class="social-login">

@@ -106,6 +106,24 @@ func (db *Database) UpdateOIDCUsername(accountID uint, username string) (err err
 		Update("oidc_username", username).Error
 }
 
+func (db *Database) UnlinkGithub(accountID uint) error {
+	return db.Model(&Accounts{}).
+		Where(&Accounts{ID: accountID}).
+		Updates(map[string]interface{}{
+			"github_id":       0,
+			"github_username": "",
+		}).Error
+}
+
+func (db *Database) UnlinkOIDC(accountID uint) error {
+	return db.Model(&Accounts{}).
+		Where(&Accounts{ID: accountID}).
+		Updates(map[string]interface{}{
+			"oidc_id":       "",
+			"oidc_username": "",
+		}).Error
+}
+
 func (db *Database) LinkOIDC(accountID uint, username string, oidcID string) (err error) {
 	return db.Transaction(func(tx *gorm.DB) error {
 		var existingID uint

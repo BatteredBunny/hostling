@@ -111,6 +111,12 @@ a {
     }
 }
 
+#file-library {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 setting-group {
     border: 1px solid var(--menu-border-color);
     background-color: var(--menu-bg-color-translucent);

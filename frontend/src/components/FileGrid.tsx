@@ -27,7 +27,6 @@ import {
 } from '../store';
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
-import { FileStats } from './FileStats';
 import { FileEntry } from './FileEntry';
 import { FileModal } from './FileModal';
 import { Icon } from './Icon';
@@ -151,8 +150,6 @@ export function FileGrid() {
       </div>
 
       <div class="setting-group-body">
-        <FileStats />
-
         <div class="file-grid" classList={{ loading: isLoading() && files().length > 0 }}>
           <Show when={loadingText()}>
             <p id="file-grid-loading-text">{loadingText()}</p>

@@ -1,3 +1,17 @@
+#files-stats {
+    margin: 0;
+}
+
+#files-stats-tags-section {
+    margin-top: 16px;
+}
+
+#files-stats-tags-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 1em;
+    font-weight: 600;
+}
+
 #files-stats-tags {
     display: flex;
     flex-wrap: wrap;

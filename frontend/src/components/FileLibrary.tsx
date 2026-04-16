@@ -1,5 +1,6 @@
 import { createEffect, onCleanup, onMount } from 'solid-js';
 import { FileGrid, loadFiles } from './FileGrid';
+import { FileStats } from './FileStats';
 import {
   currentPage,
   setCurrentPage,
@@ -52,5 +53,19 @@ export function FileLibrary() {
     onCleanup(() => window.removeEventListener('popstate', handlePopState));
   });
 
-  return <FileGrid />;
+  return (
+    <>
+      <setting-group>
+        <div class="setting-group-header">
+          <h2>Overview</h2>
+        </div>
+        <div class="setting-group-body">
+          <FileStats />
+        </div>
+      </setting-group>
+      <setting-group>
+        <FileGrid />
+      </setting-group>
+    </>
+  );
 }

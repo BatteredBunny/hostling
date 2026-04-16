@@ -13,14 +13,11 @@ export function FileStats() {
 
   return (
     <>
-      <div>
-        <h3>Statistics</h3>
-        <p id="files-stats">
-          {statsCount() === 1 ? '1 file' : `${statsCount()} files`} • {humanizeBytes(statsSizeTotal())}
-        </p>
-      </div>
+      <p id="files-stats">
+        {statsCount() === 1 ? '1 file' : `${statsCount()} files`} • {humanizeBytes(statsSizeTotal())}
+      </p>
       <Show when={statsTags().length > 0}>
-        <div>
+        <div id="files-stats-tags-section">
           <h3>Tags</h3>
           <div id="files-stats-tags">
             <For each={statsTags()}>{(tag) =>

@@ -23,7 +23,12 @@ func (app *Application) fileExistsInStorage(fileName string) (bool, error) {
 		}
 		return err == nil, err
 	case fileStorageS3:
-		_, err := app.s3client.StatObject(context.Background(), app.config.S3.Bucket, fileName, minio.StatObjectOptions{})
+		_, err := app.s3client.StatObject(
+			context.Background(),
+			app.config.S3.Bucket,
+			fileName,
+			minio.StatObjectOptions{},
+		)
 		if err != nil {
 			errResp := minio.ToErrorResponse(err)
 			if errResp.Code == "NoSuchKey" {

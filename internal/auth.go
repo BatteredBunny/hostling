@@ -23,8 +23,10 @@ import (
 	"gorm.io/gorm"
 )
 
+type providerContextKey struct{}
+
 func contextWithProviderName(c *gin.Context, provider string) *http.Request {
-	return c.Request.WithContext(context.WithValue(c.Request.Context(), "provider", provider))
+	return c.Request.WithContext(context.WithValue(c.Request.Context(), providerContextKey{}, provider))
 }
 
 func generateSecureKey(length int) []byte {
@@ -102,7 +104,11 @@ func (app *Application) retryProviderInit(name string, init func() (bool, error)
 	const maxRetries = 10
 	delay := 5 * time.Second
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		log.Warn().Str("provider", name).Int("attempt", attempt).Dur("retry_in", delay).Msg("Provider initialization failed, retrying")
+		log.Warn().
+			Str("provider", name).
+			Int("attempt", attempt).
+			Dur("retry_in", delay).
+			Msg("Provider initialization failed, retrying")
 		time.Sleep(delay)
 
 		enabled, err := init()
@@ -149,7 +155,6 @@ func (app *Application) initOIDCProvider() (enabled bool, err error) {
 	if _, err = goth.GetProvider("openid-connect"); err == nil {
 		return
 	}
-	err = nil
 
 	callback := fmt.Sprintf("%s/api/auth/login/openid-connect/callback", app.config.PublicUrl)
 	oidcProvider, err := openidConnect.New(clientID, clientSecret, callback, discoveryURL)
@@ -199,7 +204,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
@@ -392,7 +397,9 @@ func (app *Application) logoutHandler(c *gin.Context) {
 
 	app.clearAuthCookie(c)
 
-	gothic.Logout(c.Writer, c.Request)
+	if err := gothic.Logout(c.Writer, c.Request); err != nil {
+		log.Warn().Err(err).Msg("gothic logout failed")
+	}
 
 	c.Redirect(http.StatusTemporaryRedirect, "/")
 }

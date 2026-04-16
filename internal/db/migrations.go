@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -44,6 +45,7 @@ func (g *GormRevisionReadWriter) ReadRevisions(ctx context.Context) (revisions [
 	var dbRevisions []AtlasSchemaRevision
 	if err = g.db.WithContext(ctx).Order("version ASC").Find(&dbRevisions).Error; err != nil {
 		err = fmt.Errorf("failed to read revisions: %w", err)
+
 		return
 	}
 
@@ -52,6 +54,7 @@ func (g *GormRevisionReadWriter) ReadRevisions(ctx context.Context) (revisions [
 		rev, err = dbRevisionToMigrate(&dbRev)
 		if err != nil {
 			err = fmt.Errorf("failed to convert revision %s: %w", dbRev.Version, err)
+
 			return
 		}
 		revisions = append(revisions, rev)
@@ -63,12 +66,14 @@ func (g *GormRevisionReadWriter) ReadRevisions(ctx context.Context) (revisions [
 func (g *GormRevisionReadWriter) ReadRevision(ctx context.Context, version string) (rev *migrate.Revision, err error) {
 	var dbRev AtlasSchemaRevision
 	if err = g.db.WithContext(ctx).Where("version = ?", version).First(&dbRev).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			err = migrate.ErrRevisionNotExist
+
 			return
 		}
 
 		err = fmt.Errorf("failed to read revision %s: %w", version, err)
+
 		return
 	}
 
@@ -92,6 +97,7 @@ func (g *GormRevisionReadWriter) DeleteRevision(ctx context.Context, version str
 	if err = g.db.WithContext(ctx).Where("version = ?", version).Delete(&AtlasSchemaRevision{}).Error; err != nil {
 		return fmt.Errorf("failed to delete revision %s: %w", version, err)
 	}
+
 	return
 }
 
@@ -114,6 +120,7 @@ func dbRevisionToMigrate(dbRev *AtlasSchemaRevision) (rev *migrate.Revision, err
 		var partialHashes []string
 		if err = json.Unmarshal([]byte(dbRev.PartialHashes), &partialHashes); err != nil {
 			err = fmt.Errorf("failed to unmarshal partial_hashes: %w", err)
+
 			return
 		}
 		rev.PartialHashes = partialHashes
@@ -142,6 +149,7 @@ func migrateToDBRevision(rev *migrate.Revision) (dbRev *AtlasSchemaRevision, err
 		partialHashesJSON, err = json.Marshal(rev.PartialHashes)
 		if err != nil {
 			err = fmt.Errorf("failed to marshal partial_hashes: %w", err)
+
 			return
 		}
 		dbRev.PartialHashes = string(partialHashesJSON)

@@ -565,7 +565,8 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 
 	uploadToken, err := uuid.Parse(rawUploadToken)
 	if err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
@@ -728,7 +729,8 @@ func (app *Application) filesAPI(c *gin.Context) {
 
 	var input FilesApiInput
 	if err = c.MustBindWith(&input, binding.Form); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
@@ -757,7 +759,15 @@ func (app *Application) filesAPI(c *gin.Context) {
 	var limit uint = 8
 
 	var output FilesApiOutput
-	output.Files, output.Count, err = app.db.GetFilesPaginatedFromAccount(account.ID, input.Skip, limit, input.Sort, input.Desc, input.Tag, input.Filter)
+	output.Files, output.Count, err = app.db.GetFilesPaginatedFromAccount(
+		account.ID,
+		input.Skip,
+		limit,
+		input.Sort,
+		input.Desc,
+		input.Tag,
+		input.Filter,
+	)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)

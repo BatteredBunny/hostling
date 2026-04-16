@@ -145,9 +145,11 @@ func MigrateExistingDatabase(
 	var tableCount int
 	switch databaseType {
 	case "postgresql":
-		err = sqlDB.QueryRow("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'").Scan(&tableCount)
+		err = sqlDB.QueryRow("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'").
+			Scan(&tableCount)
 	case "sqlite":
-		err = sqlDB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Scan(&tableCount)
+		err = sqlDB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").
+			Scan(&tableCount)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to check existing tables: %w", err)

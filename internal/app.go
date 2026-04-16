@@ -99,7 +99,8 @@ func initializeConfig() (c Config) {
 	}
 
 	if c.BehindReverseProxy && c.TrustedProxy == "" {
-		log.Fatal().Msg("behind_reverse_proxy is enabled but trusted_proxy is not set; refusing to start to avoid X-Forwarded-For spoofing")
+		log.Fatal().
+			Msg("behind_reverse_proxy is enabled but trusted_proxy is not set; refusing to start to avoid X-Forwarded-For spoofing")
 	}
 
 	if c.PublicUrl == "" {
@@ -132,7 +133,7 @@ func initializeConfig() (c Config) {
 	return
 }
 
-var ErrInvalidDatabaseType = errors.New("Invalid database type")
+var ErrInvalidDatabaseType = errors.New("invalid database type")
 
 func prepareDB(c Config) (database db.Database) {
 	log.Info().Msg("Setting up database")
@@ -178,7 +179,8 @@ func prepareDB(c Config) (database db.Database) {
 			log.Fatal().Err(err).Msg("Failed to create initial invite")
 		}
 
-		log.Warn().Msgf("No accounts found, please create your account via this registration token: %s", inviteCode.Code)
+		log.Warn().
+			Msgf("No accounts found, please create your account via this registration token: %s", inviteCode.Code)
 	}
 
 	return

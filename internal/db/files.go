@@ -11,7 +11,7 @@ import (
 type Files struct {
 	ID        uint `gorm:"primaryKey" json:"-"`
 	CreatedAt time.Time
-	UpdatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `                  json:"-"`
 
 	FileName string // Newly generated file name
 
@@ -27,7 +27,7 @@ type Files struct {
 	ExpiryDate time.Time `gorm:"default:null"` // Time when the file will be deleted
 
 	UploaderID uint     `json:"-"`
-	Uploader   Accounts `gorm:"foreignKey:UploaderID" json:"-"`
+	Uploader   Accounts `json:"-" gorm:"foreignKey:UploaderID"`
 
 	Tags []Tag `gorm:"many2many:file_tags;constraint:OnDelete:CASCADE"`
 }
@@ -79,7 +79,8 @@ func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
 func (db *Database) GetAllFilesFromAccount(accountID uint) (files []Files, err error) {
 	err = db.Model(&Files{}).
 		Where(&Files{UploaderID: accountID}).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()). // Filters expired files
+		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
+		// Filters expired files
 		Find(&files).Error
 
 	return
@@ -94,7 +95,8 @@ func (db *Database) GetFileStats(accountID uint) (totalFiles uint, totalStorage 
 	err = db.Model(&Files{}).
 		Select("COUNT(*) AS total_files, COALESCE(SUM(file_size), 0) AS total_storage").
 		Where(&Files{UploaderID: accountID}).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()). // Filters expired files
+		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
+		// Filters expired files
 		Scan(&result).Error
 	if err != nil {
 		return

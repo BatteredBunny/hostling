@@ -22,4 +22,4 @@ fmt:
     golangci-lint fmt ./... & pnpm --dir frontend lint:fix & wait
 
 dev *args='-c examples/example_local_sqlite.toml':
-    air {{args}}
+    air -- {{args}}

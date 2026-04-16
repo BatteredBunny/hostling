@@ -38,11 +38,3 @@ func (db *Database) BumpFileViews(fileName string, ip string) (err error) {
 			FilesID: fileID,
 		}).Error
 }
-
-func (db *Database) getFileViews(fileID uint) (count int64, err error) {
-	err = db.Model(&FileViews{}).
-		Where(&FileViews{FilesID: fileID}).
-		Count(&count).Error
-
-	return
-}

@@ -200,7 +200,7 @@ func (db *Database) GetAccountByID(accountID uint) (account Accounts, err error)
 	return
 }
 
-var ErrInvalidAccountType = errors.New("Invalid account type specified")
+var ErrInvalidAccountType = errors.New("invalid account type specified")
 
 func (db *Database) CreateAccount(accountType string, invitedBy uint) (account Accounts, err error) {
 	if accountType == "ADMIN" || accountType == "USER" {
@@ -216,4 +216,3 @@ func (db *Database) CreateAccount(accountType string, invitedBy uint) (account A
 
 	return
 }
-

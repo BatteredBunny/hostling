@@ -24,28 +24,33 @@ func (app *Application) adminDeleteAccount(c *gin.Context) {
 	)
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
 	sessionToken, exists := c.Get("sessionToken")
 	if !exists {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	// You can't delete yourself
 	if account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+
 		return
 	} else if account.ID == input.ID {
-		c.AbortWithError(http.StatusBadRequest, ErrCantDeleteSelf)
+		_ = c.AbortWithError(http.StatusBadRequest, ErrCantDeleteSelf)
+
 		return
 	}
 
 	if err = app.deleteAccount(input.ID); err != nil {
 		log.Err(err).Msg("Failed to delete account")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -63,12 +68,14 @@ func (app *Application) adminDeleteFiles(c *gin.Context) {
 	)
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
 	if err = app.deleteFilesFromAccount(input.ID); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -86,12 +93,14 @@ func (app *Application) adminDeleteSessions(c *gin.Context) {
 	)
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
 	if err = app.db.DeleteSessionsFromAccount(input.ID); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -109,12 +118,14 @@ func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
 	)
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
 	if err = app.db.DeleteUploadTokensFromAccount(input.ID); err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
+
 		return
 	}
 
@@ -134,7 +145,7 @@ func (app *Application) adminGiveInviteCode(c *gin.Context) {
 	)
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.AbortWithError(http.StatusBadRequest, err)
+		_ = c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 

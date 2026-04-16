@@ -22,6 +22,7 @@ func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint
 
 	if len(tagName) > TagMaxLength {
 		err = ErrTagTooLong
+
 		return
 	}
 

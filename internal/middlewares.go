@@ -82,7 +82,8 @@ func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 			sessionToken, _, loggedIn, _ = app.validateAuthCookie(c)
 			if loggedIn {
 			} else {
-				c.AbortWithError(http.StatusUnauthorized, err)
+				_ = c.AbortWithError(http.StatusUnauthorized, err)
+
 				return
 			}
 		}
@@ -102,7 +103,12 @@ func (app *Application) isAdmin() gin.HandlerFunc {
 			return
 		}
 
-		if account, err := app.db.GetAccountBySessionToken(sessionToken.(uuid.UUID)); errors.Is(err, gorm.ErrRecordNotFound) {
+		if account, err := app.db.GetAccountBySessionToken(
+			sessionToken.(uuid.UUID),
+		); errors.Is(
+			err,
+			gorm.ErrRecordNotFound,
+		) {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		} else if err != nil {
@@ -150,7 +156,8 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 			var uploadToken uuid.UUID
 			var err error
 			if uploadToken, err = uuid.Parse(rawUploadToken); err != nil {
-				c.AbortWithError(http.StatusUnauthorized, err)
+				_ = c.AbortWithError(http.StatusUnauthorized, err)
+
 				return
 			}
 
@@ -168,7 +175,8 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 		} else {
 			sessionToken, err := app.parseSessionTokenFromCookieOrForm(c)
 			if err != nil {
-				c.AbortWithError(http.StatusUnauthorized, err)
+				_ = c.AbortWithError(http.StatusUnauthorized, err)
+
 				return
 			}
 

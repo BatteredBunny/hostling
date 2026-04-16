@@ -24,14 +24,22 @@ func (app *Application) clearLinkingCookie(c *gin.Context) {
 
 func (app *Application) setAuthCookie(sessionToken uuid.UUID, c *gin.Context) {
 	// TODO: use actual max age
-	c.SetCookie(AUTH_COOKIE, sessionToken.String(), 86400*7, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
+	c.SetCookie(
+		AUTH_COOKIE,
+		sessionToken.String(),
+		86400*7,
+		"/",
+		app.config.CookieDomain,
+		gin.Mode() == gin.ReleaseMode,
+		true,
+	)
 }
 
 func (app *Application) clearAuthCookie(c *gin.Context) {
 	c.SetCookie(AUTH_COOKIE, "", -1, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
 }
 
-var ErrInvalidAuthCookie = errors.New("Invalid session token")
+var ErrInvalidAuthCookie = errors.New("invalid session token")
 
 func (app *Application) parseAuthCookie(c *gin.Context) (sessionToken uuid.UUID, err error) {
 	rawSessionToken, err := c.Cookie(AUTH_COOKIE)
@@ -47,7 +55,9 @@ func (app *Application) parseAuthCookie(c *gin.Context) (sessionToken uuid.UUID,
 	return
 }
 
-func (app *Application) validateAuthCookie(c *gin.Context) (sessionToken uuid.UUID, account db.Accounts, loggedIn bool, err error) {
+func (app *Application) validateAuthCookie(
+	c *gin.Context,
+) (sessionToken uuid.UUID, account db.Accounts, loggedIn bool, err error) {
 	sessionToken, err = app.parseAuthCookie(c)
 	if err != nil {
 		err = ErrInvalidAuthCookie

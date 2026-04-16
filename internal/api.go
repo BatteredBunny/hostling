@@ -328,7 +328,7 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 
 type TagInput struct {
 	FileName string `form:"file_name" binding:"required"`
-	Tag      string `form:"tag" binding:"required"`
+	Tag      string `form:"tag"       binding:"required"`
 }
 
 func (app *Application) addTagAPI(c *gin.Context) {
@@ -366,7 +366,7 @@ func (app *Application) addTagAPI(c *gin.Context) {
 
 	hasTag, err := app.db.FileHasTag(input.FileName, input.Tag, account.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -414,7 +414,7 @@ func (app *Application) deleteTagAPI(c *gin.Context) {
 
 	hasTag, err := app.db.FileHasTag(input.FileName, input.Tag, account.ID)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, err)
+		_ = c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 

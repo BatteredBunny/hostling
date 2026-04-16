@@ -30,11 +30,20 @@ func (db *Database) InviteCodeAmount() (count int64, err error) {
 	return
 }
 
-func (db *Database) CreateInviteCode(uses uint, accountType string, inviteCreatorID uint) (inviteCode InviteCodes, err error) {
+func (db *Database) CreateInviteCode(
+	uses uint,
+	accountType string,
+	inviteCreatorID uint,
+) (inviteCode InviteCodes, err error) {
 	return db.CreateInviteCodeWithCode(rand.Text(), uses, accountType, inviteCreatorID)
 }
 
-func (db *Database) CreateInviteCodeWithCode(code string, uses uint, accountType string, inviteCreatorID uint) (inviteCode InviteCodes, err error) {
+func (db *Database) CreateInviteCodeWithCode(
+	code string,
+	uses uint,
+	accountType string,
+	inviteCreatorID uint,
+) (inviteCode InviteCodes, err error) {
 	inviteCode = InviteCodes{
 		Code:            code,
 		Uses:            uses,

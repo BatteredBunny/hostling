@@ -22,6 +22,8 @@ import (
 // Same as mimetype's internal read size
 const mimeSniffSize = 3072
 
+const maxPaginationSkip = 1_000_000
+
 // Api for deleting your own account
 func (app *Application) accountDeleteAPI(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
@@ -188,6 +190,12 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 
 	tags, tags_exists := c.GetPostFormArray("tag")
 
+	if len(tags) > db.MaxTagsPerFile {
+		c.String(http.StatusBadRequest, db.ErrTooManyTags.Error())
+		c.Abort()
+		return
+	}
+
 	for _, tag := range tags {
 		if len(tag) > db.TagMaxLength {
 			c.String(http.StatusBadRequest, db.ErrTagTooLong.Error())
@@ -280,10 +288,14 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.CreateFileEntry(input); errors.Is(err, gorm.ErrRecordNotFound) {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	} else if err != nil {
+	if err = app.db.CreateFileEntry(input); err != nil {
+		if deleteErr := app.deleteFile(fullFileName); deleteErr != nil {
+			log.Err(deleteErr).Str("file", fullFileName).Msg("Failed to clean up blob after DB insert failed")
+		}
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
 		log.Err(err).Msg("Failed to create file entry")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
@@ -346,7 +358,10 @@ func (app *Application) addTagAPI(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.AddTagToFile(input.FileName, input.Tag, account.ID); err != nil {
+	if err = app.db.AddTagToFile(input.FileName, input.Tag, account.ID); errors.Is(err, db.ErrTooManyTags) {
+		c.String(http.StatusBadRequest, db.ErrTooManyTags.Error())
+		return
+	} else if err != nil {
 		log.Err(err).Msg("Failed to add tag to file")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return

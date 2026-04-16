@@ -726,6 +726,11 @@ func (app *Application) filesAPI(c *gin.Context) {
 		return
 	}
 
+	if input.Skip > maxPaginationSkip {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+
 	allowedFilters := []string{
 		"",
 		"untagged",

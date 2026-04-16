@@ -7,7 +7,7 @@ import (
 )
 
 func (app *Application) StartJobScheduler() {
-	go func() {
+	app.backgroundWg.Go(func() {
 		app.CleanUpJob()
 
 		ticker := time.NewTicker(10 * time.Minute)
@@ -22,7 +22,7 @@ func (app *Application) StartJobScheduler() {
 				app.CleanUpJob()
 			}
 		}
-	}()
+	})
 
 	log.Info().Msg("Successfully setup job scheduler")
 }
@@ -60,13 +60,16 @@ func (app *Application) CleanUpJob() {
 	log.Info().Msgf("Found %d expired files", len(files))
 
 	for _, file := range files {
-		if err = app.deleteFile(file.FileName); err != nil {
-			log.Err(err).Msg("Failed to delete file")
+		if err := app.deleteFile(file.FileName); err != nil {
+			exists, existsErr := app.fileExistsInStorage(file.FileName)
+			if existsErr != nil || exists {
+				log.Err(err).Str("file", file.FileName).Msg("Failed to delete blob; retaining DB row for retry")
+				continue
+			}
 		}
-	}
 
-	if err = app.db.DeleteExpiredFiles(); err != nil {
-		log.Err(err).Msg("Failed to delete file entries in database")
-		return
+		if _, err := app.db.DeleteFileEntry(file.FileName, file.UploaderID); err != nil {
+			log.Err(err).Str("file", file.FileName).Msg("Failed to delete file entry from database")
+		}
 	}
 }

@@ -59,7 +59,9 @@ func (app *Application) setupSocialLogin() {
 		if err != nil {
 			log.Warn().Err(err).Str("provider", p.gothName).Msg("Failed to initialize provider, retrying in background")
 			app.addFailedProvider(p.gothName)
-			go app.retryProviderInit(app.shutdownCtx, p.gothName, p.init)
+			app.backgroundWg.Go(func() {
+				app.retryProviderInit(app.shutdownCtx, p.gothName, p.init)
+			})
 		}
 	}
 
@@ -281,7 +283,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 						return
 					}
 				}
-				c.Redirect(http.StatusTemporaryRedirect, "/settings")
+				c.Redirect(http.StatusSeeOther, "/settings")
 				return
 			case "openid-connect":
 				if account.OIDCID == "" {
@@ -294,11 +296,11 @@ func (app *Application) loginCallback(c *gin.Context) {
 						return
 					}
 				}
-				c.Redirect(http.StatusTemporaryRedirect, "/settings")
+				c.Redirect(http.StatusSeeOther, "/settings")
 				return
 			}
 		}
-		c.Redirect(http.StatusTemporaryRedirect, "/login")
+		c.Redirect(http.StatusSeeOther, "/login")
 	} else {
 		var account db.Accounts
 		var err error
@@ -306,8 +308,12 @@ func (app *Application) loginCallback(c *gin.Context) {
 		switch provider {
 		case "github":
 			account, err = app.db.FindAccountByGithubID(user.UserID)
-			if err != nil {
-				c.Redirect(http.StatusTemporaryRedirect, "/login")
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.Redirect(http.StatusSeeOther, "/login")
+				return
+			} else if err != nil {
+				log.Err(err).Msg("Failed to find account by github id")
+				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
 
@@ -316,8 +322,12 @@ func (app *Application) loginCallback(c *gin.Context) {
 			}
 		case "openid-connect":
 			account, err = app.db.FindAccountByOIDCID(user.UserID)
-			if err != nil {
-				c.Redirect(http.StatusTemporaryRedirect, "/login")
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.Redirect(http.StatusSeeOther, "/login")
+				return
+			} else if err != nil {
+				log.Err(err).Msg("Failed to find account by oidc id")
+				c.AbortWithStatus(http.StatusInternalServerError)
 				return
 			}
 
@@ -325,7 +335,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 				log.Warn().Err(err).Msg("Failed to update OIDC username")
 			}
 		default:
-			c.Redirect(http.StatusTemporaryRedirect, "/login")
+			c.Redirect(http.StatusSeeOther, "/login")
 			return
 		}
 
@@ -336,7 +346,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 		}
 
 		app.setAuthCookie(sessionToken, c)
-		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
+		c.Redirect(http.StatusSeeOther, "/gallery")
 	}
 }
 
@@ -362,7 +372,7 @@ func (app *Application) linkApi(c *gin.Context) {
 	}
 
 	if !loggedIn || alreadyLinked {
-		c.Redirect(http.StatusTemporaryRedirect, "/")
+		c.Redirect(http.StatusSeeOther, "/")
 		return
 	}
 
@@ -415,7 +425,7 @@ func (app *Application) registerApi(c *gin.Context) {
 	}
 
 	app.setAuthCookie(token, c)
-	c.Redirect(http.StatusTemporaryRedirect, "/gallery")
+	c.Redirect(http.StatusSeeOther, "/gallery")
 }
 
 func oidcUsername(user goth.User) string {
@@ -431,7 +441,7 @@ func oidcUsername(user goth.User) string {
 func (app *Application) logoutHandler(c *gin.Context) {
 	sessionToken, _, loggedIn, err := app.validateAuthCookie(c)
 	if errors.Is(err, ErrInvalidAuthCookie) {
-		c.Redirect(http.StatusTemporaryRedirect, "/")
+		c.Redirect(http.StatusSeeOther, "/")
 		app.clearAuthCookie(c)
 		return
 	} else if err != nil {
@@ -440,7 +450,7 @@ func (app *Application) logoutHandler(c *gin.Context) {
 	}
 
 	if !loggedIn {
-		c.Redirect(http.StatusTemporaryRedirect, "/")
+		c.Redirect(http.StatusSeeOther, "/")
 		return
 	}
 
@@ -454,5 +464,5 @@ func (app *Application) logoutHandler(c *gin.Context) {
 		log.Warn().Err(err).Msg("gothic logout failed")
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, "/")
+	c.Redirect(http.StatusSeeOther, "/")
 }

@@ -2,12 +2,16 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/didip/tollbooth/v8/limiter"
@@ -15,6 +19,8 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/rs/zerolog/log"
 )
+
+const shutdownTimeout = 30 * time.Second
 
 type Application struct {
 	config      Config
@@ -25,6 +31,7 @@ type Application struct {
 
 	shutdownCtx    context.Context
 	shutdownCancel context.CancelFunc
+	backgroundWg   sync.WaitGroup
 
 	providersMutex      sync.RWMutex
 	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
@@ -83,7 +90,34 @@ func (app *Application) Run() {
 		log.Fatal().Err(err).Msg("Failed to start listener")
 	}
 
-	log.Fatal().Err(http.Serve(listener, app.Router)).Msg("HTTP server failed")
+	server := &http.Server{Handler: app.Router}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-serverErr:
+		log.Fatal().Err(err).Msg("HTTP server failed")
+	case sig := <-sigCh:
+		log.Info().Str("signal", sig.String()).Msg("Shutdown signal received, draining connections")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Err(err).Msg("HTTP server shutdown error")
+	}
+
+	app.Shutdown()
+	app.backgroundWg.Wait()
+	log.Info().Msg("Shutdown complete")
 }
 
 func (app *Application) verifySocketUsable() (err error) {
@@ -116,8 +150,6 @@ func (app *Application) listen() (listener net.Listener, err error) {
 
 		log.Info().Msgf("Starting server on unix socket %s", app.config.UnixSocket)
 	} else {
-		// Maybe verify port taken first?
-
 		listener, err = net.Listen("tcp", ":"+strconv.Itoa(app.config.Port))
 		if err != nil {
 			return

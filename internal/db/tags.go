@@ -10,9 +10,15 @@ type Tag struct {
 	Name string `gorm:"primaryKey"`
 }
 
-const TagMaxLength = 25
+const (
+	TagMaxLength   = 25
+	MaxTagsPerFile = 50
+)
 
-var ErrTagTooLong = errors.New("Tag too long")
+var (
+	ErrTagTooLong  = errors.New("Tag too long")
+	ErrTooManyTags = errors.New("Too many tags")
+)
 
 func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {
 	var file Files
@@ -22,6 +28,12 @@ func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint
 
 	if len(tagName) > TagMaxLength {
 		err = ErrTagTooLong
+
+		return
+	}
+
+	if db.Model(&file).Association("Tags").Count() >= MaxTagsPerFile {
+		err = ErrTooManyTags
 
 		return
 	}

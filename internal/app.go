@@ -72,20 +72,24 @@ func initializeConfig() (c Config) {
 	}
 
 	if c.S3 != (s3Config{}) {
+		var missing []string
 		if c.S3.Bucket == "" {
-			log.Warn().Msg("S3 bucket is not defined, file uploads will not work")
+			missing = append(missing, "bucket")
 		}
 		if c.S3.AccessKeyID == "" {
-			log.Warn().Msg("S3 Access Key ID is not defined, file uploads will not work")
+			missing = append(missing, "access_key_id")
 		}
 		if c.S3.SecretAccessKey == "" {
-			log.Warn().Msg("S3 Secret Access Key is not defined, file uploads will not work")
+			missing = append(missing, "secret_access_key")
 		}
 		if c.S3.Endpoint == "" {
-			log.Warn().Msg("S3 endpoint is not defined, file uploads will not work")
+			missing = append(missing, "endpoint")
 		}
 		if c.S3.Region == "" {
-			log.Warn().Msg("S3 region is not defined, file uploads will not work")
+			missing = append(missing, "region")
+		}
+		if len(missing) > 0 {
+			log.Fatal().Strs("missing", missing).Msg("S3 config is incomplete; refusing to start with a half-configured bucket")
 		}
 
 		c.FileStorageMethod = fileStorageS3
@@ -146,7 +150,7 @@ func prepareDB(c Config) (database db.Database) {
 	case "sqlite":
 		gormConnection = sqlite.Open(c.DatabaseConnectionUrl)
 	default:
-		log.Fatal().Err(ErrInvalidDatabaseType).Msg("Invalid database chosehn")
+		log.Fatal().Err(ErrInvalidDatabaseType).Msg("Invalid database chosen")
 	}
 
 	var err error

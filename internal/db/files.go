@@ -146,11 +146,6 @@ func (db *Database) FindExpiredFiles() (files []Files, err error) {
 	return
 }
 
-func (db *Database) DeleteExpiredFiles() (err error) {
-	return db.Where("expiry_date is not null AND expiry_date < ?", time.Now()).
-		Delete(&Files{}).Error
-}
-
 func (db *Database) GetFilesPaginatedFromAccount(
 	accountID, skip, limit uint,
 	sort string,

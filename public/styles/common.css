@@ -409,9 +409,13 @@ input[type="submit"] {
 
     border-radius: 8px;
     border: 1px solid var(--menu-border-color);
+
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
 }
 
-.provider a {
+.provider .social-login {
     svg {
         vertical-align: middle;
         margin-right: 8px;

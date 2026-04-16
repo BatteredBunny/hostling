@@ -95,36 +95,27 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	// Makes sure the file exists in the database
-	var fileExists bool
-	if fileExists, err = app.db.FileExists(input.FileName); err != nil {
-		log.Err(err).Msg("Failed to check if file exists")
+	deleted, err := app.db.DeleteFileEntry(input.FileName, account.ID)
+	if err != nil {
+		log.Err(err).Msg("Failed to delete file entry")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
-	} else if !fileExists {
-		c.AbortWithStatus(http.StatusBadRequest)
+	}
+	if !deleted {
+		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 
-	// Only delete from storage if the file still exists there
-	var existsInStorage bool
-	if existsInStorage, err = app.fileExistsInStorage(input.FileName); err != nil {
+	existsInStorage, err := app.fileExistsInStorage(input.FileName)
+	if err != nil {
 		log.Err(err).Msg("Failed to check if file exists in storage")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 	if existsInStorage {
 		if err = app.deleteFile(input.FileName); err != nil {
-			log.Err(err).Msg("Failed to delete file")
-			c.AbortWithStatus(http.StatusInternalServerError)
-			return
+			log.Err(err).Str("file", input.FileName).Msg("Failed to delete file from storage")
 		}
-	}
-
-	if err = app.db.DeleteFileEntry(input.FileName, account.ID); err != nil { // Deletes file entry from database
-		log.Err(err).Msg("Failed to delete file entry")
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
 	}
 
 	c.String(http.StatusOK, "Successfully deleted the file")

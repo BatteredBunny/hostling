@@ -23,10 +23,8 @@ import (
 	"gorm.io/gorm"
 )
 
-type providerContextKey struct{}
-
 func contextWithProviderName(c *gin.Context, provider string) *http.Request {
-	return c.Request.WithContext(context.WithValue(c.Request.Context(), providerContextKey{}, provider))
+	return c.Request.WithContext(context.WithValue(c.Request.Context(), gothic.ProviderParamKey, provider))
 }
 
 func generateSecureKey(length int) []byte {
@@ -183,7 +181,7 @@ func (app *Application) setupAuth(api *gin.RouterGroup) {
 
 	api.POST("/auth/register", app.registerApi)
 
-	api.GET("/auth/link/:provider", app.linkApi)
+	api.POST("/auth/link/:provider", app.linkApi)
 }
 
 func (app *Application) loginApi(c *gin.Context) {
@@ -231,7 +229,11 @@ func (app *Application) loginCallback(c *gin.Context) {
 			switch provider {
 			case "github":
 				if account.GithubID == 0 {
-					if err := app.db.LinkGithub(account.ID, user.NickName, user.UserID); err != nil {
+					if err := app.db.LinkGithub(account.ID, user.NickName, user.UserID); errors.Is(err, db.ErrProviderAlreadyLinked) {
+						c.String(http.StatusConflict, "This GitHub account is already linked to another user")
+						return
+					} else if err != nil {
+						log.Err(err).Msg("Failed to link github")
 						c.String(http.StatusInternalServerError, "Failed to link github")
 						return
 					}
@@ -240,7 +242,11 @@ func (app *Application) loginCallback(c *gin.Context) {
 				return
 			case "openid-connect":
 				if account.OIDCID == "" {
-					if err := app.db.LinkOIDC(account.ID, oidcUsername(user), user.UserID); err != nil {
+					if err := app.db.LinkOIDC(account.ID, oidcUsername(user), user.UserID); errors.Is(err, db.ErrProviderAlreadyLinked) {
+						c.String(http.StatusConflict, "This OpenID Connect identity is already linked to another user")
+						return
+					} else if err != nil {
+						log.Err(err).Msg("Failed to link OpenID Connect")
 						c.String(http.StatusInternalServerError, "Failed to link OpenID Connect")
 						return
 					}
@@ -348,23 +354,12 @@ func (app *Application) registerApi(c *gin.Context) {
 		return
 	}
 
-	accountType, invitedBy, err := app.db.UseCode(input.Code)
+	_, token, err := app.db.RegisterWithInviteCode(input.Code)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.String(http.StatusBadRequest, "Invalid code")
 		return
 	} else if err != nil {
-		c.String(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
-		return
-	}
-
-	acc, err := app.db.CreateAccount(accountType, invitedBy)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to create account")
-		return
-	}
-
-	token, err := app.db.CreateSessionToken(acc.ID)
-	if err != nil {
+		log.Err(err).Msg("Failed to register with invite code")
 		c.String(http.StatusInternalServerError, "Failed to create account")
 		return
 	}

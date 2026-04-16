@@ -50,14 +50,14 @@
                             </div>
                             {{ end }}
                         {{ else }}
-                            <p class="provider">
-                                <a class="social-login" href="/api/auth/link/{{ .Name }}">
+                            <form class="provider" method="POST" action="/api/auth/link/{{ .Name }}">
+                                <button type="submit" class="social-login">
                                     <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
                                         <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
                                     </svg>
                                     <span>{{ .LinkingText }}</span>
-                                </a>
-                            </p>
+                                </button>
+                            </form>
                         {{ end }}
                     {{ end }}
                 </div>

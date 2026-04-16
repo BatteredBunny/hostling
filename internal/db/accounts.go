@@ -16,10 +16,13 @@ type Accounts struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	GithubID       uint
+	// GithubID is 0 when unlinked, otherwise the account's GitHub user id.
+	// Partial unique index prevents two accounts from linking the same GitHub identity.
+	GithubID       uint `gorm:"uniqueIndex:idx_accounts_github_id,where:github_id <> 0"`
 	GithubUsername string
 
-	OIDCID       string `gorm:"column:oidc_id"`
+	// OIDCID is empty when unlinked, same uniqueness guarantee as above.
+	OIDCID       string `gorm:"column:oidc_id;uniqueIndex:idx_accounts_oidc_id,where:oidc_id <> ''"`
 	OIDCUsername string `gorm:"column:oidc_username"`
 
 	InvitedBy uint // Account ID of the user who invited this account
@@ -57,18 +60,34 @@ func (db *Database) UpdateGithubUsername(accountID uint, username string) (err e
 		Update("github_username", username).Error
 }
 
+var ErrProviderAlreadyLinked = errors.New("provider identity already linked to another account")
+
 func (db *Database) LinkGithub(accountID uint, username string, rawGithubID string) (err error) {
 	githubID, err := strconv.ParseUint(rawGithubID, 10, 0)
 	if err != nil {
 		return
 	}
 
-	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
-		Updates(map[string]interface{}{
-			"github_username": username,
-			"github_id":       uint(githubID),
-		}).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var existingID uint
+		lookupErr := tx.Model(&Accounts{}).
+			Where("github_id = ?", uint(githubID)).
+			Select("id").
+			First(&existingID).Error
+		if lookupErr == nil && existingID != accountID {
+			return ErrProviderAlreadyLinked
+		}
+		if lookupErr != nil && !errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			return lookupErr
+		}
+
+		return tx.Model(&Accounts{}).
+			Where(&Accounts{ID: accountID}).
+			Updates(map[string]interface{}{
+				"github_username": username,
+				"github_id":       uint(githubID),
+			}).Error
+	})
 }
 
 func (db *Database) FindAccountByOIDCID(oidcID string) (account Accounts, err error) {
@@ -88,12 +107,26 @@ func (db *Database) UpdateOIDCUsername(accountID uint, username string) (err err
 }
 
 func (db *Database) LinkOIDC(accountID uint, username string, oidcID string) (err error) {
-	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
-		Updates(map[string]interface{}{
-			"oidc_username": username,
-			"oidc_id":       oidcID,
-		}).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var existingID uint
+		lookupErr := tx.Model(&Accounts{}).
+			Where("oidc_id = ?", oidcID).
+			Select("id").
+			First(&existingID).Error
+		if lookupErr == nil && existingID != accountID {
+			return ErrProviderAlreadyLinked
+		}
+		if lookupErr != nil && !errors.Is(lookupErr, gorm.ErrRecordNotFound) {
+			return lookupErr
+		}
+
+		return tx.Model(&Accounts{}).
+			Where(&Accounts{ID: accountID}).
+			Updates(map[string]interface{}{
+				"oidc_username": username,
+				"oidc_id":       oidcID,
+			}).Error
+	})
 }
 
 // Returns the latest time a session token or an upload token was used
@@ -229,5 +262,31 @@ func (db *Database) CreateAccount(accountType string, invitedBy uint) (account A
 		err = ErrInvalidAccountType
 	}
 
+	return
+}
+
+func (db *Database) RegisterWithInviteCode(code string) (account Accounts, sessionToken uuid.UUID, err error) {
+	err = db.Transaction(func(tx *gorm.DB) error {
+		txDB := &Database{DB: tx}
+
+		accountType, invitedBy, useErr := txDB.UseCode(code)
+		if useErr != nil {
+			return useErr
+		}
+
+		acc, createErr := txDB.CreateAccount(accountType, invitedBy)
+		if createErr != nil {
+			return createErr
+		}
+
+		token, tokenErr := txDB.CreateSessionToken(acc.ID)
+		if tokenErr != nil {
+			return tokenErr
+		}
+
+		account = acc
+		sessionToken = token
+		return nil
+	})
 	return
 }

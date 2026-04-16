@@ -34,9 +34,10 @@ type Files struct {
 }
 
 // Deletes file entry from database
-func (db *Database) DeleteFileEntry(fileName string, accountID uint) (err error) {
-	return db.Where(&Files{FileName: fileName, UploaderID: accountID}).
-		Delete(&Files{}).Error
+func (db *Database) DeleteFileEntry(fileName string, accountID uint) (deleted bool, err error) {
+	result := db.Where(&Files{FileName: fileName, UploaderID: accountID}).
+		Delete(&Files{})
+	return result.RowsAffected > 0, result.Error
 }
 
 type CreateFileEntryInput struct {

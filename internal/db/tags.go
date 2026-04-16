@@ -39,7 +39,7 @@ func (db *Database) FileHasTag(fileName string, tagName string, accountID uint) 
 		return
 	}
 
-	result := db.Model(&file).Where("name = ?", strings.ToLower(tagName)).Association("Tags")
+	result := db.Model(&file).Where("tags.name = ?", strings.ToLower(tagName)).Association("Tags")
 	if err = result.Error; err != nil {
 		return
 	}

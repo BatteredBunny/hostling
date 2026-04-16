@@ -18,6 +18,7 @@ func formatTimeDate(t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
+
 	return t.Format("2006-01-02 15:04:05")
 }
 
@@ -25,6 +26,7 @@ func relativeTime(t time.Time) string {
 	if t.IsZero() {
 		return ""
 	}
+
 	return humanize.Time(t)
 }
 
@@ -49,10 +51,12 @@ func formatContentDisposition(disposition, filename string) string {
 	for _, r := range filename {
 		if r < ' ' || r > '~' || r == '"' || r == '\\' {
 			ascii.WriteByte('_')
+
 			continue
 		}
 		ascii.WriteRune(r)
 	}
+
 	return fmt.Sprintf(
 		`%s; filename="%s"; filename*=UTF-8''%s`,
 		disposition,
@@ -66,5 +70,6 @@ func Sum[T any](slice []T, getValue func(T) int) int {
 	for _, item := range slice {
 		sum += getValue(item)
 	}
+
 	return sum
 }

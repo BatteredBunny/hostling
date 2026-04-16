@@ -16,8 +16,8 @@ const (
 )
 
 var (
-	ErrTagTooLong  = errors.New("Tag too long")
-	ErrTooManyTags = errors.New("Too many tags")
+	ErrTagTooLong  = errors.New("tag too long")
+	ErrTooManyTags = errors.New("too many tags")
 )
 
 func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {

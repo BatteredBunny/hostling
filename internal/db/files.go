@@ -37,6 +37,7 @@ type Files struct {
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) (deleted bool, err error) {
 	result := db.Where(&Files{FileName: fileName, UploaderID: accountID}).
 		Delete(&Files{})
+
 	return result.RowsAffected > 0, result.Error
 }
 
@@ -85,6 +86,7 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 				Where(&SessionTokens{Token: input.SessionToken.UUID}).
 				Update("last_used", now).Error
 		}
+
 		return tx.Model(&UploadTokens{}).
 			Where(&UploadTokens{Token: input.UploadToken.UUID}).
 			Update("last_used", now).Error
@@ -169,6 +171,7 @@ func (db *Database) GetFilesPaginatedFromAccount(
 			q = q.Joins("JOIN file_tags ON file_tags.files_id = files.id").
 				Where("file_tags.tag_name = ?", tag)
 		}
+
 		return q
 	}
 
@@ -231,7 +234,9 @@ func (db *Database) ToggleFilePublic(fileName string, accountID uint) (newPublic
 			return err
 		}
 		newPublicStatus = file.Public
+
 		return nil
 	})
+
 	return
 }

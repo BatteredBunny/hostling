@@ -147,6 +147,111 @@ func (db *Database) LinkOIDC(accountID uint, username string, oidcID string) (er
 	})
 }
 
+type AccountStats struct {
+	FilesUploaded     int64
+	SpaceUsed         uint
+	SessionsCount     int64
+	UploadTokensCount int64
+	LastActivity      time.Time
+}
+
+func (db *Database) AllAccountStats() (stats map[uint]AccountStats, err error) {
+	now := time.Now()
+	stats = map[uint]AccountStats{}
+
+	var fileRows []struct {
+		UploaderID uint
+		Files      int64
+		Storage    uint
+	}
+	if err = db.Model(&Files{}).
+		Select("uploader_id, COUNT(*) AS files, COALESCE(SUM(file_size), 0) AS storage").
+		Where("expiry_date IS NULL OR expiry_date > ?", now).
+		Group("uploader_id").
+		Scan(&fileRows).Error; err != nil {
+		return
+	}
+	for _, r := range fileRows {
+		a := stats[r.UploaderID]
+		a.FilesUploaded = r.Files
+		a.SpaceUsed = r.Storage
+		stats[r.UploaderID] = a
+	}
+
+	var sessionCounts []struct {
+		AccountID uint
+		Count     int64
+	}
+	if err = db.Model(&SessionTokens{}).
+		Select("account_id, COUNT(*) AS count").
+		Where("expiry_date > ?", now).
+		Group("account_id").
+		Scan(&sessionCounts).Error; err != nil {
+		return
+	}
+	for _, r := range sessionCounts {
+		a := stats[r.AccountID]
+		a.SessionsCount = r.Count
+		stats[r.AccountID] = a
+	}
+
+	var sessionLast []struct {
+		AccountID uint
+		LastUsed  time.Time
+	}
+	if err = db.Model(&SessionTokens{}).
+		Select("account_id, last_used").
+		Scan(&sessionLast).Error; err != nil {
+		return
+	}
+	for _, r := range sessionLast {
+		a := stats[r.AccountID]
+		if r.LastUsed.After(a.LastActivity) {
+			a.LastActivity = r.LastUsed
+		}
+		stats[r.AccountID] = a
+	}
+
+	var uploadCounts []struct {
+		AccountID uint
+		Count     int64
+	}
+	if err = db.Model(&UploadTokens{}).
+		Select("account_id, COUNT(*) AS count").
+		Group("account_id").
+		Scan(&uploadCounts).Error; err != nil {
+		return
+	}
+	for _, r := range uploadCounts {
+		a := stats[r.AccountID]
+		a.UploadTokensCount = r.Count
+		stats[r.AccountID] = a
+	}
+
+	var uploadLast []struct {
+		AccountID uint
+		LastUsed  *time.Time
+	}
+	if err = db.Model(&UploadTokens{}).
+		Select("account_id, last_used").
+		Where("last_used IS NOT NULL").
+		Scan(&uploadLast).Error; err != nil {
+		return
+	}
+	for _, r := range uploadLast {
+		if r.LastUsed == nil {
+			continue
+		}
+		a := stats[r.AccountID]
+		if r.LastUsed.After(a.LastActivity) {
+			a.LastActivity = *r.LastUsed
+		}
+		stats[r.AccountID] = a
+	}
+
+	return
+}
+
 // Returns the latest time a session token or an upload token was used
 func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
 	var sessionLastUsed, uploadLastUsed sql.NullTime
@@ -287,7 +392,9 @@ func (db *Database) RegisterWithInviteCode(code string) (account Accounts, sessi
 
 		account = acc
 		sessionToken = token
+
 		return nil
 	})
+
 	return
 }

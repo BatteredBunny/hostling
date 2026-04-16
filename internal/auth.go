@@ -32,6 +32,7 @@ func generateSecureKey(length int) []byte {
 	if _, err := rand.Read(key); err != nil {
 		panic(err)
 	}
+
 	return key
 }
 
@@ -95,6 +96,7 @@ func (app *Application) removeFailedProvider(name string) {
 	for i, n := range app.failedProviders {
 		if n == name {
 			app.failedProviders = append(app.failedProviders[:i], app.failedProviders[i+1:]...)
+
 			return
 		}
 	}
@@ -115,6 +117,7 @@ func (app *Application) retryProviderInit(ctx context.Context, name string, init
 		case <-ctx.Done():
 			timer.Stop()
 			log.Info().Str("provider", name).Msg("Provider retry cancelled")
+
 			return
 		case <-timer.C:
 		}
@@ -126,6 +129,7 @@ func (app *Application) retryProviderInit(ctx context.Context, name string, init
 			if enabled {
 				app.addConfiguredProvider(name)
 			}
+
 			return
 		}
 		log.Warn().Err(err).Str("provider", name).Int("attempt", attempt).Msg("Provider retry failed")
@@ -148,6 +152,7 @@ func (app *Application) initGithubProvider() (enabled bool, err error) {
 		fmt.Sprintf("%s/api/auth/login/github/callback", app.config.PublicUrl),
 	))
 	log.Info().Msg("GitHub authentication enabled")
+
 	return
 }
 
@@ -172,6 +177,7 @@ func (app *Application) initOIDCProvider() (enabled bool, err error) {
 
 	goth.UseProviders(oidcProvider)
 	log.Info().Msg("OpenID Connect authentication enabled")
+
 	return
 }
 
@@ -196,9 +202,11 @@ func (app *Application) unlinkApi(c *gin.Context) {
 	_, account, loggedIn, err := app.validateAuthCookie(c)
 	if errors.Is(err, ErrInvalidAuthCookie) || !loggedIn {
 		c.Redirect(http.StatusSeeOther, "/login")
+
 		return
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -207,22 +215,26 @@ func (app *Application) unlinkApi(c *gin.Context) {
 	case "github":
 		if account.GithubID == 0 {
 			c.Redirect(http.StatusSeeOther, "/settings")
+
 			return
 		}
 		unlinkErr = app.db.UnlinkGithub(account.ID)
 	case "openid-connect":
 		if account.OIDCID == "" {
 			c.Redirect(http.StatusSeeOther, "/settings")
+
 			return
 		}
 		unlinkErr = app.db.UnlinkOIDC(account.ID)
 	default:
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 	if unlinkErr != nil {
 		log.Err(unlinkErr).Str("provider", provider).Msg("Failed to unlink provider")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -238,6 +250,7 @@ func (app *Application) loginApi(c *gin.Context) {
 		if _, err := app.initOIDCProvider(); err != nil {
 			log.Error().Err(err).Msg("OpenID Connect provider unavailable")
 			c.String(http.StatusServiceUnavailable, "OpenID Connect provider is temporarily unavailable")
+
 			return
 		}
 	}
@@ -256,6 +269,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
@@ -265,6 +279,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 			app.clearAuthCookie(c)
 		} else if err != nil {
 			c.AbortWithStatus(http.StatusBadRequest)
+
 			return
 		}
 
@@ -274,29 +289,49 @@ func (app *Application) loginCallback(c *gin.Context) {
 			switch provider {
 			case "github":
 				if account.GithubID == 0 {
-					if err := app.db.LinkGithub(account.ID, user.NickName, user.UserID); errors.Is(err, db.ErrProviderAlreadyLinked) {
+					if err := app.db.LinkGithub(
+						account.ID,
+						user.NickName,
+						user.UserID,
+					); errors.Is(
+						err,
+						db.ErrProviderAlreadyLinked,
+					) {
 						c.String(http.StatusConflict, "This GitHub account is already linked to another user")
+
 						return
 					} else if err != nil {
 						log.Err(err).Msg("Failed to link github")
 						c.String(http.StatusInternalServerError, "Failed to link github")
+
 						return
 					}
 				}
 				c.Redirect(http.StatusSeeOther, "/settings")
+
 				return
 			case "openid-connect":
 				if account.OIDCID == "" {
-					if err := app.db.LinkOIDC(account.ID, oidcUsername(user), user.UserID); errors.Is(err, db.ErrProviderAlreadyLinked) {
+					if err := app.db.LinkOIDC(
+						account.ID,
+						oidcUsername(user),
+						user.UserID,
+					); errors.Is(
+						err,
+						db.ErrProviderAlreadyLinked,
+					) {
 						c.String(http.StatusConflict, "This OpenID Connect identity is already linked to another user")
+
 						return
 					} else if err != nil {
 						log.Err(err).Msg("Failed to link OpenID Connect")
 						c.String(http.StatusInternalServerError, "Failed to link OpenID Connect")
+
 						return
 					}
 				}
 				c.Redirect(http.StatusSeeOther, "/settings")
+
 				return
 			}
 		}
@@ -310,10 +345,12 @@ func (app *Application) loginCallback(c *gin.Context) {
 			account, err = app.db.FindAccountByGithubID(user.UserID)
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				c.Redirect(http.StatusSeeOther, "/login")
+
 				return
 			} else if err != nil {
 				log.Err(err).Msg("Failed to find account by github id")
 				c.AbortWithStatus(http.StatusInternalServerError)
+
 				return
 			}
 
@@ -324,10 +361,12 @@ func (app *Application) loginCallback(c *gin.Context) {
 			account, err = app.db.FindAccountByOIDCID(user.UserID)
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				c.Redirect(http.StatusSeeOther, "/login")
+
 				return
 			} else if err != nil {
 				log.Err(err).Msg("Failed to find account by oidc id")
 				c.AbortWithStatus(http.StatusInternalServerError)
+
 				return
 			}
 
@@ -336,12 +375,14 @@ func (app *Application) loginCallback(c *gin.Context) {
 			}
 		default:
 			c.Redirect(http.StatusSeeOther, "/login")
+
 			return
 		}
 
 		sessionToken, err := app.db.CreateSessionToken(account.ID)
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
+
 			return
 		}
 
@@ -357,9 +398,12 @@ func (app *Application) linkApi(c *gin.Context) {
 	_, account, loggedIn, err := app.validateAuthCookie(c)
 	if errors.Is(err, ErrInvalidAuthCookie) {
 		app.clearAuthCookie(c)
+		c.Redirect(http.StatusSeeOther, "/login")
+
 		return
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -373,6 +417,7 @@ func (app *Application) linkApi(c *gin.Context) {
 
 	if !loggedIn || alreadyLinked {
 		c.Redirect(http.StatusSeeOther, "/")
+
 		return
 	}
 
@@ -381,12 +426,14 @@ func (app *Application) linkApi(c *gin.Context) {
 		if _, err := app.initOIDCProvider(); err != nil {
 			log.Error().Err(err).Msg("OpenID Connect provider unavailable")
 			c.String(http.StatusServiceUnavailable, "OpenID Connect provider is temporarily unavailable")
+
 			return
 		}
 	}
 
 	if _, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
 		c.JSON(http.StatusOK, "linked")
+
 		return
 	}
 
@@ -396,6 +443,7 @@ func (app *Application) linkApi(c *gin.Context) {
 	if err != nil {
 		log.Err(err).Msg("Failed to build OAuth authorize URL")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 	c.Redirect(http.StatusSeeOther, url)
@@ -411,16 +459,19 @@ func (app *Application) registerApi(c *gin.Context) {
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
 		c.String(http.StatusBadRequest, err.Error())
+
 		return
 	}
 
 	_, token, err := app.db.RegisterWithInviteCode(input.Code)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.String(http.StatusBadRequest, "Invalid code")
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to register with invite code")
 		c.String(http.StatusInternalServerError, "Failed to create account")
+
 		return
 	}
 
@@ -435,6 +486,7 @@ func oidcUsername(user goth.User) string {
 			return v
 		}
 	}
+
 	return ""
 }
 
@@ -443,14 +495,17 @@ func (app *Application) logoutHandler(c *gin.Context) {
 	if errors.Is(err, ErrInvalidAuthCookie) {
 		c.Redirect(http.StatusSeeOther, "/")
 		app.clearAuthCookie(c)
+
 		return
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
 	if !loggedIn {
 		c.Redirect(http.StatusSeeOther, "/")
+
 		return
 	}
 

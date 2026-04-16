@@ -145,6 +145,7 @@ func (app *Application) adminGiveInviteCode(c *gin.Context) {
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
+
 		return
 	}
 
@@ -152,6 +153,7 @@ func (app *Application) adminGiveInviteCode(c *gin.Context) {
 	if err != nil {
 		log.Err(err).Msg("Failed to create invite code")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 

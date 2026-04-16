@@ -61,12 +61,14 @@ func (app *Application) validateAuthCookie(
 	if err != nil {
 		err = ErrInvalidAuthCookie
 		app.clearAuthCookie(c)
+
 		return
 	}
 
 	if account, err = app.db.GetAccountBySessionToken(sessionToken); errors.Is(err, gorm.ErrRecordNotFound) {
 		err = ErrInvalidAuthCookie
 		app.clearAuthCookie(c)
+
 		return
 	} else if err != nil {
 		return

@@ -24,18 +24,21 @@ import (
 func (app *Application) hasAdminWarning() bool {
 	app.providersMutex.RLock()
 	defer app.providersMutex.RUnlock()
+
 	return len(app.configuredProviders) == 0 || len(app.failedProviders) > 0
 }
 
 func (app *Application) getFailedProviders() []string {
 	app.providersMutex.RLock()
 	defer app.providersMutex.RUnlock()
+
 	return append([]string(nil), app.failedProviders...)
 }
 
 func (app *Application) getConfiguredProviders() []string {
 	app.providersMutex.RLock()
 	defer app.providersMutex.RUnlock()
+
 	return append([]string(nil), app.configuredProviders...)
 }
 
@@ -52,6 +55,7 @@ func (app *Application) indexPage(c *gin.Context) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -83,64 +87,19 @@ type AccountStats struct {
 	LastActivity      time.Time // Last session or upload token usage
 }
 
-func (app *Application) toAccountStats(account *db.Accounts, requesterAccountID uint) (stats AccountStats, err error) {
-	files, err := app.db.GetAllFilesFromAccount(account.ID)
-	if err != nil {
-		return
-	}
-
-	stats = AccountStats{
-		Accounts: *account,
-		You:      account.ID == requesterAccountID,
-	}
-
-	stats.SessionsCount, err = app.db.GetSessionsCount(account.ID)
-	if err != nil {
-		log.Err(err).Msg("Failed to get session count")
-	}
-
-	stats.UploadTokensCount, err = app.db.GetUploadTokensCount(account.ID)
-	if err != nil {
-		log.Err(err).Msg("Failed to get upload token count")
-	}
-
-	stats.LastActivity, err = app.db.LastAccountActivity(account.ID)
-	if err != nil {
-		log.Err(err).Msg("Failed to get last activity")
-	}
-
-	if account.InvitedBy == 0 {
-		stats.InvitedBy = "system"
-	} else if account.InvitedBy > 0 {
-		invitedBy, err := app.db.GetAccountByID(account.InvitedBy)
-		if err == nil && invitedBy.GithubUsername != "" {
-			stats.InvitedBy = fmt.Sprintf("%s (%d)", invitedBy.GithubUsername, invitedBy.ID)
-		} else {
-			stats.InvitedBy = strconv.Itoa(int(account.InvitedBy))
-		}
-	} else {
-		stats.InvitedBy = strconv.Itoa(int(account.InvitedBy))
-	}
-
-	for _, file := range files {
-		stats.SpaceUsed += file.FileSize
-		stats.FilesUploaded++
-	}
-
-	return
-}
-
 func (app *Application) adminPage(c *gin.Context) {
 	_, account, loggedIn, err := app.validateAuthCookie(c)
 	if errors.Is(err, ErrInvalidAuthCookie) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
 	if account.AccountType != "ADMIN" {
 		c.Redirect(http.StatusTemporaryRedirect, "/login")
+
 		return
 	}
 
@@ -160,15 +119,45 @@ func (app *Application) adminPage(c *gin.Context) {
 		accounts, err := app.db.GetAccounts()
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)
+
 			return
 		}
 
-		var stats []AccountStats
-		for _, account := range accounts {
-			stat, err := app.toAccountStats(&account, account.ID)
-			if err != nil {
-				c.AbortWithStatus(http.StatusInternalServerError)
-				return
+		statsMap, err := app.db.AllAccountStats()
+		if err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+
+			return
+		}
+
+		accountsByID := make(map[uint]db.Accounts, len(accounts))
+		for _, a := range accounts {
+			accountsByID[a.ID] = a
+		}
+
+		stats := make([]AccountStats, 0, len(accounts))
+		for _, a := range accounts {
+			agg := statsMap[a.ID]
+			stat := AccountStats{
+				Accounts:          a,
+				You:               a.ID == account.ID,
+				FilesUploaded:     agg.FilesUploaded,
+				SpaceUsed:         agg.SpaceUsed,
+				SessionsCount:     agg.SessionsCount,
+				UploadTokensCount: agg.UploadTokensCount,
+				LastActivity:      agg.LastActivity,
+			}
+
+			switch a.InvitedBy {
+			case 0:
+				stat.InvitedBy = "system"
+			default:
+				inviter, ok := accountsByID[a.InvitedBy]
+				if ok && inviter.GithubUsername != "" {
+					stat.InvitedBy = fmt.Sprintf("%s (%d)", inviter.GithubUsername, inviter.ID)
+				} else {
+					stat.InvitedBy = strconv.Itoa(int(a.InvitedBy))
+				}
 			}
 
 			stats = append(stats, stat)
@@ -197,11 +186,13 @@ func (app *Application) galleryPage(c *gin.Context) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
 	if !loggedIn {
 		c.Redirect(http.StatusTemporaryRedirect, "/login")
+
 		return
 	}
 
@@ -228,11 +219,13 @@ func (app *Application) settingsPage(c *gin.Context) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
 	if !loggedIn {
 		c.Redirect(http.StatusTemporaryRedirect, "/login")
+
 		return
 	}
 
@@ -293,11 +286,13 @@ func (app *Application) tokensPage(c *gin.Context) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
 	if !loggedIn {
 		c.Redirect(http.StatusTemporaryRedirect, "/login")
+
 		return
 	}
 
@@ -318,12 +313,14 @@ func (app *Application) tokensPage(c *gin.Context) {
 	templateInput["InviteCodes"], err = app.db.InviteCodesByAccount(account.ID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
 	uploadTokens, err := app.db.GetUploadTokens(account.ID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -374,6 +371,7 @@ func (app *Application) loginPage(c *gin.Context) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -405,6 +403,7 @@ func (app *Application) registerPage(c *gin.Context) {
 		app.clearAuthCookie(c)
 	} else if err != nil {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -425,6 +424,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 	// Probably better ways to do this
 	if strings.HasPrefix(c.Request.URL.Path, "/api") {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -433,6 +433,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 	if file, err := embed.PublicFiles().Open(filePath); err == nil {
 		file.Close()
 		c.Redirect(http.StatusPermanentRedirect, path.Join("public", path.Clean(c.Request.URL.Path)))
+
 		return
 	}
 
@@ -442,10 +443,12 @@ func (app *Application) indexFiles(c *gin.Context) {
 	fileRecord, err := app.db.GetFileByName(fileName)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.Redirect(http.StatusTemporaryRedirect, "/")
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to get file details")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -454,6 +457,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 		_, account, loggedIn, err := app.validateAuthCookie(c)
 		if err != nil || !loggedIn || account.ID != fileRecord.UploaderID {
 			c.AbortWithStatus(http.StatusForbidden)
+
 			return
 		}
 	}
@@ -479,6 +483,7 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 		if err != nil {
 			log.Err(err).Str("file", fileName).Msg("Failed to retrieve file from S3")
 			c.AbortWithStatus(http.StatusInternalServerError)
+
 			return
 		}
 		defer object.Close()
@@ -487,6 +492,7 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 		if err != nil {
 			log.Err(err).Str("file", fileName).Msg("Failed to get S3 object info")
 			c.AbortWithStatus(http.StatusInternalServerError)
+
 			return
 		}
 
@@ -500,6 +506,7 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 		if err != nil {
 			log.Err(err).Msg("Failed to generate presigned URL")
 			c.AbortWithStatus(http.StatusInternalServerError)
+
 			return
 		}
 		c.Redirect(http.StatusTemporaryRedirect, presignedURL.String())
@@ -510,16 +517,19 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -530,6 +540,7 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 	if uploadToken, err = app.db.CreateUploadToken(account.ID, nickname); err != nil {
 		log.Err(err).Msg("Failed to create upload token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -540,22 +551,26 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
 	rawUploadToken := c.PostForm("upload_token")
 	if rawUploadToken == "" {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -569,6 +584,7 @@ func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 	if err = app.db.DeleteUploadToken(account.ID, uploadToken); err != nil {
 		log.Err(err).Msg("Failed to delete upload token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -579,16 +595,19 @@ func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -597,6 +616,7 @@ func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
 	if err = app.db.DeleteInviteCode(inviteCode, account.ID); err != nil {
 		log.Err(err).Msg("Failed to delete invite code")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -607,22 +627,26 @@ func (app *Application) deleteFilesAPI(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
 	if err = app.deleteFilesFromAccount(account.ID); err != nil {
 		log.Err(err).Msg("Failed to delete files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -654,16 +678,19 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -673,6 +700,7 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 	if err != nil {
 		log.Err(err).Msg("Failed to get file stats")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -683,6 +711,7 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 	if err != nil {
 		log.Err(err).Msg("Failed to get account tags")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -706,16 +735,19 @@ func (app *Application) filesAPI(c *gin.Context) {
 	sessionToken, ok := getSessionToken(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	}
 
 	account, err := app.db.GetAccountBySessionToken(sessionToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.AbortWithStatus(http.StatusUnauthorized)
+
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to fetch account by session token")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 
@@ -728,6 +760,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 
 	if input.Skip > maxPaginationSkip {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -739,6 +772,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 	}
 	if !slices.Contains(allowedFilters, input.Filter) {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -749,6 +783,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 	}
 	if !slices.Contains(allowedSorts, input.Sort) {
 		c.AbortWithStatus(http.StatusBadRequest)
+
 		return
 	}
 
@@ -768,6 +803,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
 		c.AbortWithStatus(http.StatusInternalServerError)
+
 		return
 	}
 

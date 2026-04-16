@@ -59,18 +59,21 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 
 	if err = database.AutoMigrate(&db.AtlasSchemaRevision{}); err != nil {
 		err = fmt.Errorf("failed to create atlas_schema_revisions table: %w", err)
+
 		return
 	}
 
 	sqlDB, err := database.DB()
 	if err != nil {
 		err = fmt.Errorf("failed to get database connection: %w", err)
+
 		return
 	}
 
 	dir, err := loadEmbeddedMigrations(databaseType)
 	if err != nil {
 		err = fmt.Errorf("failed to load embedded migrations: %w", err)
+
 		return
 	}
 
@@ -80,12 +83,14 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 		driver, err = postgres.Open(sqlDB)
 		if err != nil {
 			err = fmt.Errorf("failed to open postgres driver: %w", err)
+
 			return
 		}
 	case "sqlite":
 		driver, err = sqlite.Open(sqlDB)
 		if err != nil {
 			err = fmt.Errorf("failed to open sqlite driver: %w", err)
+
 			return
 		}
 	}
@@ -94,6 +99,7 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 	executor, err := migrate.NewExecutor(driver, dir, migrator, migrate.WithAllowDirty(true))
 	if err != nil {
 		err = fmt.Errorf("failed to create migration executor: %w", err)
+
 		return
 	}
 
@@ -114,6 +120,7 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 	if err = executor.ExecuteN(ctx, 0); err != nil {
 		if !errors.Is(err, migrate.ErrNoPendingFiles) {
 			err = fmt.Errorf("failed to execute migrations: %w", err)
+
 			return
 		}
 		err = nil

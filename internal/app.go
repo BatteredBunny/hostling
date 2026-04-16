@@ -89,7 +89,9 @@ func initializeConfig() (c Config) {
 			missing = append(missing, "region")
 		}
 		if len(missing) > 0 {
-			log.Fatal().Strs("missing", missing).Msg("S3 config is incomplete; refusing to start with a half-configured bucket")
+			log.Fatal().
+				Strs("missing", missing).
+				Msg("S3 config is incomplete; refusing to start with a half-configured bucket")
 		}
 
 		c.FileStorageMethod = fileStorageS3

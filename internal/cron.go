@@ -17,6 +17,7 @@ func (app *Application) StartJobScheduler() {
 			select {
 			case <-app.shutdownCtx.Done():
 				log.Info().Msg("Job scheduler shutdown")
+
 				return
 			case <-ticker.C:
 				app.CleanUpJob()
@@ -50,6 +51,7 @@ func (app *Application) CleanUpJob() {
 	files, err := app.db.FindExpiredFiles()
 	if err != nil {
 		log.Err(err).Msg("Failed to find expired files")
+
 		return
 	}
 
@@ -64,6 +66,7 @@ func (app *Application) CleanUpJob() {
 			exists, existsErr := app.fileExistsInStorage(file.FileName)
 			if existsErr != nil || exists {
 				log.Err(err).Str("file", file.FileName).Msg("Failed to delete blob; retaining DB row for retry")
+
 				continue
 			}
 		}

@@ -22,6 +22,7 @@ func writeLocalFile(path string, body io.Reader) error {
 	}
 	defer f.Close()
 	_, err = io.Copy(f, body)
+
 	return err
 }
 
@@ -32,6 +33,7 @@ func (app *Application) fileExistsInStorage(fileName string) (bool, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
 		}
+
 		return err == nil, err
 	case fileStorageS3:
 		ctx, cancel := context.WithTimeout(context.Background(), s3Timeout)
@@ -42,8 +44,10 @@ func (app *Application) fileExistsInStorage(fileName string) (bool, error) {
 			if errResp.Code == "NoSuchKey" {
 				return false, nil
 			}
+
 			return false, err
 		}
+
 		return true, nil
 	default:
 		return false, ErrUnknownStorageMethod

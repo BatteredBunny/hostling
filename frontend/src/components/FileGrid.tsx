@@ -220,14 +220,29 @@ export async function loadFiles(skip: number) {
       data = await fetchFiles(skip, sortField(), sortDesc(), null, fileFilter());
     }
 
-    setTotalFiles(data.count || 0);
+    const count = data.count || 0;
+    setTotalFiles(count);
+
+    // Clamp page if URL/state references a page beyond what's available.
+    if (count > 0 && skip >= count) {
+      const lastPage = Math.max(0, Math.ceil(count / FILES_PER_PAGE) - 1);
+      setCurrentPage(lastPage);
+      setIsLoading(false);
+      await loadFiles(lastPage * FILES_PER_PAGE);
+      return;
+    }
+
     setFiles(data.files || []);
 
     const pending = pendingModalFile();
     if (pending && data.files) {
       const match = data.files.find((f) => f.FileName === pending);
-      if (match) openModal(match);
-      setPendingModalFile(null);
+      if (match) {
+        openModal(match);
+        setPendingModalFile(null);
+      }
+      // If not matched, keep pendingModalFile so the URL ?file=... is preserved
+      // until the user navigates to a page/filter where the file is visible.
     }
 
     if (data.files && data.files.length > 0) {

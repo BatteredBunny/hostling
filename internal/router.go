@@ -33,7 +33,15 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 
 	app.Router = gin.Default()
 	app.Router.ForwardedByClientIP = c.BehindReverseProxy
-	app.Router.SetTrustedProxies([]string{c.TrustedProxy})
+	if c.BehindReverseProxy {
+		if err := app.Router.SetTrustedProxies([]string{c.TrustedProxy}); err != nil {
+			log.Fatal().Err(err).Msg("Failed to set trusted proxies")
+		}
+	} else {
+		if err := app.Router.SetTrustedProxies(nil); err != nil {
+			log.Fatal().Err(err).Msg("Failed to clear trusted proxies")
+		}
+	}
 
 	app.Router.SetFuncMap(template.FuncMap{
 		"formatTimeDate": formatTimeDate,

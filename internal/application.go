@@ -20,11 +20,11 @@ type Application struct {
 	db          db.Database
 	s3client    *minio.Client
 	RateLimiter *limiter.Limiter
-	Router              *gin.Engine
-	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
+	Router      *gin.Engine
 
-	failedProvidersMutex sync.RWMutex
-	failedProviders      []string // provider names that are configured but failed to initialize
+	providersMutex      sync.RWMutex
+	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
+	failedProviders     []string // provider names that are configured but failed to initialize
 }
 
 type fileStorageMethod string

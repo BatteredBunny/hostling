@@ -116,6 +116,8 @@
               # hot reloading during development
               # air -- -c examples/example_local_sqlite.toml
               air
+              golangci-lint
+              golines
             ];
           };
         }

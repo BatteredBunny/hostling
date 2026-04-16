@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,7 +53,7 @@ func (app *Application) setupSocialLogin() {
 	for _, p := range providers {
 		enabled, err := p.init()
 		if enabled {
-			app.configuredProviders = append(app.configuredProviders, p.gothName)
+			app.addConfiguredProvider(p.gothName)
 			hasEnabledProvider = true
 		}
 		if err != nil {
@@ -71,15 +72,24 @@ func (app *Application) setupSocialLogin() {
 	}
 }
 
+func (app *Application) addConfiguredProvider(name string) {
+	app.providersMutex.Lock()
+	defer app.providersMutex.Unlock()
+	if slices.Contains(app.configuredProviders, name) {
+		return
+	}
+	app.configuredProviders = append(app.configuredProviders, name)
+}
+
 func (app *Application) addFailedProvider(name string) {
-	app.failedProvidersMutex.Lock()
-	defer app.failedProvidersMutex.Unlock()
+	app.providersMutex.Lock()
+	defer app.providersMutex.Unlock()
 	app.failedProviders = append(app.failedProviders, name)
 }
 
 func (app *Application) removeFailedProvider(name string) {
-	app.failedProvidersMutex.Lock()
-	defer app.failedProvidersMutex.Unlock()
+	app.providersMutex.Lock()
+	defer app.providersMutex.Unlock()
 	for i, n := range app.failedProviders {
 		if n == name {
 			app.failedProviders = append(app.failedProviders[:i], app.failedProviders[i+1:]...)
@@ -95,10 +105,13 @@ func (app *Application) retryProviderInit(name string, init func() (bool, error)
 		log.Warn().Str("provider", name).Int("attempt", attempt).Dur("retry_in", delay).Msg("Provider initialization failed, retrying")
 		time.Sleep(delay)
 
-		_, err := init()
+		enabled, err := init()
 		if err == nil {
 			log.Info().Str("provider", name).Msg("Provider initialized successfully after retry")
 			app.removeFailedProvider(name)
+			if enabled {
+				app.addConfiguredProvider(name)
+			}
 			return
 		}
 		log.Warn().Err(err).Str("provider", name).Int("attempt", attempt).Msg("Provider retry failed")
@@ -209,18 +222,18 @@ func (app *Application) loginCallback(c *gin.Context) {
 						c.String(http.StatusInternalServerError, "Failed to link github")
 						return
 					}
-					c.Redirect(http.StatusTemporaryRedirect, "/settings")
-					return
 				}
+				c.Redirect(http.StatusTemporaryRedirect, "/settings")
+				return
 			case "openid-connect":
 				if account.OIDCID == "" {
 					if err := app.db.LinkOIDC(account.ID, oidcUsername(user), user.UserID); err != nil {
 						c.String(http.StatusInternalServerError, "Failed to link OpenID Connect")
 						return
 					}
-					c.Redirect(http.StatusTemporaryRedirect, "/settings")
-					return
 				}
+				c.Redirect(http.StatusTemporaryRedirect, "/settings")
+				return
 			}
 		}
 		c.Redirect(http.StatusTemporaryRedirect, "/login")

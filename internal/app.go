@@ -98,6 +98,10 @@ func initializeConfig() (c Config) {
 		c.MaxUploadSize = 100 * 1024 * 1024 // 100 MB
 	}
 
+	if c.BehindReverseProxy && c.TrustedProxy == "" {
+		log.Fatal().Msg("behind_reverse_proxy is enabled but trusted_proxy is not set; refusing to start to avoid X-Forwarded-For spoofing")
+	}
+
 	if c.PublicUrl == "" {
 		log.Warn().Msg("Warning no public_url option set in toml, github login might not work")
 		if c.UnixSocket != "" {

@@ -14,3 +14,12 @@ docker:
 
 docker-push:
     docker push batteredbunny/hostling:latest
+
+lint:
+    golangci-lint run ./... & pnpm --dir frontend lint & wait
+
+fmt:
+    golangci-lint fmt ./... & pnpm --dir frontend lint:fix & wait
+
+dev *args='-c examples/example_local_sqlite.toml':
+    air {{args}}

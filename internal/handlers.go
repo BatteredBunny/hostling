@@ -22,15 +22,21 @@ import (
 )
 
 func (app *Application) hasAdminWarning() bool {
-	app.failedProvidersMutex.RLock()
-	defer app.failedProvidersMutex.RUnlock()
+	app.providersMutex.RLock()
+	defer app.providersMutex.RUnlock()
 	return len(app.configuredProviders) == 0 || len(app.failedProviders) > 0
 }
 
 func (app *Application) getFailedProviders() []string {
-	app.failedProvidersMutex.RLock()
-	defer app.failedProvidersMutex.RUnlock()
+	app.providersMutex.RLock()
+	defer app.providersMutex.RUnlock()
 	return append([]string(nil), app.failedProviders...)
+}
+
+func (app *Application) getConfiguredProviders() []string {
+	app.providersMutex.RLock()
+	defer app.providersMutex.RUnlock()
+	return append([]string(nil), app.configuredProviders...)
 }
 
 func (app *Application) indexPage(c *gin.Context) {
@@ -168,13 +174,14 @@ func (app *Application) adminPage(c *gin.Context) {
 			stats = append(stats, stat)
 		}
 
+		configured := app.getConfiguredProviders()
 		templateInput["Accounts"] = stats
 		templateInput["MaxUploadSize"] = uint(app.config.MaxUploadSize)
 		templateInput["Version"] = Version
-		templateInput["NoProvidersConfigured"] = len(app.configuredProviders) == 0
+		templateInput["NoProvidersConfigured"] = len(configured) == 0
 		templateInput["FailedProviders"] = app.getFailedProviders()
 		templateInput["FileStorageMethod"] = string(app.config.FileStorageMethod)
-		templateInput["LoginProviders"] = app.configuredProviders
+		templateInput["LoginProviders"] = configured
 	}
 
 	if loggedIn {
@@ -246,7 +253,8 @@ func (app *Application) settingsPage(c *gin.Context) {
 	var providers []ProviderInfo
 	unlinkedAccount := true
 
-	for _, providerName := range app.configuredProviders {
+	configured := app.getConfiguredProviders()
+	for _, providerName := range configured {
 		info := ProviderInfo{
 			Name:        providerName,
 			Icon:        ProviderToIcon(providerName),
@@ -273,7 +281,7 @@ func (app *Application) settingsPage(c *gin.Context) {
 	}
 
 	templateInput["Providers"] = providers
-	templateInput["NoProvidersConfigured"] = len(app.configuredProviders) == 0
+	templateInput["NoProvidersConfigured"] = len(configured) == 0
 	templateInput["UnlinkedAccount"] = unlinkedAccount
 
 	c.HTML(http.StatusOK, "settings.gohtml", templateInput)
@@ -369,8 +377,9 @@ func (app *Application) loginPage(c *gin.Context) {
 		return
 	}
 
+	configured := app.getConfiguredProviders()
 	var providers []LoginProvider
-	for _, name := range app.configuredProviders {
+	for _, name := range configured {
 		providers = append(providers, LoginProvider{
 			Name: name,
 			Icon: ProviderToIcon(name),
@@ -382,7 +391,7 @@ func (app *Application) loginPage(c *gin.Context) {
 	} else {
 		c.HTML(http.StatusOK, "login.gohtml", gin.H{
 			"Providers":             providers,
-			"NoProvidersConfigured": len(app.configuredProviders) == 0,
+			"NoProvidersConfigured": len(configured) == 0,
 			"CurrentPage":           "login",
 			"Branding":              app.config.Branding,
 			"Tagline":               app.config.Tagline,
@@ -457,7 +466,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 	case fileStorageS3:
 		app.handles3File(fileName, fileRecord, c)
 	case fileStorageLocal:
-		c.File(filepath.Join(app.config.DataFolder, path.Clean(c.Request.URL.Path)))
+		c.File(filepath.Join(app.config.DataFolder, fileName))
 	default:
 		log.Err(ErrUnknownStorageMethod).Msg("No storage method chosen")
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -481,18 +490,9 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 			return
 		}
 
-		extraHeaders := map[string]string{
-			"Content-Disposition": fmt.Sprintf("inline; filename=\"%s\"", fileRecord.OriginalFileName),
-		}
-
-		// Stream file to client
-		c.DataFromReader(
-			http.StatusOK,
-			objectInfo.Size,
-			fileRecord.MimeType,
-			object,
-			extraHeaders,
-		)
+		c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", fileRecord.OriginalFileName))
+		c.Header("Content-Type", fileRecord.MimeType)
+		http.ServeContent(c.Writer, c.Request, fileRecord.OriginalFileName, objectInfo.LastModified, object)
 	} else {
 		presignedURL, err := app.s3client.PresignedGetObject(
 			context.Background(),

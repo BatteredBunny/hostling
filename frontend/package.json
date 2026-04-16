@@ -4,13 +4,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build"
+    "build": "vite build",
+    "lint": "oxlint src && eslint src",
+    "lint:fix": "oxlint --fix src && eslint --fix src"
   },
   "dependencies": {
     "solid-js": "^1.9.12"
   },
   "devDependencies": {
+    "eslint": "^10.2.0",
+    "eslint-plugin-oxlint": "^1.60.0",
+    "eslint-plugin-solid": "^0.14.5",
+    "oxlint": "^1.60.0",
     "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.2",
     "vite": "^8.0.8",
     "vite-plugin-solid": "^2.11.12"
   }

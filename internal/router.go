@@ -13,7 +13,7 @@ import (
 )
 
 func setupRatelimiting() *limiter.Limiter {
-	return tollbooth.NewLimiter(2, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
+	return tollbooth.NewLimiter(10, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
 }
 
 func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *Application) {

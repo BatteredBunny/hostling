@@ -114,6 +114,7 @@ func initializeConfig() (c Config) {
 
 	if parsed, err := url.Parse(c.PublicUrl); err == nil {
 		c.CookieDomain = parsed.Hostname()
+		c.CookieSecure = parsed.Scheme == "https"
 	} else {
 		log.Fatal().Err(err).Msg("Failed to parse public_url")
 	}

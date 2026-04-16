@@ -14,7 +14,7 @@ type Files struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time `                  json:"-"`
 
-	FileName string // Newly generated file name
+	FileName string `gorm:"uniqueIndex"` // Newly generated file name
 
 	OriginalFileName string // Original file name from upload
 	FileSize         uint
@@ -28,7 +28,7 @@ type Files struct {
 	ExpiryDate time.Time `gorm:"default:null"` // Time when the file will be deleted
 
 	UploaderID uint     `json:"-" gorm:"index"`
-	Uploader   Accounts `json:"-" gorm:"foreignKey:UploaderID"`
+	Uploader   Accounts `json:"-" gorm:"foreignKey:UploaderID;constraint:OnDelete:CASCADE"`
 
 	Tags []Tag `gorm:"many2many:file_tags;constraint:OnDelete:CASCADE"`
 }
@@ -129,19 +129,6 @@ func (db *Database) GetFileStats(accountID uint) (totalFiles uint, totalStorage 
 	return
 }
 
-// Looks if file exists in database
-func (db *Database) FileExists(fileName string) (bool, error) {
-	var count int64
-	if err := db.Model(&Files{}).
-		Where(&Files{FileName: fileName}).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
-		Count(&count).Error; err != nil {
-		return false, err
-	}
-
-	return count > 0, nil
-}
-
 func (db *Database) GetFileByName(fileName string) (file Files, err error) {
 	err = db.Model(&Files{}).
 		Where(&Files{FileName: fileName}).
@@ -171,45 +158,53 @@ func (db *Database) GetFilesPaginatedFromAccount(
 	tag string, // Tag to filter by
 	filter string,
 ) (files []Files, totalCount int64, err error) {
-	query := db.Model(&Files{}).
-		Where("files.uploader_id = ?", accountID).
-		Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
+	baseQuery := func() *gorm.DB {
+		q := db.Model(&Files{}).
+			Where("files.uploader_id = ?", accountID).
+			Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
 
-	if filter == "untagged" {
-		// Filter for files without any tags
-		query = query.Where("files.id NOT IN (SELECT files_id FROM file_tags)")
-	} else if filter == "public" {
-		// Filter for public files only
-		query = query.Where("files.public = ?", true)
-	} else if filter == "private" {
-		// Filter for private files only
-		query = query.Where("files.public = ?", false)
-	} else if tag != "" {
-		// Filter for files with specific tag
-		query = query.Joins("JOIN file_tags ON file_tags.files_id = files.id").
-			Where("file_tags.tag_name = ?", tag)
+		switch {
+		case filter == "untagged":
+			q = q.Where("files.id NOT IN (SELECT files_id FROM file_tags)")
+		case filter == "public":
+			q = q.Where("files.public = ?", true)
+		case filter == "private":
+			q = q.Where("files.public = ?", false)
+		case tag != "":
+			q = q.Joins("JOIN file_tags ON file_tags.files_id = files.id").
+				Where("file_tags.tag_name = ?", tag)
+		}
+		return q
 	}
 
-	if err = query.Count(&totalCount).Error; err != nil {
+	if err = baseQuery().Distinct("files.id").Count(&totalCount).Error; err != nil {
 		return
 	}
 
-	orderClause := clause.OrderByColumn{Desc: desc}
+	orderClauses := []clause.OrderByColumn{{Desc: desc}}
 	if sort == "views" {
-		orderClause.Column = clause.Column{Name: "COUNT(file_views.id)", Raw: true}
+		orderClauses[0].Column = clause.Column{Name: "COUNT(file_views.id)", Raw: true}
 	} else {
-		orderClause.Column = clause.Column{Table: "files", Name: sort}
+		orderClauses[0].Column = clause.Column{Table: "files", Name: sort}
 	}
 
-	if err = query.
+	orderClauses = append(orderClauses, clause.OrderByColumn{
+		Column: clause.Column{Table: "files", Name: "id"},
+		Desc:   desc,
+	})
+
+	tx := baseQuery().
 		Offset(int(skip)).
 		Limit(int(limit)).
 		Preload("Views").
 		Preload("Tags").
 		Joins("LEFT JOIN file_views ON file_views.files_id = files.id").
 		Select("files.*").
-		Group("files.id").
-		Order(orderClause).Find(&files).Error; err != nil {
+		Group("files.id")
+	for _, o := range orderClauses {
+		tx = tx.Order(o)
+	}
+	if err = tx.Find(&files).Error; err != nil {
 		return
 	}
 

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,16 @@ import (
 	"github.com/minio/minio-go/v7"
 	"gorm.io/gorm"
 )
+
+func writeLocalFile(path string, body io.Reader) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, body)
+	return err
+}
 
 func (app *Application) fileExistsInStorage(fileName string) (bool, error) {
 	switch app.config.FileStorageMethod {
@@ -23,12 +34,9 @@ func (app *Application) fileExistsInStorage(fileName string) (bool, error) {
 		}
 		return err == nil, err
 	case fileStorageS3:
-		_, err := app.s3client.StatObject(
-			context.Background(),
-			app.config.S3.Bucket,
-			fileName,
-			minio.StatObjectOptions{},
-		)
+		ctx, cancel := context.WithTimeout(context.Background(), s3Timeout)
+		defer cancel()
+		_, err := app.s3client.StatObject(ctx, app.config.S3.Bucket, fileName, minio.StatObjectOptions{})
 		if err != nil {
 			errResp := minio.ToErrorResponse(err)
 			if errResp.Code == "NoSuchKey" {

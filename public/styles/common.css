@@ -153,6 +153,7 @@ setting-group {
     background-color: var(--warning-bg-color);
     border-radius: 10px;
     padding: 5px;
+    margin-bottom: 15px;
 }
 
 code {

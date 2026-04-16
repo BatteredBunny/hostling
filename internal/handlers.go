@@ -475,7 +475,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gin.Context) {
 	if app.config.S3.ProxyFiles {
-		object, err := app.streamS3File(fileName)
+		object, err := app.streamS3File(c.Request.Context(), fileName)
 		if err != nil {
 			log.Err(err).Str("file", fileName).Msg("Failed to retrieve file from S3")
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -494,13 +494,9 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 		c.Header("Content-Type", fileRecord.MimeType)
 		http.ServeContent(c.Writer, c.Request, fileRecord.OriginalFileName, objectInfo.LastModified, object)
 	} else {
-		presignedURL, err := app.s3client.PresignedGetObject(
-			context.Background(),
-			app.config.S3.Bucket,
-			fileName,
-			time.Hour,
-			nil,
-		)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), s3Timeout)
+		defer cancel()
+		presignedURL, err := app.s3client.PresignedGetObject(ctx, app.config.S3.Bucket, fileName, time.Hour, nil)
 		if err != nil {
 			log.Err(err).Msg("Failed to generate presigned URL")
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -639,17 +635,13 @@ func (app *Application) deleteFilesFromAccount(accountID uint) (err error) {
 		return
 	}
 
-	if err = app.db.DeleteFilesFromAccount(accountID); err != nil {
-		return
-	}
-
 	for _, file := range files {
-		if err = app.deleteFile(file.FileName); err != nil {
-			log.Err(err).Msg("Failed to delete file")
+		if deleteErr := app.deleteFile(file.FileName); deleteErr != nil {
+			log.Err(deleteErr).Str("file", file.FileName).Msg("Failed to delete file from storage")
 		}
 	}
 
-	return
+	return app.db.DeleteFilesFromAccount(accountID)
 }
 
 type FileStatsOutput struct {

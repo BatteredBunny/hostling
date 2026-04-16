@@ -166,13 +166,6 @@ func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
 }
 
 func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Accounts, err error) {
-	if err = db.Model(&SessionTokens{}).
-		Where(&SessionTokens{Token: sessionToken}).
-		Where("expiry_date > ?", time.Now()).
-		Update("last_used", time.Now()).Error; err != nil {
-		log.Err(err).Msg("Failed to update last used time for session token")
-	}
-
 	var accountID uint
 	if err = db.Model(&SessionTokens{}).
 		Where(&SessionTokens{Token: sessionToken}).
@@ -182,9 +175,17 @@ func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Ac
 		return
 	}
 
-	err = db.Model(&Accounts{}).
+	if err = db.Model(&Accounts{}).
 		Where(&Accounts{ID: accountID}).
-		First(&account).Error
+		First(&account).Error; err != nil {
+		return
+	}
+
+	if updErr := db.Model(&SessionTokens{}).
+		Where(&SessionTokens{Token: sessionToken}).
+		Update("last_used", time.Now()).Error; updErr != nil {
+		log.Err(updErr).Msg("Failed to update last used time for session token")
+	}
 
 	return
 }
@@ -212,25 +213,7 @@ func (db *Database) GetAccountByUploadToken(uploadToken uuid.UUID) (account Acco
 }
 
 func (db *Database) DeleteAccount(accountID uint) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where(&SessionTokens{AccountID: accountID}).
-			Delete(&SessionTokens{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where(&UploadTokens{AccountID: accountID}).
-			Delete(&UploadTokens{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where(&InviteCodes{InviteCreatorID: accountID}).
-			Delete(&InviteCodes{}).Error; err != nil {
-			return err
-		}
-		if err := tx.Where(&Files{UploaderID: accountID}).
-			Delete(&Files{}).Error; err != nil {
-			return err
-		}
-		return tx.Delete(&Accounts{}, accountID).Error
-	})
+	return db.Delete(&Accounts{}, accountID).Error
 }
 
 func (db *Database) GetAccounts() (accounts []Accounts, err error) {

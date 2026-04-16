@@ -14,13 +14,13 @@ import (
 
 func (app *Application) ratelimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		httpError := tollbooth.LimitByRequest(app.RateLimiter, c.Writer, c.Request)
+		httpError := tollbooth.LimitByKeys(app.RateLimiter, []string{c.ClientIP()})
 		if httpError != nil {
 			c.Data(httpError.StatusCode, app.RateLimiter.GetMessageContentType(), []byte(httpError.Message))
 			c.Abort()
-		} else {
-			c.Next()
+			return
 		}
+		c.Next()
 	}
 }
 
@@ -36,7 +36,7 @@ func (app *Application) bodySizeMiddleware() gin.HandlerFunc {
 func (app *Application) apiMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.ContentLength > 0 {
-			if err := c.Request.ParseMultipartForm(app.config.MaxUploadSize); err != nil {
+			if err := c.Request.ParseMultipartForm(app.config.MaxUploadSize); err != nil && !errors.Is(err, http.ErrNotMultipart) {
 				c.String(http.StatusRequestEntityTooLarge, "Too big file")
 				c.Abort()
 				return

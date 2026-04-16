@@ -192,8 +192,14 @@ export function FileGrid() {
   );
 }
 
+let inflight: AbortController | null = null;
+
 export async function loadFiles(skip: number) {
-  if (isLoading()) return;
+  // Abort any in-flight request so rapid filter/sort changes don't race:
+  // older responses must not clobber newer ones.
+  if (inflight) inflight.abort();
+  const controller = new AbortController();
+  inflight = controller;
 
   setIsLoading(true);
 
@@ -206,13 +212,13 @@ export async function loadFiles(skip: number) {
     let data: Awaited<ReturnType<typeof fetchFiles>> | undefined;
 
     for (let attempt = 0; attempt < 3; attempt++) {
-      data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), tagFilter(), fileFilter());
+      data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), tagFilter(), fileFilter(), controller.signal);
 
       // Tags can only be filtered if there are files with that tag.
       // Empty result most likely means the tag was removed recently.
       if (data.files.length === 0 && tagFilter()) {
         setTagFilter(null);
-        data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), null, fileFilter());
+        data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), null, fileFilter(), controller.signal);
       }
 
       const count = data.count || 0;
@@ -249,9 +255,13 @@ export async function loadFiles(skip: number) {
     } else {
       setLoadingText('No files uploaded yet.');
     }
-  } catch {
+  } catch (err) {
+    if ((err as Error)?.name === 'AbortError') return;
     setLoadingText('Failed to load files.');
   } finally {
-    setIsLoading(false);
+    if (inflight === controller) {
+      inflight = null;
+      setIsLoading(false);
+    }
   }
 }

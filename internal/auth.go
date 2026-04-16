@@ -176,12 +176,15 @@ func (app *Application) initOIDCProvider() (enabled bool, err error) {
 func (app *Application) setupAuth(api *gin.RouterGroup) {
 	app.setupSocialLogin()
 
-	api.GET("/auth/login/:provider/callback", app.loginCallback)
-	api.GET("/auth/login/:provider", app.loginApi)
+	auth := api.Group("/auth")
+	auth.Use(app.ratelimitMiddleware())
 
-	api.POST("/auth/register", app.registerApi)
+	auth.GET("/login/:provider/callback", app.loginCallback)
+	auth.GET("/login/:provider", app.loginApi)
 
-	api.POST("/auth/link/:provider", app.linkApi)
+	auth.POST("/register", app.registerApi)
+
+	auth.POST("/link/:provider", app.linkApi)
 }
 
 func (app *Application) loginApi(c *gin.Context) {
@@ -334,11 +337,18 @@ func (app *Application) linkApi(c *gin.Context) {
 
 	if _, err := gothic.CompleteUserAuth(c.Writer, c.Request); err == nil {
 		c.JSON(http.StatusOK, "linked")
-	} else {
-		app.setLinkingCookie(c)
-
-		gothic.BeginAuthHandler(c.Writer, c.Request)
+		return
 	}
+
+	app.setLinkingCookie(c)
+
+	url, err := gothic.GetAuthURL(c.Writer, c.Request)
+	if err != nil {
+		log.Err(err).Msg("Failed to build OAuth authorize URL")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+	c.Redirect(http.StatusSeeOther, url)
 }
 
 type registerApiInput struct {

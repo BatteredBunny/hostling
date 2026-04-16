@@ -12,20 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func setupRatelimiting(c Config) *limiter.Limiter {
-	rateLimiter := tollbooth.NewLimiter(2, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
-
-	if c.BehindReverseProxy {
-		rateLimiter.SetIPLookup(limiter.IPLookup{
-			Name: "X-Forwarded-For",
-		})
-	} else {
-		rateLimiter.SetIPLookup(limiter.IPLookup{
-			Name: "RemoteAddr",
-		})
-	}
-
-	return rateLimiter
+func setupRatelimiting() *limiter.Limiter {
+	return tollbooth.NewLimiter(2, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
 }
 
 func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *Application) {
@@ -65,6 +53,8 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 		app.bodySizeMiddleware(),
 	)
 
+	app.Router.StaticFS("/public/", embed.PublicFiles())
+
 	api := app.Router.Group("/api")
 	api.Use(app.apiMiddleware())
 
@@ -73,6 +63,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	// Upload token should only have access to upload endpoint!
 	fileAPI := api.Group("/file")
 	fileAPI.Use(
+		app.ratelimitMiddleware(),
 		app.hasUploadOrSessionTokenMiddleware(),
 	)
 
@@ -122,8 +113,6 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	adminAPI.POST("/give_invite_code", app.adminGiveInviteCode)
 
 	// Pages
-	app.Router.StaticFS("/public/", embed.PublicFiles())
-
 	app.Router.GET("/login", app.loginPage)
 	app.Router.GET("/register", app.registerPage)
 	app.Router.GET("/logout", app.logoutHandler)
@@ -132,8 +121,8 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	app.Router.GET("/tokens", app.tokensPage)
 	app.Router.GET("/admin", app.adminPage)
 	app.Router.GET("/", app.indexPage)
-	app.Router.Use(app.ratelimitMiddleware())
-	app.Router.NoRoute(app.indexFiles)
+
+	app.Router.NoRoute(app.ratelimitMiddleware(), app.indexFiles)
 
 	return
 }

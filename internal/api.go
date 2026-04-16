@@ -1,10 +1,10 @@
 package internal
 
 import (
+	"bufio"
 	"errors"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -17,6 +17,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
+
+// Bytes sniffed from the front of an upload to detect its MIME type
+// Same as mimetype's internal read size
+const mimeSniffSize = 3072
 
 // Api for deleting your own account
 func (app *Application) accountDeleteAPI(c *gin.Context) {
@@ -51,17 +55,13 @@ func (app *Application) deleteAccount(accountID uint) (err error) {
 		return
 	}
 
-	if err = app.db.DeleteAccount(accountID); err != nil {
-		return
-	}
-
 	for _, file := range files {
 		if deleteErr := app.deleteFile(file.FileName); deleteErr != nil {
 			log.Err(deleteErr).Str("file", file.FileName).Msg("Failed to delete file from storage")
 		}
 	}
 
-	return
+	return app.db.DeleteAccount(accountID)
 }
 
 // Api for deleting a file from your account
@@ -224,22 +224,26 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	defer fileRaw.Close()
 
 	originalFileName := fileHeader.Filename
+	fileSize := fileHeader.Size
 
-	file, err := io.ReadAll(fileRaw)
-	if err != nil {
-		log.Err(err).Msg("Failed to read uploaded file")
+	// Peek at the first few KB for MIME detection without consuming the
+	// stream, then hand the buffered reader straight to storage.
+	body := bufio.NewReaderSize(fileRaw, mimeSniffSize)
+	header, err := body.Peek(mimeSniffSize)
+	if err != nil && !errors.Is(err, io.EOF) {
+		log.Err(err).Msg("Failed to read uploaded file header")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
-	mime := mimetype.Detect(file)
+	mime := mimetype.Detect(header)
 	fullFileName := app.generateFullFileName(mime)
 
 	switch app.config.FileStorageMethod {
 	case fileStorageS3:
-		err = app.uploadFileS3(file, fullFileName)
+		err = app.uploadFileS3(c.Request.Context(), body, fileSize, fullFileName)
 	case fileStorageLocal:
-		err = os.WriteFile(filepath.Join(app.config.DataFolder, fullFileName), file, 0o600)
+		err = writeLocalFile(filepath.Join(app.config.DataFolder, fullFileName), body)
 	default:
 		err = ErrUnknownStorageMethod
 	}
@@ -254,7 +258,7 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		Files: db.Files{
 			FileName:         fullFileName,
 			OriginalFileName: originalFileName,
-			FileSize:         uint(len(file)),
+			FileSize:         uint(fileSize),
 			MimeType:         mime.String(),
 			ExpiryDate:       expiryDate,
 			Public:           true,

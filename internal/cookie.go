@@ -2,6 +2,7 @@ package internal
 
 import (
 	"errors"
+	"net/http"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
@@ -14,29 +15,27 @@ const (
 	LINKING_COOKIE = "linking"
 )
 
+var authCookieMaxAge = int(db.SessionTokenDuration.Seconds())
+
+func (app *Application) setCookie(c *gin.Context, name, value string, maxAge int) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(name, value, maxAge, "/", app.config.CookieDomain, app.config.CookieSecure, true)
+}
+
 func (app *Application) setLinkingCookie(c *gin.Context) {
-	c.SetCookie("linking", "true", 500, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
+	app.setCookie(c, LINKING_COOKIE, "true", 500)
 }
 
 func (app *Application) clearLinkingCookie(c *gin.Context) {
-	c.SetCookie("linking", "", -1, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
+	app.setCookie(c, LINKING_COOKIE, "", -1)
 }
 
 func (app *Application) setAuthCookie(sessionToken uuid.UUID, c *gin.Context) {
-	// TODO: use actual max age
-	c.SetCookie(
-		AUTH_COOKIE,
-		sessionToken.String(),
-		86400*7,
-		"/",
-		app.config.CookieDomain,
-		gin.Mode() == gin.ReleaseMode,
-		true,
-	)
+	app.setCookie(c, AUTH_COOKIE, sessionToken.String(), authCookieMaxAge)
 }
 
 func (app *Application) clearAuthCookie(c *gin.Context) {
-	c.SetCookie(AUTH_COOKIE, "", -1, "/", app.config.CookieDomain, gin.Mode() == gin.ReleaseMode, true)
+	app.setCookie(c, AUTH_COOKIE, "", -1)
 }
 
 var ErrInvalidAuthCookie = errors.New("invalid session token")

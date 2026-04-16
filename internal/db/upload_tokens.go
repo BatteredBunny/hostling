@@ -17,7 +17,7 @@ type UploadTokens struct {
 	Token uuid.UUID `gorm:"uniqueIndex"`
 
 	AccountID uint     `gorm:"index"`
-	Account   Accounts `gorm:"foreignKey:AccountID"`
+	Account   Accounts `gorm:"foreignKey:AccountID;constraint:OnDelete:CASCADE"`
 }
 
 func (db *Database) DeleteUploadTokensFromAccount(accountID uint) (err error) {

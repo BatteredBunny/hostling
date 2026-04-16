@@ -8,7 +8,8 @@ export async function fetchFiles(
   sort: SortField,
   desc: boolean,
   tagFilter?: string | null,
-  fileFilter?: string | null
+  fileFilter?: string | null,
+  signal?: AbortSignal
 ): Promise<FilesResponse> {
   const params = new URLSearchParams({
     skip: skip.toString(),
@@ -18,7 +19,7 @@ export async function fetchFiles(
   if (tagFilter) params.set('tag', tagFilter);
   if (fileFilter) params.set('filter', fileFilter);
 
-  const response = await fetch(`/api/account/files?${params}`, { method: 'GET' });
+  const response = await fetch(`/api/account/files?${params}`, { method: 'GET', signal });
 
   if (!response.ok) {
     throw new Error('Failed to fetch files');

@@ -7,6 +7,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const SessionTokenDuration = 7 * 24 * time.Hour
+
 type SessionTokens struct {
 	ID        uint `gorm:"primaryKey"`
 	CreatedAt time.Time
@@ -17,7 +19,7 @@ type SessionTokens struct {
 	Token      uuid.UUID `gorm:"uniqueIndex"`
 
 	AccountID uint     `gorm:"index"`
-	Account   Accounts `gorm:"foreignKey:AccountID"`
+	Account   Accounts `gorm:"foreignKey:AccountID;constraint:OnDelete:CASCADE"`
 }
 
 func (db *Database) DeleteSession(sessionToken uuid.UUID) (err error) {
@@ -47,7 +49,7 @@ func (db *Database) CreateSessionToken(accountID uint) (sessionToken uuid.UUID, 
 	session := SessionTokens{
 		AccountID:  accountID,
 		Token:      uuid.New(),
-		ExpiryDate: time.Now().Add(time.Hour * 24 * 7), // A week from now
+		ExpiryDate: time.Now().Add(SessionTokenDuration),
 		LastUsed:   time.Now(),
 	}
 

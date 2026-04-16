@@ -12,13 +12,13 @@ type InviteCodes struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Code        string
-	Uses        uint // How many usages of this code is left
+	Code        string `gorm:"uniqueIndex"`
+	Uses        uint   // How many usages of this code is left
 	ExpiryDate  time.Time
 	AccountType string // Either registers normal or admin users
 
 	InviteCreatorID uint     `gorm:"default:null;index"`
-	InviteCreator   Accounts `gorm:"foreignKey:InviteCreatorID"`
+	InviteCreator   Accounts `gorm:"foreignKey:InviteCreatorID;constraint:OnDelete:CASCADE"`
 }
 
 func (db *Database) InviteCodeAmount() (count int64, err error) {

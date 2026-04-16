@@ -1,41 +1,36 @@
 package internal
 
 import (
-	"bytes"
 	"context"
+	"io"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 )
 
-func (app *Application) uploadFileS3(file []byte, fileName string) (err error) {
+// Timeout for short S3 control-plane calls (stat, delete, presign). Upload
+// and streaming read are bounded by the request context instead.
+const s3Timeout = 30 * time.Second
+
+func (app *Application) uploadFileS3(ctx context.Context, r io.Reader, size int64, fileName string) (err error) {
 	_, err = app.s3client.PutObject(
-		context.Background(),
+		ctx,
 		app.config.S3.Bucket,
 		fileName,
-		bytes.NewReader(file),
-		int64(len(file)),
+		r,
+		size,
 		minio.PutObjectOptions{},
 	)
 
 	return
 }
 
-func (app *Application) deleteFileS3(fileName string) (err error) {
-	err = app.s3client.RemoveObject(
-		context.Background(),
-		app.config.S3.Bucket,
-		fileName,
-		minio.RemoveObjectOptions{},
-	)
-
-	return
+func (app *Application) deleteFileS3(fileName string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), s3Timeout)
+	defer cancel()
+	return app.s3client.RemoveObject(ctx, app.config.S3.Bucket, fileName, minio.RemoveObjectOptions{})
 }
 
-func (app *Application) streamS3File(fileName string) (*minio.Object, error) {
-	return app.s3client.GetObject(
-		context.Background(),
-		app.config.S3.Bucket,
-		fileName,
-		minio.GetObjectOptions{},
-	)
+func (app *Application) streamS3File(ctx context.Context, fileName string) (*minio.Object, error) {
+	return app.s3client.GetObject(ctx, app.config.S3.Bucket, fileName, minio.GetObjectOptions{})
 }

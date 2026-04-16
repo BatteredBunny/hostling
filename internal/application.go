@@ -57,6 +57,7 @@ type Config struct {
 	TrustedProxy       string `toml:"trusted_proxy"`
 	PublicUrl          string `toml:"public_url"` // URL to use for github callback and cookies, e.g http://cdn.example.com
 	CookieDomain       string // hostname extracted from PublicUrl
+	CookieSecure       bool   // true when PublicUrl is https
 
 	Branding string `toml:"branding"` // Branding text for toolbar (max 20 characters)
 	Tagline  string `toml:"tagline"`  // Used for meta description and text on index page (max 100 characters)

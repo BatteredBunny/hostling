@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -48,26 +49,45 @@ type CreateFileEntryInput struct {
 var ErrNotAuthenticated = errors.New("not authenticated")
 
 // Creates file entry in database
-func (db *Database) CreateFileEntry(input CreateFileEntryInput) (err error) {
-	var account Accounts
-	if input.SessionToken.Valid {
-		account, err = db.GetAccountBySessionToken(input.SessionToken.UUID)
-		if err != nil {
-			return
-		}
-	} else if input.UploadToken.Valid {
-		account, err = db.GetAccountByUploadToken(input.UploadToken.UUID)
-		if err != nil {
-			return
-		}
-	} else {
-		// This shouldnt happen but just in case
-		return ErrNotAuthenticated
-	}
+func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		var accountID uint
+		now := time.Now()
 
-	input.Files.UploaderID = account.ID
+		switch {
+		case input.SessionToken.Valid:
+			if err := tx.Model(&SessionTokens{}).
+				Where(&SessionTokens{Token: input.SessionToken.UUID}).
+				Where("expiry_date > ?", now).
+				Select("account_id").
+				First(&accountID).Error; err != nil {
+				return err
+			}
+		case input.UploadToken.Valid:
+			if err := tx.Model(&UploadTokens{}).
+				Where(&UploadTokens{Token: input.UploadToken.UUID}).
+				Select("account_id").
+				First(&accountID).Error; err != nil {
+				return err
+			}
+		default:
+			return ErrNotAuthenticated
+		}
 
-	return db.Model(&Files{}).Create(&input.Files).Error
+		input.Files.UploaderID = accountID
+		if err := tx.Model(&Files{}).Create(&input.Files).Error; err != nil {
+			return err
+		}
+
+		if input.SessionToken.Valid {
+			return tx.Model(&SessionTokens{}).
+				Where(&SessionTokens{Token: input.SessionToken.UUID}).
+				Update("last_used", now).Error
+		}
+		return tx.Model(&UploadTokens{}).
+			Where(&UploadTokens{Token: input.UploadToken.UUID}).
+			Update("last_used", now).Error
+	})
 }
 
 // Only deletes database entry, actual file has to be deleted as well
@@ -200,20 +220,27 @@ func (db *Database) GetFilesPaginatedFromAccount(
 }
 
 func (db *Database) ToggleFilePublic(fileName string, accountID uint) (newPublicStatus bool, err error) {
-	var file Files
+	err = db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&Files{}).
+			Where(&Files{FileName: fileName, UploaderID: accountID}).
+			Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
+			Update("public", gorm.Expr("NOT public"))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
 
-	if err = db.Model(&Files{}).
-		Where(&Files{FileName: fileName, UploaderID: accountID}).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
-		First(&file).Error; err != nil {
-		return
-	}
-
-	newPublicStatus = !file.Public
-
-	err = db.Model(&Files{}).
-		Where(&Files{FileName: fileName, UploaderID: accountID}).
-		Update("public", newPublicStatus).Error
-
+		var file Files
+		if err := tx.Model(&Files{}).
+			Where(&Files{FileName: fileName, UploaderID: accountID}).
+			Select("public").
+			First(&file).Error; err != nil {
+			return err
+		}
+		newPublicStatus = file.Public
+		return nil
+	})
 	return
 }

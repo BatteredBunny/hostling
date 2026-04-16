@@ -26,8 +26,9 @@ func (db *Database) BumpFileViews(fileName string, ip string) (err error) {
 	var fileID uint
 	if err = db.Model(&Files{}).
 		Where(&Files{FileName: fileName}).
+		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
 		Select("id").
-		Scan(&fileID).Error; err != nil {
+		First(&fileID).Error; err != nil {
 		return
 	}
 

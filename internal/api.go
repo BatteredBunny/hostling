@@ -46,35 +46,19 @@ func (app *Application) accountDeleteAPI(c *gin.Context) {
 }
 
 func (app *Application) deleteAccount(accountID uint) (err error) {
-	if err = app.db.DeleteSessionsFromAccount(accountID); err != nil {
-		return
-	}
-
-	if err = app.db.DeleteUploadTokensFromAccount(accountID); err != nil {
-		return
-	}
-
-	if err = app.db.DeleteInviteCodesFromAccount(accountID); err != nil {
-		return
-	}
-
 	files, err := app.db.GetAllFilesFromAccount(accountID)
 	if err != nil {
 		return
 	}
 
-	for _, file := range files {
-		if err = app.deleteFile(file.FileName); err != nil {
-			log.Err(err).Msg("Failed to delete file")
-		}
-	}
-
-	if err = app.db.DeleteFilesFromAccount(accountID); err != nil {
-		return
-	}
-
 	if err = app.db.DeleteAccount(accountID); err != nil {
 		return
+	}
+
+	for _, file := range files {
+		if deleteErr := app.deleteFile(file.FileName); deleteErr != nil {
+			log.Err(deleteErr).Str("file", file.FileName).Msg("Failed to delete file from storage")
+		}
 	}
 
 	return

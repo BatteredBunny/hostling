@@ -179,10 +179,26 @@ func (db *Database) GetAccountByUploadToken(uploadToken uuid.UUID) (account Acco
 	return
 }
 
-// Deletes account entry only
-func (db *Database) DeleteAccount(accountID uint) (err error) {
-	return db.Model(&Accounts{}).
-		Delete(&Accounts{}, accountID).Error
+func (db *Database) DeleteAccount(accountID uint) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where(&SessionTokens{AccountID: accountID}).
+			Delete(&SessionTokens{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where(&UploadTokens{AccountID: accountID}).
+			Delete(&UploadTokens{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where(&InviteCodes{InviteCreatorID: accountID}).
+			Delete(&InviteCodes{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where(&Files{UploaderID: accountID}).
+			Delete(&Files{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&Accounts{}, accountID).Error
+	})
 }
 
 func (db *Database) GetAccounts() (accounts []Accounts, err error) {

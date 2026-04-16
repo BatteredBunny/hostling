@@ -28,6 +28,7 @@ import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
 import { FileEntry } from './FileEntry';
 import { Icon } from './Icon';
+import { SelectBox } from './SelectBox';
 import type { SortField } from '../types';
 
 export function FileGrid() {
@@ -44,8 +45,7 @@ export function FileGrid() {
     return `${start}-${end} of ${totalFiles()}`;
   };
 
-  const handleSortChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+  const handleSortChange = (value: string) => {
     const [field, order] = value.split(':') as [SortField, string];
     setSortField(field);
     setSortDesc(order === 'desc');
@@ -53,9 +53,7 @@ export function FileGrid() {
     loadFiles(0);
   };
 
-  const handleFilterChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
-
+  const handleFilterChange = (value: string) => {
     if (value === 'all') {
       setTagFilter(null);
       setFileFilter(null);
@@ -121,28 +119,30 @@ export function FileGrid() {
         <div class="files-top-row">
           <h2>Files</h2>
           <div class="options">
-            <select
+            <SelectBox
               id="filter-dropdown"
-              onChange={handleFilterChange}
               value={currentFilterValue()}
-            >
-              <option value="all">All Files</option>
-              <option value="untagged">Untagged</option>
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-            <select
+              onChange={handleFilterChange}
+              options={[
+                { value: 'all', label: 'All Files' },
+                { value: 'untagged', label: 'Untagged' },
+                { value: 'public', label: 'Public' },
+                { value: 'private', label: 'Private' },
+              ]}
+            />
+            <SelectBox
               id="sort-dropdown"
-              onChange={handleSortChange}
               value={`${sortField()}:${sortDesc() ? 'desc' : 'asc'}`}
-            >
-              <option value="created_at:desc">Newest First</option>
-              <option value="created_at:asc">Oldest First</option>
-              <option value="views:desc">Most Views</option>
-              <option value="views:asc">Least Views</option>
-              <option value="file_size:desc">Largest First</option>
-              <option value="file_size:asc">Smallest First</option>
-            </select>
+              onChange={handleSortChange}
+              options={[
+                { value: 'created_at:desc', label: 'Newest First' },
+                { value: 'created_at:asc', label: 'Oldest First' },
+                { value: 'views:desc', label: 'Most Views' },
+                { value: 'views:asc', label: 'Least Views' },
+                { value: 'file_size:desc', label: 'Largest First' },
+                { value: 'file_size:asc', label: 'Smallest First' },
+              ]}
+            />
           </div>
         </div>
       </div>

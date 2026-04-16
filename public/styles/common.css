@@ -4,6 +4,10 @@
     color-scheme: light dark;
 }
 
+html {
+    scrollbar-gutter: stable;
+}
+
 html,
 body {
     font-family: "IBM Plex Sans", sans-serif;

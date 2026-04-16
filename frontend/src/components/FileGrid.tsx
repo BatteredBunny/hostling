@@ -1,5 +1,4 @@
 import { For, Show, onMount } from 'solid-js';
-import { Portal } from 'solid-js/web';
 import './FileGrid.css';
 import {
   files,
@@ -28,7 +27,6 @@ import {
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
 import { FileEntry } from './FileEntry';
-import { FileModal } from './FileModal';
 import { Icon } from './Icon';
 import type { SortField } from '../types';
 
@@ -190,10 +188,6 @@ export function FileGrid() {
           </div>
         </Show>
       </div>
-
-      <Portal>
-        <FileModal />
-      </Portal>
     </>
   );
 }

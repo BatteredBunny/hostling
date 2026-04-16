@@ -1,16 +1,4 @@
 #file-modal {
-    &.file-modal-hidden {
-        display: none;
-        opacity: 0;
-        pointer-events: none;
-        user-select: none;
-    }
-
-    &.file-modal-visible {
-        display: flex;
-        opacity: 1;
-    }
-
     position: fixed;
     top: 0;
     left: 0;
@@ -18,10 +6,10 @@
     height: 100%;
     background-color: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(5px);
+    display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    transition: 0.2s;
 
     .file-modal-window {
         display: flex;

@@ -1,6 +1,7 @@
-import { createEffect, onCleanup, onMount } from 'solid-js';
+import { createEffect, onCleanup, onMount, Show } from 'solid-js';
 import { FileGrid, loadFiles } from './FileGrid';
 import { FileStats } from './FileStats';
+import { FileModal } from './FileModal';
 import {
   currentPage,
   setCurrentPage,
@@ -66,6 +67,9 @@ export function FileLibrary() {
       <setting-group>
         <FileGrid />
       </setting-group>
+      <Show when={modalFile()}>
+        {(file) => <FileModal file={file()} />}
+      </Show>
     </>
   );
 }

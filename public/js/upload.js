@@ -92,7 +92,8 @@ uploadForm.addEventListener("submit", (e) => {
         uploadProgress.style.display = "none";
 
         if (xhr.status >= 200 && xhr.status < 400) {
-            showResult(true, "Upload successful", xhr.responseText.trim());
+            const fileName = xhr.responseText.trim().replace(/^\//, "");
+            showResult(true, "Upload successful", `/gallery?file=${encodeURIComponent(fileName)}`);
         } else if (xhr.status === 401) {
             showResult(false, "Upload failed: Unauthorized");
         } else {

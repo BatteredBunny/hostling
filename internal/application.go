@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"os"
@@ -22,9 +23,18 @@ type Application struct {
 	RateLimiter *limiter.Limiter
 	Router      *gin.Engine
 
+	shutdownCtx    context.Context
+	shutdownCancel context.CancelFunc
+
 	providersMutex      sync.RWMutex
 	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
 	failedProviders     []string // provider names that are configured but failed to initialize
+}
+
+func (app *Application) Shutdown() {
+	if app.shutdownCancel != nil {
+		app.shutdownCancel()
+	}
 }
 
 type fileStorageMethod string

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"html/template"
 	"time"
 
@@ -30,6 +31,8 @@ func setupRatelimiting(c Config) *limiter.Limiter {
 func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *Application) {
 	app = (*Application)(uninitializedApp)
 	log.Info().Msg("Setting up router")
+
+	app.shutdownCtx, app.shutdownCancel = context.WithCancel(context.Background())
 
 	app.Router = gin.Default()
 	app.Router.ForwardedByClientIP = c.BehindReverseProxy

@@ -10,8 +10,17 @@ func (app *Application) StartJobScheduler() {
 	go func() {
 		app.CleanUpJob()
 
-		for range time.Tick(10 * time.Minute) {
-			app.CleanUpJob()
+		ticker := time.NewTicker(10 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-app.shutdownCtx.Done():
+				log.Info().Msg("Job scheduler shutdown")
+				return
+			case <-ticker.C:
+				app.CleanUpJob()
+			}
 		}
 	}()
 

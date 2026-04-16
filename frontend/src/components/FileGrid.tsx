@@ -202,26 +202,32 @@ export async function loadFiles(skip: number) {
   }
 
   try {
-    let data = await fetchFiles(skip, sortField(), sortDesc(), tagFilter(), fileFilter());
+    let effectiveSkip = skip;
+    let data: Awaited<ReturnType<typeof fetchFiles>> | undefined;
 
-    // Tags can only be filtered if there are files with that tag
-    // If it returns nothing it most likely means the tag was removed recently
-    if (data.files.length === 0 && tagFilter()) {
-      setTagFilter(null);
-      data = await fetchFiles(skip, sortField(), sortDesc(), null, fileFilter());
+    for (let attempt = 0; attempt < 3; attempt++) {
+      data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), tagFilter(), fileFilter());
+
+      // Tags can only be filtered if there are files with that tag.
+      // Empty result most likely means the tag was removed recently.
+      if (data.files.length === 0 && tagFilter()) {
+        setTagFilter(null);
+        data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), null, fileFilter());
+      }
+
+      const count = data.count || 0;
+      setTotalFiles(count);
+
+      if (count > 0 && effectiveSkip >= count) {
+        const lastPage = Math.max(0, Math.ceil(count / FILES_PER_PAGE) - 1);
+        setCurrentPage(lastPage);
+        effectiveSkip = lastPage * FILES_PER_PAGE;
+        continue;
+      }
+      break;
     }
 
-    const count = data.count || 0;
-    setTotalFiles(count);
-
-    // Clamp page if URL/state references a page beyond what's available.
-    if (count > 0 && skip >= count) {
-      const lastPage = Math.max(0, Math.ceil(count / FILES_PER_PAGE) - 1);
-      setCurrentPage(lastPage);
-      setIsLoading(false);
-      await loadFiles(lastPage * FILES_PER_PAGE);
-      return;
-    }
+    if (!data) return;
 
     setFiles(data.files || []);
 
@@ -238,12 +244,10 @@ export async function loadFiles(skip: number) {
 
     if (data.files && data.files.length > 0) {
       setLoadingText('');
+    } else if (tagFilter() || fileFilter()) {
+      setLoadingText('No files found.');
     } else {
-      if (tagFilter() || fileFilter()) {
-        setLoadingText('No files found.');
-      } else {
-        setLoadingText('No files uploaded yet.');
-      }
+      setLoadingText('No files uploaded yet.');
     }
   } catch {
     setLoadingText('Failed to load files.');

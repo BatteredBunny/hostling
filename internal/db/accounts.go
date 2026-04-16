@@ -97,40 +97,39 @@ func (db *Database) LinkOIDC(accountID uint, username string, oidcID string) (er
 }
 
 // Returns the latest time a session token or an upload token was used
-func (db *Database) LastAccountActivity(accountID uint) (lastActivity time.Time, err error) {
-	var (
-		sessionLastUsed sql.NullTime
-		uploadLastUsed  sql.NullTime
-	)
+func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
+	var sessionLastUsed, uploadLastUsed sql.NullTime
 
-	if err = db.Model(&SessionTokens{}).
+	err := db.Model(&SessionTokens{}).
 		Where(&SessionTokens{AccountID: accountID}).
 		Select("last_used").
 		Order("last_used DESC").
-		First(&sessionLastUsed).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return
+		First(&sessionLastUsed).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return time.Time{}, err
 	}
 
-	// TODO: somehow hide the error in logs if no upload tokens exist
-	if err = db.Model(&UploadTokens{}).
+	err = db.Model(&UploadTokens{}).
 		Where(&UploadTokens{AccountID: accountID}).
 		Select("last_used").
 		Order("last_used DESC").
-		First(&uploadLastUsed).Error; errors.Is(err, gorm.ErrRecordNotFound) {
-		err = nil
-	} else if err != nil {
-		return
+		First(&uploadLastUsed).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return time.Time{}, err
 	}
 
-	if !sessionLastUsed.Valid && !uploadLastUsed.Valid {
-		return time.Time{}, nil // No activity found
-	} else if uploadLastUsed.Valid && uploadLastUsed.Time.After(sessionLastUsed.Time) {
-		lastActivity = uploadLastUsed.Time
-	} else {
-		lastActivity = sessionLastUsed.Time
+	switch {
+	case !sessionLastUsed.Valid && !uploadLastUsed.Valid:
+		return time.Time{}, nil
+	case !sessionLastUsed.Valid:
+		return uploadLastUsed.Time, nil
+	case !uploadLastUsed.Valid:
+		return sessionLastUsed.Time, nil
+	case uploadLastUsed.Time.After(sessionLastUsed.Time):
+		return uploadLastUsed.Time, nil
+	default:
+		return sessionLastUsed.Time, nil
 	}
-
-	return
 }
 
 func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Accounts, err error) {

@@ -61,7 +61,7 @@ func (app *Application) setupSocialLogin() {
 		if err != nil {
 			log.Warn().Err(err).Str("provider", p.gothName).Msg("Failed to initialize provider, retrying in background")
 			app.addFailedProvider(p.gothName)
-			go app.retryProviderInit(p.gothName, p.init)
+			go app.retryProviderInit(app.shutdownCtx, p.gothName, p.init)
 		}
 	}
 
@@ -100,7 +100,7 @@ func (app *Application) removeFailedProvider(name string) {
 	}
 }
 
-func (app *Application) retryProviderInit(name string, init func() (bool, error)) {
+func (app *Application) retryProviderInit(ctx context.Context, name string, init func() (bool, error)) {
 	const maxRetries = 10
 	delay := 5 * time.Second
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -109,7 +109,15 @@ func (app *Application) retryProviderInit(name string, init func() (bool, error)
 			Int("attempt", attempt).
 			Dur("retry_in", delay).
 			Msg("Provider initialization failed, retrying")
-		time.Sleep(delay)
+
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			log.Info().Str("provider", name).Msg("Provider retry cancelled")
+			return
+		case <-timer.C:
+		}
 
 		enabled, err := init()
 		if err == nil {

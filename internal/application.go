@@ -11,7 +11,6 @@ import (
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"
-	"github.com/go-co-op/gocron/v2"
 	"github.com/minio/minio-go/v7"
 	"github.com/rs/zerolog/log"
 )
@@ -21,8 +20,6 @@ type Application struct {
 	db          db.Database
 	s3client    *minio.Client
 	RateLimiter *limiter.Limiter
-	cron        gocron.Scheduler
-
 	Router              *gin.Engine
 	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
 
@@ -68,6 +65,8 @@ type s3Config struct {
 }
 
 func (app *Application) Run() {
+	app.StartJobScheduler()
+
 	listener, err := app.listen()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to start listener")

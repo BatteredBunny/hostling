@@ -3,29 +3,19 @@ package internal
 import (
 	"time"
 
-	"github.com/go-co-op/gocron/v2"
 	"github.com/rs/zerolog/log"
 )
 
-func (app *Application) StartJobScheudler() (err error) {
-	app.cron, err = gocron.NewScheduler()
-	if err != nil {
-		return
-	}
+func (app *Application) StartJobScheduler() {
+	go func() {
+		app.CleanUpJob()
 
-	if _, err = app.cron.NewJob(
-		gocron.DurationJob(time.Minute*10),
-		gocron.NewTask(app.CleanUpJob),
-	); err != nil {
-		return
-	}
+		for range time.Tick(10 * time.Minute) {
+			app.CleanUpJob()
+		}
+	}()
 
-	log.Info().Msg("Successfully setup job scheudler")
-	app.cron.Start()
-
-	go app.CleanUpJob()
-
-	return
+	log.Info().Msg("Successfully setup job scheduler")
 }
 
 func (app *Application) CleanUpJob() {

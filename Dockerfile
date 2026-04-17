@@ -1,8 +1,8 @@
-FROM node:25-alpine AS frontend
+FROM node:25-alpine3.23 AS frontend
 
 WORKDIR /app/frontend
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@10
 
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -10,21 +10,21 @@ RUN pnpm install --frozen-lockfile
 COPY frontend/ ./
 RUN pnpm run build
 
-FROM golang:1.26-alpine AS builder
-
+FROM golang:1.26-alpine3.23 AS builder
+RUN apk add --no-cache gcc musl-dev
 WORKDIR /app
+COPY go.mod go.sum ./
 
-COPY go.mod .
-COPY go.sum .
 RUN go mod download
 
 COPY . .
 
 COPY --from=frontend /app/public/dist ./public/dist
+RUN go build -ldflags '-s -w -extldflags "-static"' -o /app/hostling ./cmd/hostling
 
-RUN go build -o /app/hostling
+FROM alpine:3.23
 
-FROM alpine:3.25
+RUN apk add --no-cache ca-certificates
 
 VOLUME [ "/app/data" ]
 EXPOSE 80

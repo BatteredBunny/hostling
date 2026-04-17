@@ -10,7 +10,7 @@ clean:
     rm -rf ./data ./hostling-data ./hostling.db
 
 docker:
-    docker build -t batteredbunny/hostling .
+    docker build -t batteredbunny/hostling:latest .
 
 docker-push:
     docker push batteredbunny/hostling:latest

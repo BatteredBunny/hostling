@@ -95,7 +95,21 @@ services = {
 
 ## Setup with docker
 
-Have a look at docker-compose.yml
+<details>
+<summary><b>Setup with docker</b></summary>
+
+A `Dockerfile` and `docker-compose.yml` are provided in the repo. The compose stack runs hostling with postgres.
+
+Login provider credentials are passed via env vars, add them to the `environment:` block of the `hostling` service in `docker-compose.yml`:
+
+```yaml
+environment:
+  TZ: Etc/UTC
+  GITHUB_CLIENT_ID: "XXX"
+  GITHUB_SECRET: "XXX"
+```
+
+</details>
 
 # Development
 

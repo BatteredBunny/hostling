@@ -1,17 +1,15 @@
 services:
   hostling:
     container_name: hostling
-    build: ./
+    build: .
+    image: batteredbunny/hostling:latest
     environment:
-      - PUID=1000
-      - PGID=1000
-      - UMASK=002
-      - TZ=Etc/UTC
+      TZ: Etc/UTC
     ports:
       - "8080:80"
     volumes:
-      - ./hostling-data:/app/data
-      - ./examples/example_docker.toml:/app/config.toml
+      - hostling-data:/app/data
+      - ./examples/example_docker.toml:/app/config.toml:ro
     depends_on:
       db:
         condition: service_healthy
@@ -19,16 +17,20 @@ services:
 
   db:
     container_name: postgres_hostling
-    image: postgres
-    ports:
-      - "5433:5432"
+    image: postgres:18-alpine
     environment:
-      - POSTGRES_PASSWORD=123
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=hostling
+      POSTGRES_PASSWORD: "123"
+      POSTGRES_USER: postgres
+      POSTGRES_DB: hostling
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hostling"]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+volumes:
+  hostling-data:
+  postgres-data:

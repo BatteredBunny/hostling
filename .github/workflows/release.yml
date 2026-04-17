@@ -13,44 +13,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
+      - uses: DeterminateSystems/determinate-nix-action@v3
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 9
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.mod'
-
-      - name: Install just
+      - name: Bundle binary
         run: |
-          sudo apt-get update
-          sudo apt-get install -y just
+          nix bundle .
+          install -m755 -T hostling-arx hostling-x86_64-linux
 
-      - name: Build frontend
-        working-directory: ./frontend
-        run: |
-          pnpm install
-          pnpm run build
-
-
-      - name: Build binary
-        run: just build
-
-      - name: Prepare binary
-        run: mv hostling hostling-x86_64-linux
-
-      - name: Upload to release
-        uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@v3
         with:
           files: hostling-x86_64-linux
-          generate_release_notes: true

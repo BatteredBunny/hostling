@@ -41,7 +41,7 @@ let
   };
 in
 buildGoModule {
-  name = "hostling";
+  pname = "hostling";
   inherit version;
 
   src = ./.;

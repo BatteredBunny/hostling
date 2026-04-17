@@ -27,7 +27,7 @@ def curl(*args: str) -> str:
 
 
 # Register account
-curl("-c", COOKIES, "-L", "-X", "POST", "--data-urlencode", f"code={TOKEN}", f"{BASE}/api/auth/register")
+curl("-c", COOKIES, "-L", "--data-urlencode", f"code={TOKEN}", f"{BASE}/api/auth/register")
 print("Registered")
 
 # Upload the example images
@@ -91,7 +91,7 @@ try:
     # Gallery modal
     driver.find_element(By.CSS_SELECTOR, ".file-preview").click()
     WebDriverWait(driver, 10).until(
-        EC.visibility_of_element_located((By.CSS_SELECTOR, ".file-modal-visible"))
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "#file-modal .file-modal-window"))
     )
     time.sleep(0.5)
     driver.save_screenshot("/tmp/modal.png")

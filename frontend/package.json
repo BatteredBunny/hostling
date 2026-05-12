@@ -17,7 +17,7 @@
     "eslint-plugin-solid": "^0.14.5",
     "oxlint": "^1.63.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.2",
+    "typescript-eslint": "^8.59.3",
     "vite": "^8.0.11",
     "vite-plugin-solid": "^2.11.12"
   }

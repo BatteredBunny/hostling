@@ -76,30 +76,28 @@
         let
           pkgs = nixpkgsFor.${system};
 
-          # TODO: make it non hacky
-          atlas-unfree = pkgs.stdenvNoCC.mkDerivation {
-            pname = "atlas";
-            version = "latest";
-            src = pkgs.fetchurl {
-              url =
-                if pkgs.stdenv.isLinux && pkgs.stdenv.isx86_64 then
-                  "https://release.ariga.io/atlas/atlas-linux-amd64-latest"
-                else if pkgs.stdenv.isLinux && pkgs.stdenv.isAarch64 then
-                  "https://release.ariga.io/atlas/atlas-linux-arm64-latest"
-                else if pkgs.stdenv.isDarwin && pkgs.stdenv.isx86_64 then
-                  "https://release.ariga.io/atlas/atlas-darwin-amd64-latest"
-                else if pkgs.stdenv.isDarwin && pkgs.stdenv.isAarch64 then
-                  "https://release.ariga.io/atlas/atlas-darwin-arm64-latest"
-                else
-                  throw "Unsupported system for Atlas: ${system}";
-              hash = "sha256-yIJB71jn2Oz62x4Pq60ip9mi5/LDxJredUEpbj9ChBQ=";
+          # TODO: upstream?
+          atlas-unfree =
+            let
+              version = "v1.2.0";
+            in
+            pkgs.stdenvNoCC.mkDerivation {
+              pname = "atlas";
+              inherit version;
+              src = pkgs.fetchurl {
+                url =
+                  if pkgs.stdenv.isLinux && pkgs.stdenv.isx86_64 then
+                    "https://release.ariga.io/atlas/atlas-linux-amd64-${version}"
+                  else
+                    throw "Unsupported system for Atlas: ${system}";
+                hash = "sha256-wSuInjNJ8OVhCuwy/jJ+WmkRoORydUoMOBwwx8BjDog=";
+              };
+              dontUnpack = true;
+              installPhase = ''
+                mkdir -p $out/bin
+                install -m755 $src $out/bin/atlas
+              '';
             };
-            dontUnpack = true;
-            installPhase = ''
-              mkdir -p $out/bin
-              install -m755 $src $out/bin/atlas
-            '';
-          };
         in
         {
           default = pkgs.mkShell {

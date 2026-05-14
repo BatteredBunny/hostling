@@ -12,8 +12,13 @@ import (
 // and streaming read are bounded by the request context instead.
 const s3Timeout = 30 * time.Second
 
-func (app *Application) uploadFileS3(ctx context.Context, r io.Reader, size int64, fileName string) (err error) {
-	_, err = app.s3client.PutObject(
+func (app *Application) uploadFileS3(
+	ctx context.Context,
+	r io.Reader,
+	size int64,
+	fileName string,
+) (written int64, err error) {
+	info, err := app.s3client.PutObject(
 		ctx,
 		app.config.S3.Bucket,
 		fileName,
@@ -21,12 +26,13 @@ func (app *Application) uploadFileS3(ctx context.Context, r io.Reader, size int6
 		size,
 		minio.PutObjectOptions{},
 	)
+	written = info.Size
 
 	return
 }
 
-func (app *Application) deleteFileS3(fileName string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), s3Timeout)
+func (app *Application) deleteFileS3(ctx context.Context, fileName string) error {
+	ctx, cancel := context.WithTimeout(ctx, s3Timeout)
 	defer cancel()
 
 	return app.s3client.RemoveObject(ctx, app.config.S3.Bucket, fileName, minio.RemoveObjectOptions{})

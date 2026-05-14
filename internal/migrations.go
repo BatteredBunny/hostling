@@ -93,6 +93,10 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 
 			return
 		}
+	default:
+		err = fmt.Errorf("unsupported database type %q", databaseType)
+
+		return
 	}
 
 	migrator := db.NewRevisionReaderWriter(database)
@@ -149,22 +153,20 @@ func MigrateExistingDatabase(
 		return
 	}
 
-	var tableCount int
+	var accountsExists bool
 	switch databaseType {
 	case "postgresql":
-		err = sqlDB.QueryRow("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'").
-			Scan(&tableCount)
+		err = sqlDB.QueryRow("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'accounts')").
+			Scan(&accountsExists)
 	case "sqlite":
-		err = sqlDB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").
-			Scan(&tableCount)
+		err = sqlDB.QueryRow("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name = 'accounts')").
+			Scan(&accountsExists)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to check existing tables: %w", err)
 	}
 
-	// If tables exist (excluding atlas_schema_revisions since that gets created automatically before),
-	// Mark the first migration as done since that adds the tables
-	if tableCount > 1 {
+	if accountsExists {
 		var files []migrate.File
 		files, err = dir.Files()
 		if err != nil {

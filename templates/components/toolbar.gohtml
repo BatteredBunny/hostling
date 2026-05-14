@@ -45,12 +45,14 @@
             <span>Tokens</span>
         </a>
         <div class="toolbar-divider"></div>
-        <a class="toolbar-option" href="/logout" title="logout">
-            <svg class="lucide-icon" viewBox="0 0 24 24">
-                <use href="/public/assets/lucide-sprite.svg#log-out" />
-            </svg>
-            <span>Logout</span>
-        </a>
+        <form method="POST" action="/logout" class="toolbar-logout-form">
+            <button type="submit" class="toolbar-option" title="logout">
+                <svg class="lucide-icon" viewBox="0 0 24 24">
+                    <use href="/public/assets/lucide-sprite.svg#log-out" />
+                </svg>
+                <span>Logout</span>
+            </button>
+        </form>
         {{ else }}
         <a class="toolbar-option{{ if eq .CurrentPage "login" }} active{{ end }}" href="/login" title="login">
             <svg class="lucide-icon" viewBox="0 0 24 24">

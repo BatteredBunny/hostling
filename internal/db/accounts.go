@@ -30,7 +30,6 @@ type Accounts struct {
 	AccountType string // Either "USER" or "ADMIN"
 }
 
-// func (db *Database) fileAdd
 // Returns number of accounts in the database
 func (db *Database) AccountAmount() (count int64, err error) {
 	err = db.Model(&Accounts{}).
@@ -44,9 +43,14 @@ func (db *Database) FindAccountByGithubID(rawID string) (account Accounts, err e
 	if err != nil {
 		return
 	}
+	if id == 0 {
+		err = gorm.ErrRecordNotFound
+
+		return
+	}
 
 	if err = db.Model(&Accounts{}).
-		Where(&Accounts{GithubID: uint(id)}).
+		Where("github_id = ?", uint(id)).
 		First(&account).Error; err != nil {
 		return
 	}
@@ -56,7 +60,7 @@ func (db *Database) FindAccountByGithubID(rawID string) (account Accounts, err e
 
 func (db *Database) UpdateGithubUsername(accountID uint, username string) (err error) {
 	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
+		Where("id = ?", accountID).
 		Update("github_username", username).Error
 }
 
@@ -82,7 +86,7 @@ func (db *Database) LinkGithub(accountID uint, username string, rawGithubID stri
 		}
 
 		return tx.Model(&Accounts{}).
-			Where(&Accounts{ID: accountID}).
+			Where("id = ?", accountID).
 			Updates(map[string]interface{}{
 				"github_username": username,
 				"github_id":       uint(githubID),
@@ -91,8 +95,14 @@ func (db *Database) LinkGithub(accountID uint, username string, rawGithubID stri
 }
 
 func (db *Database) FindAccountByOIDCID(oidcID string) (account Accounts, err error) {
+	if oidcID == "" {
+		err = gorm.ErrRecordNotFound
+
+		return
+	}
+
 	if err = db.Model(&Accounts{}).
-		Where(&Accounts{OIDCID: oidcID}).
+		Where("oidc_id = ?", oidcID).
 		First(&account).Error; err != nil {
 		return
 	}
@@ -102,13 +112,13 @@ func (db *Database) FindAccountByOIDCID(oidcID string) (account Accounts, err er
 
 func (db *Database) UpdateOIDCUsername(accountID uint, username string) (err error) {
 	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
+		Where("id = ?", accountID).
 		Update("oidc_username", username).Error
 }
 
 func (db *Database) UnlinkGithub(accountID uint) error {
 	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
+		Where("id = ?", accountID).
 		Updates(map[string]interface{}{
 			"github_id":       0,
 			"github_username": "",
@@ -117,7 +127,7 @@ func (db *Database) UnlinkGithub(accountID uint) error {
 
 func (db *Database) UnlinkOIDC(accountID uint) error {
 	return db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
+		Where("id = ?", accountID).
 		Updates(map[string]interface{}{
 			"oidc_id":       "",
 			"oidc_username": "",
@@ -139,7 +149,7 @@ func (db *Database) LinkOIDC(accountID uint, username string, oidcID string) (er
 		}
 
 		return tx.Model(&Accounts{}).
-			Where(&Accounts{ID: accountID}).
+			Where("id = ?", accountID).
 			Updates(map[string]interface{}{
 				"oidc_username": username,
 				"oidc_id":       oidcID,
@@ -153,6 +163,25 @@ type AccountStats struct {
 	SessionsCount     int64
 	UploadTokensCount int64
 	LastActivity      time.Time
+}
+
+func parseDBTime(s sql.NullString) (time.Time, bool) {
+	if !s.Valid || s.String == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05.999999999",
+		"2006-01-02 15:04:05",
+	} {
+		if t, err := time.Parse(layout, s.String); err == nil {
+			return t, true
+		}
+	}
+
+	return time.Time{}, false
 }
 
 func (db *Database) AllAccountStats() (stats map[uint]AccountStats, err error) {
@@ -197,17 +226,22 @@ func (db *Database) AllAccountStats() (stats map[uint]AccountStats, err error) {
 
 	var sessionLast []struct {
 		AccountID uint
-		LastUsed  time.Time
+		LastUsed  sql.NullString
 	}
 	if err = db.Model(&SessionTokens{}).
-		Select("account_id, last_used").
+		Select("account_id, MAX(last_used) AS last_used").
+		Group("account_id").
 		Scan(&sessionLast).Error; err != nil {
 		return
 	}
 	for _, r := range sessionLast {
+		t, ok := parseDBTime(r.LastUsed)
+		if !ok {
+			continue
+		}
 		a := stats[r.AccountID]
-		if r.LastUsed.After(a.LastActivity) {
-			a.LastActivity = r.LastUsed
+		if t.After(a.LastActivity) {
+			a.LastActivity = t
 		}
 		stats[r.AccountID] = a
 	}
@@ -230,21 +264,23 @@ func (db *Database) AllAccountStats() (stats map[uint]AccountStats, err error) {
 
 	var uploadLast []struct {
 		AccountID uint
-		LastUsed  *time.Time
+		LastUsed  sql.NullString
 	}
 	if err = db.Model(&UploadTokens{}).
-		Select("account_id, last_used").
+		Select("account_id, MAX(last_used) AS last_used").
 		Where("last_used IS NOT NULL").
+		Group("account_id").
 		Scan(&uploadLast).Error; err != nil {
 		return
 	}
 	for _, r := range uploadLast {
-		if r.LastUsed == nil {
+		t, ok := parseDBTime(r.LastUsed)
+		if !ok {
 			continue
 		}
 		a := stats[r.AccountID]
-		if r.LastUsed.After(a.LastActivity) {
-			a.LastActivity = *r.LastUsed
+		if t.After(a.LastActivity) {
+			a.LastActivity = t
 		}
 		stats[r.AccountID] = a
 	}
@@ -257,7 +293,7 @@ func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
 	var sessionLastUsed, uploadLastUsed sql.NullTime
 
 	err := db.Model(&SessionTokens{}).
-		Where(&SessionTokens{AccountID: accountID}).
+		Where("account_id = ?", accountID).
 		Select("last_used").
 		Order("last_used DESC").
 		First(&sessionLastUsed).Error
@@ -266,7 +302,7 @@ func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
 	}
 
 	err = db.Model(&UploadTokens{}).
-		Where(&UploadTokens{AccountID: accountID}).
+		Where("account_id = ?", accountID).
 		Select("last_used").
 		Order("last_used DESC").
 		First(&uploadLastUsed).Error
@@ -288,25 +324,32 @@ func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
 	}
 }
 
+// Only refresh last_used at most once per debounce window to avoid a
+// write on every authenticated request.
+const lastUsedDebounce = time.Minute
+
 func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Accounts, err error) {
+	now := time.Now()
+
 	var accountID uint
 	if err = db.Model(&SessionTokens{}).
-		Where(&SessionTokens{Token: sessionToken}).
-		Where("expiry_date > ?", time.Now()).
+		Where("token = ?", sessionToken).
+		Where("expiry_date > ?", now).
 		Select("account_id").
 		First(&accountID).Error; err != nil {
 		return
 	}
 
 	if err = db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
+		Where("id = ?", accountID).
 		First(&account).Error; err != nil {
 		return
 	}
 
 	if updErr := db.Model(&SessionTokens{}).
-		Where(&SessionTokens{Token: sessionToken}).
-		Update("last_used", time.Now()).Error; updErr != nil {
+		Where("token = ?", sessionToken).
+		Where("last_used < ?", now.Add(-lastUsedDebounce)).
+		Update("last_used", now).Error; updErr != nil {
 		log.Err(updErr).Msg("Failed to update last used time for session token")
 	}
 
@@ -314,23 +357,28 @@ func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Ac
 }
 
 func (db *Database) GetAccountByUploadToken(uploadToken uuid.UUID) (account Accounts, err error) {
+	now := time.Now()
+
 	var accountID uint
 	if err = db.Model(&UploadTokens{}).
-		Where(&UploadTokens{Token: uploadToken}).
+		Where("token = ?", uploadToken).
 		Select("account_id").
 		First(&accountID).Error; err != nil {
 		return
 	}
 
-	if err = db.Model(&UploadTokens{}).
-		Where(&UploadTokens{Token: uploadToken}).
-		Update("last_used", time.Now()).Error; err != nil {
+	if err = db.Model(&Accounts{}).
+		Where("id = ?", accountID).
+		First(&account).Error; err != nil {
 		return
 	}
 
-	err = db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
-		First(&account).Error
+	if updErr := db.Model(&UploadTokens{}).
+		Where("token = ?", uploadToken).
+		Where("last_used IS NULL OR last_used < ?", now.Add(-lastUsedDebounce)).
+		Update("last_used", now).Error; updErr != nil {
+		log.Err(updErr).Msg("Failed to update last used time for upload token")
+	}
 
 	return
 }
@@ -348,7 +396,7 @@ func (db *Database) GetAccounts() (accounts []Accounts, err error) {
 
 func (db *Database) GetAccountByID(accountID uint) (account Accounts, err error) {
 	err = db.Model(&Accounts{}).
-		Where(&Accounts{ID: accountID}).
+		Where("id = ?", accountID).
 		First(&account).Error
 
 	return

@@ -4,12 +4,11 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/didip/tollbooth/v8"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
-	"gorm.io/gorm"
 )
 
 func (app *Application) ratelimitMiddleware() gin.HandlerFunc {
@@ -33,12 +32,15 @@ func (app *Application) bodySizeMiddleware() gin.HandlerFunc {
 	}
 }
 
+// Max size before using disk instead of ram
+const multipartMaxMemory = 32 << 20 // 32 MiB
+
 // parses form
 func (app *Application) apiMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.ContentLength > 0 {
 			if err := c.Request.ParseMultipartForm(
-				app.config.MaxUploadSize,
+				multipartMaxMemory,
 			); err != nil &&
 				!errors.Is(err, http.ErrNotMultipart) {
 				c.String(http.StatusRequestEntityTooLarge, "Too big file")
@@ -50,10 +52,6 @@ func (app *Application) apiMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
-}
-
-type SessionTokenVerification struct {
-	SessionToken string `form:"token"`
 }
 
 func getSessionToken(c *gin.Context) (uuid.UUID, bool) {
@@ -76,107 +74,48 @@ func getUploadToken(c *gin.Context) (uuid.UUID, bool) {
 	return id, ok
 }
 
-func (app *Application) parseSessionTokenFromForm(c *gin.Context) (sessionToken uuid.UUID, err error) {
-	var form SessionTokenVerification
-	if err = c.ShouldBindWith(&form, binding.FormPost); err != nil {
-		return
+func getAccount(c *gin.Context) (db.Accounts, bool) {
+	v, ok := c.Get("account")
+	if !ok {
+		return db.Accounts{}, false
 	}
+	account, ok := v.(db.Accounts)
 
-	sessionToken, err = uuid.Parse(form.SessionToken)
-
-	return
+	return account, ok
 }
 
-func (app *Application) parseSessionTokenFromCookieOrForm(c *gin.Context) (sessionToken uuid.UUID, err error) {
-	sessionToken, err = app.parseAuthCookie(c)
-	if err != nil {
-		sessionToken, err = app.parseSessionTokenFromForm(c)
-	}
-
-	return
-}
-
-// Makes sure request has session token and a valid one
+// Makes sure request has session token and a valid one, attaches the
+// account to the context so future handlers can read it without
 func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionToken, err := app.parseSessionTokenFromForm(c)
-		if err != nil {
-			log.Debug().Msg("Validating cookie")
-			var cookieErr error
-			var loggedIn bool
-			sessionToken, _, loggedIn, cookieErr = app.validateAuthCookie(c)
-			if cookieErr != nil && !errors.Is(cookieErr, ErrInvalidAuthCookie) {
-				_ = c.AbortWithError(http.StatusBadRequest, cookieErr)
+		sessionToken, account, loggedIn, err := app.validateAuthCookie(c)
+		if err != nil && !errors.Is(err, ErrInvalidAuthCookie) {
+			log.Err(err).Msg("validateAuthCookie failed")
+			c.AbortWithStatus(http.StatusInternalServerError)
 
-				return
-			}
-			if !loggedIn {
-				_ = c.AbortWithError(http.StatusUnauthorized, err)
+			return
+		}
+		if !loggedIn {
+			c.AbortWithStatus(http.StatusUnauthorized)
 
-				return
-			}
+			return
 		}
 
 		c.Set("sessionToken", sessionToken)
+		c.Set("account", account)
 		c.Next()
 	}
 }
 
-// Makes sure the authenticated account is admin
+// Must run after verifySessionAuthentication.
 func (app *Application) isAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		sessionToken, ok := getSessionToken(c)
-		if !ok {
+		account, ok := getAccount(c)
+		if !ok || account.AccountType != "ADMIN" {
 			c.AbortWithStatus(http.StatusUnauthorized)
 
 			return
 		}
-
-		if account, err := app.db.GetAccountBySessionToken(
-			sessionToken,
-		); errors.Is(
-			err,
-			gorm.ErrRecordNotFound,
-		) {
-			c.AbortWithStatus(http.StatusUnauthorized)
-
-			return
-		} else if err != nil {
-			log.Err(err).Msg("Failed to find account by session token")
-			c.AbortWithStatus(http.StatusUnauthorized)
-
-			return
-		} else if account.AccountType != "ADMIN" {
-			c.AbortWithStatus(http.StatusUnauthorized)
-
-			return
-		}
-
-		c.Next()
-	}
-}
-
-// Makes sure the account token provided is valid
-func (app *Application) isSessionAuthenticated() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		sessionToken, ok := getSessionToken(c)
-		if !ok {
-			c.AbortWithStatus(http.StatusUnauthorized)
-
-			return
-		}
-
-		if _, err := app.db.GetAccountBySessionToken(sessionToken); errors.Is(err, gorm.ErrRecordNotFound) {
-			c.AbortWithStatus(http.StatusUnauthorized)
-
-			return
-		} else if err != nil {
-			log.Err(err).Msg("Failed to find account by session token")
-			c.AbortWithStatus(http.StatusUnauthorized)
-
-			return
-		}
-
 		c.Next()
 	}
 }
@@ -209,14 +148,20 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 
 			c.Set("uploadToken", uploadToken)
 		} else {
-			sessionToken, err := app.parseSessionTokenFromCookieOrForm(c)
-			if err != nil {
-				_ = c.AbortWithError(http.StatusUnauthorized, err)
+			sessionToken, account, loggedIn, err := app.validateAuthCookie(c)
+			if err != nil && !errors.Is(err, ErrInvalidAuthCookie) {
+				_ = c.AbortWithError(http.StatusInternalServerError, err)
+
+				return
+			}
+			if !loggedIn {
+				c.AbortWithStatus(http.StatusUnauthorized)
 
 				return
 			}
 
 			c.Set("sessionToken", sessionToken)
+			c.Set("account", account)
 		}
 
 		c.Next()

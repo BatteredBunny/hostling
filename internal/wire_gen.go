@@ -12,7 +12,7 @@ func InitializeApplication() *Application {
 	config := initializeConfig()
 	database := prepareDB(config)
 	client := prepareStorage(config)
-	limiter := setupRatelimiting()
+	limiter := setupRatelimiting(config)
 	internalUninitializedApplication := &uninitializedApplication{
 		config:      config,
 		db:          database,

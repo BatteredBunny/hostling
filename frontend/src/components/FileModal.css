@@ -103,8 +103,6 @@
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 
                 #file-preview-generic {
-                    display: none;
-
                     .file-icon {
                         opacity: 0.4;
                         transition: opacity 0.2s ease;
@@ -124,7 +122,6 @@
                 img,
                 video,
                 audio {
-                    display: none;
                     max-width: 100%;
                     max-height: 60vh;
                     object-fit: contain;

@@ -74,7 +74,10 @@ main {
     --warning-text-color: #ff0000;
 }
 
-input, code, button, select {
+input,
+code,
+button,
+select {
     font-family: inherit;
 }
 
@@ -101,6 +104,7 @@ body::after {
     from {
         background-position: 0 0;
     }
+
     to {
         background-position: 64px 0;
     }
@@ -255,6 +259,9 @@ input[type="submit"] {
         gap: 12px;
         padding: 12px 20px;
         color: var(--text-color);
+        font: inherit;
+        text-align: inherit;
+        cursor: pointer;
 
         &:hover {
             text-decoration: none;
@@ -271,6 +278,16 @@ input[type="submit"] {
         svg {
             vertical-align: middle;
         }
+    }
+
+    button.toolbar-option {
+        background: none;
+        border: 0;
+    }
+
+    .toolbar-logout-form {
+        margin: 0;
+        display: contents;
     }
 }
 
@@ -316,6 +333,10 @@ input[type="submit"] {
             .admin-warning-icon {
                 color: var(--warning-text-color);
             }
+        }
+
+        button.toolbar-option {
+            width: 100%;
         }
     }
 }

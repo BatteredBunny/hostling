@@ -50,11 +50,11 @@ export function relativeTime(date: string): string {
 }
 
 export function humanizeBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  if (!bytes || bytes <= 0) return '0 B';
 
   const k = 1000;
   const sizes = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
@@ -75,7 +75,7 @@ export function hashStringToHSL(str: string): { h: number; s: number; l: number 
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    hash = hash & hash;
+    hash |= 0;
   }
 
   const h = Math.abs(hash) % 360;
@@ -86,5 +86,11 @@ export function hashStringToHSL(str: string): { h: number; s: number; l: number 
 }
 
 export function hasExpiry(expiryDate: string): boolean {
-  return expiryDate !== '0001-01-01T00:00:00Z';
+  if (!expiryDate) return false;
+  const t = new Date(expiryDate).getTime();
+  return Number.isFinite(t) && t > 0;
+}
+
+export function fileUrl(fileName: string): string {
+  return `/${encodeURIComponent(fileName)}`;
 }

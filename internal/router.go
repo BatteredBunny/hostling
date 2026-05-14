@@ -12,8 +12,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func setupRatelimiting() *limiter.Limiter {
-	return tollbooth.NewLimiter(10, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
+func setupRatelimiting(c Config) *limiter.Limiter {
+	rate := c.RateLimit
+	if rate <= 0 {
+		rate = 10
+	}
+
+	return tollbooth.NewLimiter(rate, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
 }
 
 func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *Application) {
@@ -21,6 +26,12 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	log.Info().Msg("Setting up router")
 
 	app.shutdownCtx, app.shutdownCancel = context.WithCancel(context.Background())
+
+	secret, err := loadOrCreateAppSecret(c.DataFolder)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load app secret")
+	}
+	app.appSecret = secret
 
 	app.Router = gin.Default()
 	app.Router.ForwardedByClientIP = c.BehindReverseProxy
@@ -56,7 +67,6 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	app.Router.StaticFS("/public/", embed.PublicFiles())
 
 	api := app.Router.Group("/api")
-	api.Use(app.apiMiddleware())
 
 	app.setupAuth(api)
 
@@ -64,6 +74,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	fileAPI := api.Group("/file")
 	fileAPI.Use(
 		app.ratelimitMiddleware(),
+		app.apiMiddleware(),
 		app.hasUploadOrSessionTokenMiddleware(),
 	)
 
@@ -73,8 +84,9 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	// Accounts for managing your user
 	accountAPI := api.Group("/account")
 	accountAPI.Use(
+		app.ratelimitMiddleware(),
+		app.apiMiddleware(),
 		app.verifySessionAuthentication(),
-		app.isSessionAuthenticated(),
 	)
 
 	accountAPI.DELETE("/", app.accountDeleteAPI)
@@ -102,6 +114,8 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	// Admin apis
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(
+		app.ratelimitMiddleware(),
+		app.apiMiddleware(),
 		app.verifySessionAuthentication(),
 		app.isAdmin(),
 	)
@@ -115,7 +129,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	// Pages
 	app.Router.GET("/login", app.loginPage)
 	app.Router.GET("/register", app.registerPage)
-	app.Router.GET("/logout", app.logoutHandler)
+	app.Router.POST("/logout", app.logoutHandler)
 	app.Router.GET("/gallery", app.galleryPage)
 	app.Router.GET("/settings", app.settingsPage)
 	app.Router.GET("/tokens", app.tokensPage)

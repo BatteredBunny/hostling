@@ -1,52 +1,39 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 // Admin api for deleting accounts and their data
 type adminDeleteAccountInput struct {
-	ID uint `form:"id"`
+	ID uint `form:"id" binding:"required"`
 }
 
 var ErrCantDeleteSelf = fmt.Errorf("you can't delete yourself")
 
 func (app *Application) adminDeleteAccount(c *gin.Context) {
-	var (
-		input adminDeleteAccountInput
-		err   error
-	)
-
-	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
+	var input adminDeleteAccountInput
+	if err := c.MustBindWith(&input, binding.FormPost); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
 
 		return
 	}
 
-	sessionToken, ok := getSessionToken(c)
-	if !ok {
-		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	}
-
-	// You can't delete yourself
-	if account, err := app.db.GetAccountBySessionToken(sessionToken); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
-
-		return
-	} else if account.ID == input.ID {
+	account, _ := getAccount(c)
+	if account.ID == input.ID {
 		_ = c.AbortWithError(http.StatusBadRequest, ErrCantDeleteSelf)
 
 		return
 	}
 
-	if err = app.deleteAccount(input.ID); err != nil {
+	if err := app.deleteAccount(c.Request.Context(), input.ID); err != nil {
 		log.Err(err).Msg("Failed to delete account")
 		c.AbortWithStatus(http.StatusInternalServerError)
 
@@ -57,7 +44,7 @@ func (app *Application) adminDeleteAccount(c *gin.Context) {
 }
 
 type adminDeleteAccountFilesInput struct {
-	ID uint `form:"id"`
+	ID uint `form:"id" binding:"required"`
 }
 
 func (app *Application) adminDeleteFiles(c *gin.Context) {
@@ -72,8 +59,9 @@ func (app *Application) adminDeleteFiles(c *gin.Context) {
 		return
 	}
 
-	if err = app.deleteFilesFromAccount(input.ID); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+	if err = app.deleteFilesFromAccount(c.Request.Context(), input.ID); err != nil {
+		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete files from account")
+		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}
@@ -82,7 +70,7 @@ func (app *Application) adminDeleteFiles(c *gin.Context) {
 }
 
 type adminDeleteAccountSessionsInput struct {
-	ID uint `form:"id"`
+	ID uint `form:"id" binding:"required"`
 }
 
 func (app *Application) adminDeleteSessions(c *gin.Context) {
@@ -98,7 +86,8 @@ func (app *Application) adminDeleteSessions(c *gin.Context) {
 	}
 
 	if err = app.db.DeleteSessionsFromAccount(input.ID); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete sessions from account")
+		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}
@@ -107,7 +96,7 @@ func (app *Application) adminDeleteSessions(c *gin.Context) {
 }
 
 type adminDeleteAccountUploadTokensInput struct {
-	ID uint `form:"id"`
+	ID uint `form:"id" binding:"required"`
 }
 
 func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
@@ -123,7 +112,8 @@ func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
 	}
 
 	if err = app.db.DeleteUploadTokensFromAccount(input.ID); err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete upload tokens from account")
+		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}
@@ -132,7 +122,7 @@ func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
 }
 
 type adminGiveInviteCodeInput struct {
-	ID   uint `form:"id"`
+	ID   uint `form:"id"             binding:"required"`
 	Uses uint `form:"uses,default=5"` // How many uses the invite code has
 }
 
@@ -145,6 +135,17 @@ func (app *Application) adminGiveInviteCode(c *gin.Context) {
 
 	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
 		_ = c.AbortWithError(http.StatusBadRequest, err)
+
+		return
+	}
+
+	if _, err = app.db.GetAccountByID(input.ID); errors.Is(err, gorm.ErrRecordNotFound) {
+		c.String(http.StatusNotFound, "Account not found")
+
+		return
+	} else if err != nil {
+		log.Err(err).Uint("account_id", input.ID).Msg("Failed to look up account")
+		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}

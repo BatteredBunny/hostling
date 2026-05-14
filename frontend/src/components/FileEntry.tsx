@@ -8,6 +8,7 @@ import {
   formatTimeDate,
   relativeTime,
   hasExpiry,
+  fileUrl,
 } from '../utils';
 import { openModal } from '../store';
 import { Icon } from './Icon';
@@ -32,27 +33,43 @@ export function FileEntry(props: FileEntryProps) {
     }
   };
 
+  const openCurrent = () => openModal(file());
+  const handlePreviewKey = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openCurrent();
+    }
+  };
+  const previewAlt = () => file().OriginalFileName || file().FileName;
+
   return (
     <div class="file-entry">
-      <div class="file-preview" onClick={() => openModal(file())}>
+      <div
+        class="file-preview"
+        role="button"
+        tabindex="0"
+        onClick={openCurrent}
+        onKeyDown={handlePreviewKey}
+      >
         <div class="file-thumbnail">
           <Show when={mimeIsImage(file().MimeType)}>
             <img
               class="preview-image"
-              src={`/${file().FileName}`}
-              alt="Uploaded image"
-              style={{ display: 'block' }}
+              src={fileUrl(file().FileName)}
+              alt={previewAlt()}
+              loading="lazy"
             />
           </Show>
           <Show when={mimeIsVideo(file().MimeType)}>
             <video
               class="preview-video"
-              src={`/${file().FileName}`}
-              style={{ display: 'block' }}
+              src={fileUrl(file().FileName)}
+              preload="metadata"
+              muted
             />
           </Show>
           <Show when={mimeIsAudio(file().MimeType)}>
-            <div class="preview-audio file-icon" style={{ display: 'flex' }}>
+            <div class="preview-audio file-icon">
               <Icon name="music" />
             </div>
           </Show>
@@ -63,7 +80,7 @@ export function FileEntry(props: FileEntryProps) {
               !mimeIsAudio(file().MimeType)
             }
           >
-            <div class="preview-generic file-icon" style={{ display: 'flex' }}>
+            <div class="preview-generic file-icon">
               <Icon name="file" />
             </div>
           </Show>
@@ -90,7 +107,7 @@ export function FileEntry(props: FileEntryProps) {
         </div>
       </div>
 
-      <button class="delete-button-form delete-button" onClick={handleDelete}>
+      <button type="button" class="delete-button-form delete-button" onClick={handleDelete}>
         Delete
       </button>
     </div>

@@ -54,7 +54,7 @@ interface UrlState {
   file: string | null;
 }
 
-export function updateUrl(state: UrlState) {
+export function updateUrl(state: UrlState, options: { replace?: boolean } = {}) {
   const params = new URLSearchParams();
 
   if (state.page > 0) {
@@ -83,5 +83,13 @@ export function updateUrl(state: UrlState) {
 
   const search = params.toString();
   const url = search ? `${window.location.pathname}?${search}` : window.location.pathname;
-  history.replaceState(null, '', url);
+
+  const current = window.location.pathname + window.location.search;
+  if (url === current) return;
+
+  if (options.replace) {
+    history.replaceState(null, '', url);
+  } else {
+    history.pushState(null, '', url);
+  }
 }

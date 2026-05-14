@@ -4,6 +4,9 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Tag struct {
@@ -16,33 +19,50 @@ const (
 )
 
 var (
-	ErrTagTooLong  = errors.New("tag too long")
-	ErrTooManyTags = errors.New("too many tags")
+	ErrTagTooLong       = errors.New("tag too long")
+	ErrTooManyTags      = errors.New("too many tags")
+	ErrTagAlreadyOnFile = errors.New("file already has this tag")
 )
 
 func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {
-	var file Files
-	if err = db.Where("file_name = ? AND uploader_id = ?", fileName, accountID).First(&file).Error; err != nil {
-		return
-	}
-
 	if len(tagName) > TagMaxLength {
 		err = ErrTagTooLong
 
 		return
 	}
+	tagName = strings.ToLower(tagName)
 
-	if db.Model(&file).Association("Tags").Count() >= MaxTagsPerFile {
-		err = ErrTooManyTags
+	return db.Transaction(func(tx *gorm.DB) error {
+		var file Files
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("file_name = ? AND uploader_id = ?", fileName, accountID).
+			First(&file).Error; err != nil {
+			return err
+		}
 
-		return
-	}
+		assoc := tx.Model(&file).Association("Tags")
+		if assoc.Error != nil {
+			return assoc.Error
+		}
 
-	tag := Tag{Name: strings.ToLower(tagName)}
+		existing := tx.Model(&file).Where("tags.name = ?", tagName).Association("Tags")
+		if existing.Error != nil {
+			return existing.Error
+		}
+		if existing.Count() > 0 {
+			return ErrTagAlreadyOnFile
+		}
 
-	err = db.Model(&file).Association("Tags").Append(&tag)
+		if assoc.Count() >= MaxTagsPerFile {
+			return ErrTooManyTags
+		}
 
-	return
+		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&Tag{Name: tagName}).Error; err != nil {
+			return err
+		}
+
+		return tx.Model(&file).Association("Tags").Append(&Tag{Name: tagName})
+	})
 }
 
 func (db *Database) FileHasTag(fileName string, tagName string, accountID uint) (hasTag bool, err error) {

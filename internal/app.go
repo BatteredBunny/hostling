@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/BurntSushi/toml"
@@ -27,7 +28,7 @@ func prepareStorage(c Config) (s3client *minio.Client) {
 		var err error
 		s3client, err = minio.New(c.S3.Endpoint, &minio.Options{
 			Creds:  credentials.NewStaticV4(c.S3.AccessKeyID, c.S3.SecretAccessKey, ""),
-			Secure: true,
+			Secure: !c.S3.Insecure,
 			Region: c.S3.Region,
 		})
 		if err != nil {
@@ -36,12 +37,8 @@ func prepareStorage(c Config) (s3client *minio.Client) {
 	case fileStorageLocal:
 		log.Info().Msgf("Storing files in %s", c.DataFolder)
 
-		if file, _ := os.Stat(c.DataFolder); file == nil {
-			log.Info().Msg("Creating data folder")
-
-			if err := os.Mkdir(c.DataFolder, 0o770); err != nil {
-				log.Fatal().Err(err).Msg("Failed to create data folder")
-			}
+		if err := os.MkdirAll(c.DataFolder, 0o770); err != nil {
+			log.Fatal().Err(err).Msg("Failed to create data folder")
 		}
 	default:
 		log.Fatal().Err(ErrUnknownStorageMethod).Msg("Can't setup storage, none selected")
@@ -71,7 +68,13 @@ func initializeConfig() (c Config) {
 		c.S3.SecretAccessKey = envSecretAccessKey
 	}
 
-	if c.S3 != (s3Config{}) {
+	s3Configured := c.S3.Endpoint != "" ||
+		c.S3.AccessKeyID != "" ||
+		c.S3.SecretAccessKey != "" ||
+		c.S3.Bucket != "" ||
+		c.S3.Region != ""
+
+	if s3Configured {
 		var missing []string
 		if c.S3.Bucket == "" {
 			missing = append(missing, "bucket")
@@ -118,12 +121,16 @@ func initializeConfig() (c Config) {
 		}
 	}
 
-	if parsed, err := url.Parse(c.PublicUrl); err == nil {
-		c.CookieDomain = parsed.Hostname()
-		c.CookieSecure = parsed.Scheme == "https"
-	} else {
+	parsed, err := url.Parse(c.PublicUrl)
+	switch {
+	case err != nil:
 		log.Fatal().Err(err).Msg("Failed to parse public_url")
+	case parsed.Scheme != "http" && parsed.Scheme != "https":
+		log.Fatal().Msg("public_url must include http:// or https://")
+	case parsed.Hostname() == "":
+		log.Fatal().Msg("public_url must include a host")
 	}
+	c.CookieSecure = parsed.Scheme == "https"
 
 	if c.Branding == "" {
 		c.Branding = "Hostling"
@@ -142,6 +149,29 @@ func initializeConfig() (c Config) {
 
 var ErrInvalidDatabaseType = errors.New("invalid database type")
 
+func sqliteDSN(dsn string) string {
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
+	}
+
+	var params []string
+	if !strings.Contains(dsn, "_foreign_keys") && !strings.Contains(dsn, "_fk=") {
+		params = append(params, "_foreign_keys=on")
+	}
+	if !strings.Contains(dsn, "_txlock=") {
+		params = append(params, "_txlock=immediate")
+	}
+	if !strings.Contains(dsn, "_busy_timeout") {
+		params = append(params, "_busy_timeout=5000")
+	}
+	if len(params) == 0 {
+		return dsn
+	}
+
+	return dsn + sep + strings.Join(params, "&")
+}
+
 func prepareDB(c Config) (database db.Database) {
 	log.Info().Msg("Setting up database")
 
@@ -150,7 +180,7 @@ func prepareDB(c Config) (database db.Database) {
 	case "postgresql":
 		gormConnection = postgres.Open(c.DatabaseConnectionUrl)
 	case "sqlite":
-		gormConnection = sqlite.Open(c.DatabaseConnectionUrl)
+		gormConnection = sqlite.Open(sqliteDSN(c.DatabaseConnectionUrl))
 	default:
 		log.Fatal().Err(ErrInvalidDatabaseType).Msg("Invalid database chosen")
 	}

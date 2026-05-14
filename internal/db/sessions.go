@@ -23,20 +23,23 @@ type SessionTokens struct {
 }
 
 func (db *Database) DeleteSession(sessionToken uuid.UUID) (err error) {
-	return db.Model(&SessionTokens{}).
-		Where(&SessionTokens{Token: sessionToken}).
+	return db.Where("token = ?", sessionToken).
+		Delete(&SessionTokens{}).Error
+}
+
+func (db *Database) DeleteSessionForAccount(sessionToken uuid.UUID, accountID uint) (err error) {
+	return db.Where("token = ? AND account_id = ?", sessionToken, accountID).
 		Delete(&SessionTokens{}).Error
 }
 
 func (db *Database) DeleteSessionsFromAccount(accountID uint) (err error) {
-	return db.Model(&SessionTokens{}).
-		Where(&SessionTokens{AccountID: accountID}).
+	return db.Where("account_id = ?", accountID).
 		Delete(&SessionTokens{}).Error
 }
 
 func (db *Database) GetSessionsCount(accountID uint) (count int64, err error) {
 	err = db.Model(&SessionTokens{}).
-		Where(&SessionTokens{AccountID: accountID}).
+		Where("account_id = ?", accountID).
 		Where("expiry_date > ?", time.Now()).
 		Count(&count).Error
 
@@ -63,7 +66,6 @@ func (db *Database) CreateSessionToken(accountID uint) (sessionToken uuid.UUID, 
 }
 
 func (db *Database) DeleteExpiredSessionTokens() (err error) {
-	return db.Model(&SessionTokens{}).
-		Where("expiry_date is not null AND expiry_date < ?", time.Now()).
+	return db.Where("expiry_date < ?", time.Now()).
 		Delete(&SessionTokens{}).Error
 }

@@ -1,4 +1,4 @@
-import { For, Show, onMount } from 'solid-js';
+import { For, Show, batch, onMount } from 'solid-js';
 import './FileGrid.css';
 import {
   files,
@@ -23,6 +23,7 @@ import {
   pendingModalFile,
   setPendingModalFile,
   openModal,
+  markReplaceNextUrlSync,
 } from '../store';
 import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
 import { loadStats } from './FileStats';
@@ -89,8 +90,8 @@ export function FileGrid() {
   };
 
   const handleDelete = async (fileName: string) => {
-    const success = await deleteFile(fileName);
-    if (success) {
+    const result = await deleteFile(fileName);
+    if (result.ok) {
       removeFileFromList(fileName);
       loadStats();
 
@@ -102,7 +103,7 @@ export function FileGrid() {
         loadFiles(currentPage() * FILES_PER_PAGE);
       }
     } else {
-      alert('Failed to delete file');
+      alert(`Failed to delete file: ${result.error || 'unknown error'}`);
     }
   };
 
@@ -217,7 +218,11 @@ export async function loadFiles(skip: number) {
       // Tags can only be filtered if there are files with that tag.
       // Empty result most likely means the tag was removed recently.
       if (data.files.length === 0 && tagFilter()) {
-        setTagFilter(null);
+        if (controller.signal.aborted) return;
+        batch(() => {
+          markReplaceNextUrlSync();
+          setTagFilter(null);
+        });
         data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), null, fileFilter(), controller.signal);
       }
 

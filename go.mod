@@ -1,6 +1,6 @@
 module github.com/BatteredBunny/hostling
 
-go 1.26.1
+go 1.26.2
 
 require (
 	ariga.io/atlas v1.2.0

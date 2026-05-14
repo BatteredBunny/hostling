@@ -95,7 +95,7 @@
         align-items: center;
         gap: 5px;
         padding: 8px 16px;
-        background-color: var(--menu-background-color);
+        background-color: var(--menu-bg-color);
         color: var(--text-color);
         border: 1px solid var(--menu-border-color);
         border-radius: 5px;

@@ -2,6 +2,7 @@ package db
 
 import (
 	"crypto/rand"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -57,12 +58,14 @@ func (db *Database) CreateInviteCodeWithCode(
 	return
 }
 
+var ErrEmptyInviteCode = errors.New("invite code is empty")
+
 func (db *Database) DeleteInviteCode(code string, accountID uint) (err error) {
-	return db.Model(&InviteCodes{}).
-		Where(&InviteCodes{
-			Code:            code,
-			InviteCreatorID: accountID,
-		}).
+	if code == "" {
+		return ErrEmptyInviteCode
+	}
+
+	return db.Where("code = ? AND invite_creator_id = ?", code, accountID).
 		Delete(&InviteCodes{}).Error
 }
 
@@ -81,7 +84,7 @@ func (db *Database) UseCode(code string) (accountType string, invitedBy uint, er
 		}
 
 		return tx.Model(&InviteCodes{}).
-			Where(&InviteCodes{Code: code}).
+			Where("code = ?", code).
 			First(&inviteCode).Error
 	})
 	if err != nil {
@@ -95,8 +98,7 @@ func (db *Database) UseCode(code string) (accountType string, invitedBy uint, er
 }
 
 func (db *Database) DeleteInviteCodesFromAccount(accountID uint) (err error) {
-	return db.Model(&InviteCodes{}).
-		Where(&InviteCodes{InviteCreatorID: accountID}).
+	return db.Where("invite_creator_id = ?", accountID).
 		Delete(&InviteCodes{}).Error
 }
 
@@ -104,14 +106,13 @@ func (db *Database) InviteCodesByAccount(accountID uint) (inviteCodes []InviteCo
 	err = db.Model(&InviteCodes{}).
 		Where("expiry_date > ?", time.Now()).
 		Where("uses > 0").
-		Where(&InviteCodes{InviteCreatorID: accountID}).
+		Where("invite_creator_id = ?", accountID).
 		Scan(&inviteCodes).Error
 
 	return
 }
 
 func (db *Database) DeleteExpiredInviteCodes() (err error) {
-	return db.Model(&InviteCodes{}).
-		Where("expiry_date is not null AND expiry_date < ?", time.Now()).
+	return db.Where("expiry_date < ?", time.Now()).
 		Delete(&InviteCodes{}).Error
 }

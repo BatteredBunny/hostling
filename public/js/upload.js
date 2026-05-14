@@ -14,6 +14,7 @@ const uploadButton = uploadForm.querySelector(".upload-button");
 const uploadTokenInput = document.getElementById("upload_token");
 const expiryInput = document.getElementById("expiry_date");
 let uploading = false;
+let lastPreviewURL = null;
 
 function setUploading(state) {
     uploading = state;
@@ -28,8 +29,10 @@ function showFilePreview(file) {
     fileName.textContent = file.name;
     previewContent.innerHTML = "";
 
+    if (lastPreviewURL) URL.revokeObjectURL(lastPreviewURL);
     const fileType = file.type.toLowerCase();
     const fileURL = URL.createObjectURL(file);
+    lastPreviewURL = fileURL;
 
     if (fileType.startsWith("image/")) {
         const img = document.createElement("img");

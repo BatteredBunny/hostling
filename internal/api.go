@@ -2,11 +2,14 @@ package internal
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/BatteredBunny/hostling/internal/db"
@@ -23,29 +26,18 @@ import (
 const mimeSniffSize = 3072
 
 const maxPaginationSkip = 1_000_000
+const maxExpiryDuration = 100 * 365 * 24 * time.Hour // insane expiry length
 
 // Api for deleting your own account
 func (app *Application) accountDeleteAPI(c *gin.Context) {
-	sessionToken, ok := getSessionToken(c)
+	account, ok := getAccount(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch account by session token")
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
-	}
-
-	if err = app.deleteAccount(account.ID); err != nil {
+	if err := app.deleteAccount(c.Request.Context(), account.ID); err != nil {
 		log.Err(err).Msg("Failed to delete own account")
 		c.AbortWithStatus(http.StatusInternalServerError)
 
@@ -55,16 +47,14 @@ func (app *Application) accountDeleteAPI(c *gin.Context) {
 	c.String(http.StatusOK, "Account deleted successfully")
 }
 
-func (app *Application) deleteAccount(accountID uint) (err error) {
-	files, err := app.db.GetAllFilesFromAccount(accountID)
-	if err != nil {
-		return
-	}
+var (
+	ErrStorageDeleteFailed = errors.New("storage delete failed")
+	ErrPartialDeleteFailed = errors.New("one or more files failed to delete")
+)
 
-	for _, file := range files {
-		if deleteErr := app.deleteFile(file.FileName); deleteErr != nil {
-			log.Err(deleteErr).Str("file", file.FileName).Msg("Failed to delete file from storage")
-		}
+func (app *Application) deleteAccount(ctx context.Context, accountID uint) error {
+	if err := app.deleteFilesFromAccount(ctx, accountID); err != nil {
+		return err
 	}
 
 	return app.db.DeleteAccount(accountID)
@@ -86,49 +76,38 @@ func (app *Application) deleteFileAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, ok := getSessionToken(c)
+	account, ok := getAccount(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch account by session token")
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
-	}
-
-	deleted, err := app.db.DeleteFileEntry(input.FileName, account.ID)
+	owned, err := app.db.AccountOwnsFile(input.FileName, account.ID)
 	if err != nil {
-		log.Err(err).Msg("Failed to delete file entry")
+		log.Err(err).Msg("Failed to check file ownership")
 		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}
-	if !deleted {
+	if !owned {
 		c.AbortWithStatus(http.StatusNotFound)
 
 		return
 	}
 
-	existsInStorage, err := app.fileExistsInStorage(input.FileName)
-	if err != nil {
-		log.Err(err).Msg("Failed to check if file exists in storage")
+	if err = app.deleteFile(c.Request.Context(), input.FileName); err != nil {
+		log.Err(err).Str("file", input.FileName).Msg("Failed to delete file from storage; keeping DB row for retry")
 		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}
-	if existsInStorage {
-		if err = app.deleteFile(input.FileName); err != nil {
-			log.Err(err).Str("file", input.FileName).Msg("Failed to delete file from storage")
-		}
+
+	if err = app.db.DeleteFileEntry(input.FileName, account.ID); err != nil {
+		log.Err(err).Msg("Failed to delete file entry")
+		c.AbortWithStatus(http.StatusInternalServerError)
+
+		return
 	}
 
 	c.String(http.StatusOK, "Successfully deleted the file")
@@ -152,21 +131,9 @@ func (app *Application) toggleFilePublicAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, ok := getSessionToken(c)
+	account, ok := getAccount(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	}
-
-	account, err := app.db.GetAccountBySessionToken(sessionToken)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch account by session token")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}
@@ -205,7 +172,25 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 
 	plainRedirect := c.PostForm("plain") == "true"
 
-	tags, tags_exists := c.GetPostFormArray("tag")
+	rawTags, tags_exists := c.GetPostFormArray("tag")
+
+	tags := make([]string, 0, len(rawTags))
+	for _, t := range rawTags {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "" {
+			continue
+		}
+		if len(t) > db.TagMaxLength {
+			c.String(http.StatusBadRequest, db.ErrTagTooLong.Error())
+			c.Abort()
+
+			return
+		}
+		tags = append(tags, t)
+	}
+	slices.Sort(tags)
+	tags = slices.Compact(tags)
+	tags_exists = tags_exists && len(tags) > 0
 
 	if len(tags) > db.MaxTagsPerFile {
 		c.String(http.StatusBadRequest, db.ErrTooManyTags.Error())
@@ -214,33 +199,38 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		return
 	}
 
-	for _, tag := range tags {
-		if len(tag) > db.TagMaxLength {
-			c.String(http.StatusBadRequest, db.ErrTagTooLong.Error())
-			c.Abort()
+	if date, exists := c.GetPostForm("expiry_date"); exists && date != "" {
+		parsed, parseErr := time.Parse("2006-01-02", date)
+		if parseErr != nil {
+			c.String(http.StatusBadRequest, "Invalid expiry_date (want YYYY-MM-DD)")
 
 			return
 		}
+		expiryDate = parsed.Add(24*time.Hour - time.Second)
 	}
 
-	date, exists := c.GetPostForm("expiry_date")
-	if exists {
-		expiryDate, _ = time.Parse("2006-01-02", date)
-	}
+	if timestamp, exists := c.GetPostForm("expiry_timestamp"); exists && timestamp != "" {
+		unixSecs, parseErr := strconv.ParseInt(timestamp, 10, 64)
+		if parseErr != nil {
+			c.String(http.StatusBadRequest, "Invalid expiry_timestamp (want unix seconds)")
 
-	timestamp, exists := c.GetPostForm("expiry_timestamp")
-	if exists {
-		log.Info().Any("expiry_date", timestamp).Msg("Expiry date provided")
-		unixSecs, err := strconv.Atoi(timestamp)
-		if err == nil {
-			expiryDate = time.Unix(int64(unixSecs), 0)
+			return
 		}
+		expiryDate = time.Unix(unixSecs, 0)
 	}
 
-	if !expiryDate.IsZero() && expiryDate.Before(time.Now()) {
-		c.String(http.StatusBadRequest, "Can't specify expiry in the past, sorry.")
+	if !expiryDate.IsZero() {
+		now := time.Now()
+		if expiryDate.Before(now) {
+			c.String(http.StatusBadRequest, "Can't specify expiry in the past, sorry.")
 
-		return
+			return
+		}
+		if expiryDate.After(now.Add(maxExpiryDuration)) {
+			c.String(http.StatusBadRequest, "Expiry too far in the future.")
+
+			return
+		}
 	}
 
 	fileRaw, fileHeader, err := c.Request.FormFile("file")
@@ -253,13 +243,18 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	defer fileRaw.Close()
 
 	originalFileName := fileHeader.Filename
-	fileSize := fileHeader.Size
 
 	// Peek at the first few KB for MIME detection without consuming the
 	// stream, then hand the buffered reader straight to storage.
 	body := bufio.NewReaderSize(fileRaw, mimeSniffSize)
 	header, err := body.Peek(mimeSniffSize)
 	if err != nil && !errors.Is(err, io.EOF) {
+		if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+			c.String(http.StatusRequestEntityTooLarge, "Too big file")
+			c.Abort()
+
+			return
+		}
 		log.Err(err).Msg("Failed to read uploaded file header")
 		c.AbortWithStatus(http.StatusInternalServerError)
 
@@ -269,11 +264,12 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	mime := mimetype.Detect(header)
 	fullFileName := app.generateFullFileName(mime)
 
+	var written int64
 	switch app.config.FileStorageMethod {
 	case fileStorageS3:
-		err = app.uploadFileS3(c.Request.Context(), body, fileSize, fullFileName)
+		written, err = app.uploadFileS3(c.Request.Context(), body, fileHeader.Size, fullFileName)
 	case fileStorageLocal:
-		err = writeLocalFile(filepath.Join(app.config.DataFolder, fullFileName), body)
+		written, err = writeLocalFile(filepath.Join(app.config.DataFolder, fullFileName), body)
 	default:
 		err = ErrUnknownStorageMethod
 	}
@@ -289,7 +285,7 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 		Files: db.Files{
 			FileName:         fullFileName,
 			OriginalFileName: originalFileName,
-			FileSize:         uint(fileSize),
+			FileSize:         uint(written),
 			MimeType:         mime.String(),
 			ExpiryDate:       expiryDate,
 			Public:           true,
@@ -307,13 +303,20 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	} else if uid, ok := getUploadToken(c); ok {
 		input.UploadToken = uuid.NullUUID{UUID: uid, Valid: true}
 	} else {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 30*time.Second)
+		defer cancel()
+		if deleteErr := app.deleteFile(cleanupCtx, fullFileName); deleteErr != nil {
+			log.Err(deleteErr).Str("file", fullFileName).Msg("Failed to clean up blob after auth check failed")
+		}
 		c.AbortWithStatus(http.StatusUnauthorized)
 
 		return
 	}
 
 	if err = app.db.CreateFileEntry(input); err != nil {
-		if deleteErr := app.deleteFile(fullFileName); deleteErr != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 30*time.Second)
+		defer cancel()
+		if deleteErr := app.deleteFile(cleanupCtx, fullFileName); deleteErr != nil {
 			log.Err(deleteErr).Str("file", fullFileName).Msg("Failed to clean up blob after DB insert failed")
 		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -358,44 +361,28 @@ func (app *Application) addTagAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, ok := getSessionToken(c)
+	account, ok := getAccount(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
 
 		return
 	}
 
-	account, err := app.db.GetAccountBySessionToken(sessionToken)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.AbortWithStatus(http.StatusUnauthorized)
+	err = app.db.AddTagToFile(input.FileName, input.Tag, account.ID)
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		c.String(http.StatusNotFound, "File not found or you don't own this file")
 
 		return
-	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch account by session token")
-		c.AbortWithStatus(http.StatusInternalServerError)
+	case errors.Is(err, db.ErrTagAlreadyOnFile):
+		c.String(http.StatusBadRequest, db.ErrTagAlreadyOnFile.Error())
 
 		return
-	}
-
-	hasTag, err := app.db.FileHasTag(input.FileName, input.Tag, account.ID)
-	if err != nil {
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
-
-		return
-	}
-
-	if hasTag {
-		c.String(http.StatusBadRequest, "File already has this tag")
-		c.Abort()
-
-		return
-	}
-
-	if err = app.db.AddTagToFile(input.FileName, input.Tag, account.ID); errors.Is(err, db.ErrTooManyTags) {
+	case errors.Is(err, db.ErrTooManyTags):
 		c.String(http.StatusBadRequest, db.ErrTooManyTags.Error())
 
 		return
-	} else if err != nil {
+	case err != nil:
 		log.Err(err).Msg("Failed to add tag to file")
 		c.AbortWithStatus(http.StatusInternalServerError)
 
@@ -417,21 +404,9 @@ func (app *Application) deleteTagAPI(c *gin.Context) {
 		return
 	}
 
-	sessionToken, ok := getSessionToken(c)
+	account, ok := getAccount(c)
 	if !ok {
 		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	}
-
-	account, err := app.db.GetAccountBySessionToken(sessionToken)
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.AbortWithStatus(http.StatusUnauthorized)
-
-		return
-	} else if err != nil {
-		log.Err(err).Msg("Failed to fetch account by session token")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
 		return
 	}

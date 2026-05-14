@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, untrack } from 'solid-js';
 import type { FileData, SortField } from './types';
 import { parseUrlParams } from './url';
 
@@ -30,13 +30,11 @@ export const [pendingModalFile, setPendingModalFile] = createSignal<string | nul
 export function openModal(file: FileData) {
   setModalFile(file);
   setIsModalOpen(true);
-  document.body.classList.add('no-scroll');
 }
 
 export function closeModal() {
   setIsModalOpen(false);
   setModalFile(null);
-  document.body.classList.remove('no-scroll');
 }
 
 export function updateFileInList(fileName: string, updates: Partial<FileData>) {
@@ -50,7 +48,17 @@ export function updateFileInList(fileName: string, updates: Partial<FileData>) {
   }
 }
 
+const [replaceNextUrlSync, setReplaceNextUrlSync] = createSignal(false);
+export function markReplaceNextUrlSync() {
+  setReplaceNextUrlSync(true);
+}
+export function consumeReplaceNextUrlSync(): boolean {
+  const v = replaceNextUrlSync();
+  if (v) untrack(() => setReplaceNextUrlSync(false));
+  return v;
+}
+
 export function removeFileFromList(fileName: string) {
   setFiles((prev) => prev.filter((f) => f.FileName !== fileName));
-  setTotalFiles((prev) => prev - 1);
+  setTotalFiles((prev) => Math.max(0, prev - 1));
 }

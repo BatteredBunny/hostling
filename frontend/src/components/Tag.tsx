@@ -29,17 +29,38 @@ export function Tag(props: TagProps): JSX.Element {
     };
   });
 
+  const handleKey = (e: KeyboardEvent) => {
+    if (!props.onClicked) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      props.onClicked();
+    }
+  };
+
   return (
-    <span class="file-tag" style={{
-      ...style(),
-      "cursor": props.onClicked ? "pointer" : "default",
-      "opacity": props.enabled === false ? "0.5" : "1"
-    }} onClick={() => props.onClicked?.()}>
+    <span
+      class="file-tag"
+      role={props.onClicked ? 'button' : undefined}
+      tabindex={props.onClicked ? 0 : undefined}
+      aria-pressed={props.onClicked ? props.selected ?? false : undefined}
+      style={{
+        ...style(),
+        "cursor": props.onClicked ? "pointer" : "default",
+        "opacity": props.enabled === false ? "0.5" : "1"
+      }}
+      onClick={() => props.onClicked?.()}
+      onKeyDown={handleKey}
+    >
       <Show when={props.onRemove} fallback={props.name}>
         <span class="file-modal-tag-text">{props.name}</span>
         <button
+          type="button"
           class="file-modal-tag-remove"
-          onClick={() => props.onRemove!(props.name)}
+          aria-label={`Remove tag ${props.name}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onRemove!(props.name);
+          }}
         >
           <Icon name="x" />
         </button>

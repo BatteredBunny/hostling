@@ -98,6 +98,13 @@ in
             description = "Max upload size in bytes";
           };
 
+          rate_limit = lib.mkOption {
+            type = lib.types.float;
+            default = 10.0;
+            example = 100.0;
+            description = "Requests per second per client IP for rate-limited routes";
+          };
+
           data_folder = lib.mkOption {
             type = lib.types.path;
             default = "/var/lib/hostling/data";
@@ -211,12 +218,19 @@ in
       environment.GIN_MODE = "release";
       wantedBy = [ "default.target" ];
 
-      after = lib.mkIf (cfg.settings.database_type == "postgresql") [ "postgresql.service" ];
-      requires = lib.mkIf (cfg.settings.database_type == "postgresql") [ "postgresql.service" ];
+      after = lib.mkIf (cfg.settings.database_type == "postgresql") [
+        "postgresql.service"
+        "postgresql-setup.service"
+      ];
+      requires = lib.mkIf (cfg.settings.database_type == "postgresql") [
+        "postgresql.service"
+        "postgresql-setup.service"
+      ];
     };
 
-    services.hostling.settings.database_connection_url = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql")
-      (lib.mkDefault "postgresql:///hostling?host=/run/postgresql&user=hostling");
+    services.hostling.settings.database_connection_url = lib.mkIf (
+      cfg.createDbLocally && cfg.settings.database_type == "postgresql"
+    ) (lib.mkDefault "postgresql:///hostling?host=/run/postgresql&user=hostling");
     services.hostling.settings.unix_socket = lib.mkIf cfg.socket.enable (lib.mkDefault cfg.socket.path);
 
     services.postgresql = lib.mkIf (cfg.createDbLocally && cfg.settings.database_type == "postgresql") {

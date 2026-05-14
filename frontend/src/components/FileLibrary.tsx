@@ -17,20 +17,36 @@ import {
   pendingModalFile,
   setPendingModalFile,
   closeModal,
+  consumeReplaceNextUrlSync,
 } from '../store';
 import { updateUrl, parseUrlParams } from '../url';
 import { FILES_PER_PAGE } from '../api';
 
 export function FileLibrary() {
+  let lastPage = currentPage();
+  let lastTag = tagFilter();
+
   createEffect(() => {
-    updateUrl({
-      page: currentPage(),
-      sort: sortField(),
-      desc: sortDesc(),
-      tag: tagFilter(),
-      filter: fileFilter(),
-      file: modalFile()?.FileName ?? pendingModalFile() ?? null,
-    });
+    const page = currentPage();
+    const tag = tagFilter();
+    // Only push a new history entry on discrete navigation (page / tag).
+    // Sort toggles, filter changes, and modal open/close mutate in place.
+    const forceReplace = consumeReplaceNextUrlSync();
+    const isNavigation = !forceReplace && (page !== lastPage || tag !== lastTag);
+    lastPage = page;
+    lastTag = tag;
+
+    updateUrl(
+      {
+        page,
+        sort: sortField(),
+        desc: sortDesc(),
+        tag,
+        filter: fileFilter(),
+        file: modalFile()?.FileName ?? pendingModalFile() ?? null,
+      },
+      { replace: !isNavigation },
+    );
   });
 
   onMount(() => {

@@ -1,4 +1,4 @@
-import { Show, For, createSignal, createEffect, createMemo, onCleanup } from 'solid-js';
+import { Show, For, createSignal, createEffect, createMemo, on, onCleanup, onMount } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import './FileModal.css';
 import {
@@ -16,8 +16,9 @@ import {
   relativeTime,
   humanizeBytes,
   hasExpiry,
+  fileUrl,
 } from '../utils';
-import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag, TAG_MAX_LENGTH } from '../api';
+import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag, TAG_MAX_LENGTH, MAX_TAGS_PER_FILE } from '../api';
 import { loadStats } from './FileStats';
 import { Icon } from './Icon';
 import { Tag } from './Tag';
@@ -29,18 +30,49 @@ export function FileModal(props: { file: FileData }) {
   const [localTags, setLocalTags] = createSignal<string[]>([]);
   const [showAutocomplete, setShowAutocomplete] = createSignal(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = createSignal(0);
+  const [isDeleting, setIsDeleting] = createSignal(false);
+  const [isAddingTag, setIsAddingTag] = createSignal(false);
+  const [isRemovingTag, setIsRemovingTag] = createSignal(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = createSignal(false);
 
   let blurTimeoutId: ReturnType<typeof setTimeout> | undefined;
+  let closeButton: HTMLButtonElement | undefined;
+  let previouslyFocused: HTMLElement | null = null;
+  let backdropMouseDownInside = false;
+
   onCleanup(() => {
     if (blurTimeoutId) clearTimeout(blurTimeoutId);
+    previouslyFocused?.focus?.();
   });
 
-  createEffect(() => {
-    setLocalTags(props.file.Tags?.map((t) => t.Name) || []);
+  onMount(() => {
+    previouslyFocused = document.activeElement as HTMLElement | null;
+    closeButton?.focus();
+    document.body.classList.add('no-scroll');
+    onCleanup(() => document.body.classList.remove('no-scroll'));
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // If autocomplete is open, let its own onKeyDown dismiss it first.
+      if (showAutocomplete()) return;
+      e.preventDefault();
+      closeModal();
+    };
+    document.addEventListener('keydown', onKey);
+    onCleanup(() => document.removeEventListener('keydown', onKey));
+  });
+
+  createEffect(on(() => props.file.FileName, () => {
     setTagInput('');
     setShowAutocomplete(false);
     setSelectedSuggestionIndex(0);
-  });
+  }));
+
+  // Keep localTags in sync whenever the underlying file's tag set changes,
+  // including external updates while the same file stays open.
+  createEffect(on(() => props.file.Tags, (tags) => {
+    setLocalTags(tags?.map((t) => t.Name) || []);
+  }));
 
   createEffect(() => {
     const currentSuggestions = suggestions();
@@ -66,70 +98,98 @@ export function FileModal(props: { file: FileData }) {
   });
 
   const handleToggleVisibility = async () => {
-    const f = file();
-    const success = await toggleFileVisibility(f.FileName);
-    if (success) {
-      updateFileInList(f.FileName, { Public: !f.Public });
-    } else {
-      alert('Failed to change visibility');
+    if (isTogglingVisibility()) return;
+    setIsTogglingVisibility(true);
+    try {
+      const f = file();
+      const result = await toggleFileVisibility(f.FileName);
+      if (result.ok) {
+        updateFileInList(f.FileName, { Public: !f.Public });
+      } else {
+        alert(`Failed to change visibility: ${result.error || 'unknown error'}`);
+      }
+    } finally {
+      setIsTogglingVisibility(false);
     }
   };
 
   const handleDelete = async () => {
+    if (isDeleting()) return;
     const f = file();
-    if (confirm(`Are you sure you want to delete "${f.FileName}"?`)) {
-      const success = await deleteFile(f.FileName);
-      if (success) {
+    if (!confirm(`Are you sure you want to delete "${f.FileName}"?`)) return;
+    setIsDeleting(true);
+    try {
+      const result = await deleteFile(f.FileName);
+      if (result.ok) {
         removeFileFromList(f.FileName);
         loadStats();
         closeModal();
       } else {
-        alert('Failed to delete file');
+        alert(`Failed to delete file: ${result.error || 'unknown error'}`);
       }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleAddTag = async (tag?: string) => {
+    if (isAddingTag()) return;
     const f = file();
     const tagToAdd = tag || tagInput().trim();
     if (!tagToAdd) return;
     if (tagToAdd.length > TAG_MAX_LENGTH) {
-      console.error(`Tag must be ${TAG_MAX_LENGTH} characters or fewer`);
+      alert(`Tag must be ${TAG_MAX_LENGTH} characters or fewer`);
       return;
     }
+    if (localTags().length >= MAX_TAGS_PER_FILE) {
+      alert(`A file can have at most ${MAX_TAGS_PER_FILE} tags`);
+      return;
+    }
+    if (localTags().includes(tagToAdd)) return;
 
-    const success = await addFileTag(f.FileName, tagToAdd);
-    if (success) {
-      const newTags = [...localTags(), tagToAdd];
-      setLocalTags(newTags);
-      updateFileInList(f.FileName, {
-        Tags: newTags.map((name, i) => ({ ID: i, Name: name })),
-      });
-      setTagInput('');
-      setShowAutocomplete(false);
-      setSelectedSuggestionIndex(0);
-      loadStats();
-    } else {
-      alert('Failed to add tag');
+    setIsAddingTag(true);
+    try {
+      const result = await addFileTag(f.FileName, tagToAdd);
+      if (result.ok) {
+        const newTags = [...localTags(), tagToAdd];
+        setLocalTags(newTags);
+        updateFileInList(f.FileName, {
+          Tags: newTags.map((name) => ({ Name: name })),
+        });
+        setTagInput('');
+        setShowAutocomplete(false);
+        setSelectedSuggestionIndex(0);
+        loadStats();
+      } else {
+        alert(`Failed to add tag: ${result.error || 'unknown error'}`);
+      }
+    } finally {
+      setIsAddingTag(false);
     }
   };
 
   const handleRemoveTag = async (tagName: string) => {
-    const f = file();
-    const success = await removeFileTag(f.FileName, tagName);
-    if (success) {
-      const newTags = localTags().filter((t) => t !== tagName);
-      setLocalTags(newTags);
-      updateFileInList(f.FileName, {
-        Tags: newTags.map((name, i) => ({ ID: i, Name: name })),
-      });
-      loadStats();
+    if (isRemovingTag()) return;
+    setIsRemovingTag(true);
+    try {
+      const f = file();
+      const result = await removeFileTag(f.FileName, tagName);
+      if (result.ok) {
+        const newTags = localTags().filter((t) => t !== tagName);
+        setLocalTags(newTags);
+        updateFileInList(f.FileName, {
+          Tags: newTags.map((name) => ({ Name: name })),
+        });
+        loadStats();
 
-      if (tagFilter() === tagName) {
-        loadFiles(0);
+        if (tagFilter() === tagName) {
+          loadFiles(0);
+        }
+      } else {
+        alert(`Failed to remove tag: ${result.error || 'unknown error'}`);
       }
-    } else {
-      alert('Failed to remove tag');
+    } finally {
+      setIsRemovingTag(false);
     }
   };
 
@@ -166,25 +226,51 @@ export function FileModal(props: { file: FileData }) {
         handleAddTag();
       }
     } else if (e.key === 'Escape') {
-      setShowAutocomplete(false);
-      setSelectedSuggestionIndex(0);
+      if (showAutocomplete()) {
+        e.stopPropagation();
+        setShowAutocomplete(false);
+        setSelectedSuggestionIndex(0);
+      }
     }
+  };
+
+  // Don't close if a drag started inside the modal and released on the
+  // backdrop (e.g. text selection in an input).
+  const onBackdropMouseDown = (e: MouseEvent) => {
+    backdropMouseDownInside = e.target !== e.currentTarget;
+  };
+  const onBackdropClick = (e: MouseEvent) => {
+    if (e.target === e.currentTarget && !backdropMouseDownInside) closeModal();
+    backdropMouseDownInside = false;
   };
 
   return (
     <Portal>
-      <div id="file-modal">
+      <div
+        id="file-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="file-modal-filename"
+        onMouseDown={onBackdropMouseDown}
+        onClick={onBackdropClick}
+      >
         <div class="file-modal-window">
           <div class="file-modal-titlebar">
             <a
               id="file-modal-filename-url"
-              href={`/${file().FileName}`}
+              href={fileUrl(file().FileName)}
               target="_blank"
               rel="noopener noreferrer"
             >
               <span id="file-modal-filename">{file().FileName}</span>
             </a>
-            <button class="file-modal-close" onClick={closeModal}>
+            <button
+              type="button"
+              ref={closeButton}
+              class="file-modal-close"
+              aria-label="Close"
+              onClick={closeModal}
+            >
               <Icon name="x" />
             </button>
           </div>
@@ -194,25 +280,24 @@ export function FileModal(props: { file: FileData }) {
               <Show when={mimeIsImage(file().MimeType)}>
                 <img
                   id="file-preview-image"
-                  src={`/${file().FileName}`}
-                  alt="Uploaded image"
-                  style={{ display: 'block' }}
+                  src={fileUrl(file().FileName)}
+                  alt={file().OriginalFileName || file().FileName}
                 />
               </Show>
               <Show when={mimeIsVideo(file().MimeType)}>
                 <video
                   id="file-preview-video"
-                  src={`/${file().FileName}`}
+                  src={fileUrl(file().FileName)}
                   controls
-                  style={{ display: 'block' }}
+                  preload="metadata"
                 />
               </Show>
               <Show when={mimeIsAudio(file().MimeType)}>
                 <audio
                   id="file-preview-audio"
-                  src={`/${file().FileName}`}
+                  src={fileUrl(file().FileName)}
                   controls
-                  style={{ display: 'block' }}
+                  preload="metadata"
                 />
               </Show>
               <Show
@@ -224,8 +309,7 @@ export function FileModal(props: { file: FileData }) {
               >
                 <a
                   id="file-preview-generic"
-                  href={`/${file().FileName}`}
-                  style={{ display: 'block' }}
+                  href={fileUrl(file().FileName)}
                 >
                   <div class="file-icon">
                     <Icon name="file" />
@@ -245,7 +329,7 @@ export function FileModal(props: { file: FileData }) {
                 <div class="views">
                   <Icon name="eye" />
                   <span id="file-modal-views">
-                    {file().ViewsCount || 0} view{file().ViewsCount !== 1 ? 's' : ''}
+                    {(file().ViewsCount ?? 0) === 1 ? '1 view' : `${file().ViewsCount ?? 0} views`}
                   </span>
                 </div>
 
@@ -291,8 +375,9 @@ export function FileModal(props: { file: FileData }) {
                     <input
                       type="text"
                       id="file-modal-tag-input"
-                      placeholder="Add tag..."
+                      placeholder={localTags().length >= MAX_TAGS_PER_FILE ? `Tag limit reached (${MAX_TAGS_PER_FILE})` : 'Add tag...'}
                       maxLength={TAG_MAX_LENGTH}
+                      disabled={localTags().length >= MAX_TAGS_PER_FILE}
                       value={tagInput()}
                       onInput={(e) => handleTagInputChange(e.currentTarget.value)}
                       onKeyDown={handleKeyDown}
@@ -326,7 +411,13 @@ export function FileModal(props: { file: FileData }) {
                       </div>
                     </Show>
                   </div>
-                  <button id="file-modal-add-tag-btn" class="create-button" onClick={() => handleAddTag()}>
+                  <button
+                    type="button"
+                    id="file-modal-add-tag-btn"
+                    class="create-button"
+                    disabled={isAddingTag() || !tagInput().trim() || localTags().length >= MAX_TAGS_PER_FILE}
+                    onClick={() => handleAddTag()}
+                  >
                     Add
                   </button>
                 </div>
@@ -334,15 +425,19 @@ export function FileModal(props: { file: FileData }) {
 
               <div class="file-actions">
                 <button
+                  type="button"
                   class="toggle-visibility-button create-button"
                   id="file-modal-toggle-public-button"
+                  disabled={isTogglingVisibility()}
                   onClick={handleToggleVisibility}
                 >
                   {file().Public ? 'Make Private' : 'Make Public'}
                 </button>
                 <button
+                  type="button"
                   class="delete-button"
                   id="file-modal-delete-button"
+                  disabled={isDeleting()}
                   onClick={handleDelete}
                 >
                   Delete

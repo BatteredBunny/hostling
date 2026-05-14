@@ -12,5 +12,8 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - uses: DeterminateSystems/magic-nix-cache-action@v13
 
+      - name: Run Go tests
+        run: nix develop --command go test ./...
+
       - name: Run NixOS Test
         run: nix flake check -L

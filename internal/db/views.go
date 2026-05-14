@@ -1,7 +1,8 @@
 package db
 
 import (
-	"crypto/sha1"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/hex"
 	"time"
 
@@ -15,22 +16,13 @@ type FileViews struct {
 
 	// Each IP counts once as a view
 	IpHash  string `gorm:"index:,unique,composite:hash_collision"`
-	FilesID uint   `gorm:"index:,unique,composite:hash_collision"`
+	FilesID uint   `gorm:"index:,unique,composite:hash_collision;index"`
 }
 
-func (db *Database) BumpFileViews(fileName string, ip string) (err error) {
-	h := sha1.New()
-	h.Write([]byte(ip))
-	ipHash := hex.EncodeToString(h.Sum(nil))
-
-	var fileID uint
-	if err = db.Model(&Files{}).
-		Where(&Files{FileName: fileName}).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
-		Select("id").
-		First(&fileID).Error; err != nil {
-		return
-	}
+func (db *Database) BumpFileViews(fileID uint, ip string, hmacKey []byte) (err error) {
+	mac := hmac.New(sha256.New, hmacKey)
+	mac.Write([]byte(ip))
+	ipHash := hex.EncodeToString(mac.Sum(nil))
 
 	return db.Model(&FileViews{}).
 		Clauses(clause.OnConflict{DoNothing: true}).

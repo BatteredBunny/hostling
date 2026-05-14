@@ -21,14 +21,13 @@ type UploadTokens struct {
 }
 
 func (db *Database) DeleteUploadTokensFromAccount(accountID uint) (err error) {
-	return db.Model(&UploadTokens{}).
-		Where(&UploadTokens{AccountID: accountID}).
+	return db.Where("account_id = ?", accountID).
 		Delete(&UploadTokens{}).Error
 }
 
 func (db *Database) GetUploadTokensCount(accountID uint) (count int64, err error) {
 	err = db.Model(&UploadTokens{}).
-		Where(&UploadTokens{AccountID: accountID}).
+		Where("account_id = ?", accountID).
 		Count(&count).Error
 
 	return
@@ -42,7 +41,7 @@ type UiUploadToken struct {
 
 func (db *Database) GetUploadTokens(accountID uint) (uploadTokens []UiUploadToken, err error) {
 	err = db.Model(&UploadTokens{}).
-		Where(&UploadTokens{AccountID: accountID}).
+		Where("account_id = ?", accountID).
 		Select("token, nickname, last_used").
 		Scan(&uploadTokens).Error
 
@@ -64,10 +63,6 @@ func (db *Database) CreateUploadToken(accountID uint, nickname string) (uploadTo
 }
 
 func (db *Database) DeleteUploadToken(accountID uint, uploadToken uuid.UUID) (err error) {
-	return db.Model(&UploadTokens{}).
-		Where(&UploadTokens{
-			AccountID: accountID,
-			Token:     uploadToken,
-		}).
+	return db.Where("account_id = ? AND token = ?", accountID, uploadToken).
 		Delete(&UploadTokens{}).Error
 }

@@ -7,12 +7,8 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/google/uuid"
+	"github.com/gin-gonic/gin"
 )
-
-func parseToken(rawToken string) (uuid.UUID, error) {
-	return uuid.Parse(rawToken)
-}
 
 func formatTimeDate(t time.Time) string {
 	if t.IsZero() {
@@ -65,11 +61,31 @@ func formatContentDisposition(disposition, filename string) string {
 	)
 }
 
-func Sum[T any](slice []T, getValue func(T) int) int {
-	sum := 0
-	for _, item := range slice {
-		sum += getValue(item)
+// Dangerous mime types that we force download for to prevent potential malicious file from rendering or executing
+var dangerousInlineMimes = map[string]bool{
+	"text/html":              true,
+	"application/xhtml+xml":  true,
+	"application/xml":        true,
+	"text/xml":               true,
+	"image/svg+xml":          true,
+	"application/javascript": true,
+	"text/javascript":        true,
+}
+
+func uploadDisposition(mimeType string) string {
+	base, _, _ := strings.Cut(mimeType, ";")
+	if dangerousInlineMimes[strings.TrimSpace(base)] {
+		return "attachment"
 	}
 
-	return sum
+	return "inline"
+}
+
+func setUploadServeHeaders(c *gin.Context) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header(
+		"Content-Security-Policy",
+		"sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'",
+	)
+	c.Header("Referrer-Policy", "no-referrer")
 }

@@ -33,6 +33,8 @@ type Application struct {
 	shutdownCancel context.CancelFunc
 	backgroundWg   sync.WaitGroup
 
+	appSecret []byte // HMAC key
+
 	providersMutex      sync.RWMutex
 	configuredProviders []string // provider names that are configured (env vars set), even if not yet initialized or configured wrong
 	failedProviders     []string // provider names that are configured but failed to initialize
@@ -63,11 +65,12 @@ type Config struct {
 	BehindReverseProxy bool   `toml:"behind_reverse_proxy"`
 	TrustedProxy       string `toml:"trusted_proxy"`
 	PublicUrl          string `toml:"public_url"` // URL to use for github callback and cookies, e.g http://cdn.example.com
-	CookieDomain       string // hostname extracted from PublicUrl
 	CookieSecure       bool   // true when PublicUrl is https
 
 	Branding string `toml:"branding"` // Branding text for toolbar (max 20 characters)
 	Tagline  string `toml:"tagline"`  // Used for meta description and text on index page (max 100 characters)
+
+	RateLimit float64 `toml:"rate_limit"` // Requests/sec per client IP for rate-limited routes (default 10)
 
 	FileStorageMethod fileStorageMethod
 	S3                s3Config `toml:"s3"`
@@ -80,6 +83,7 @@ type s3Config struct {
 	Region          string `toml:"region"`
 	Endpoint        string `toml:"endpoint"`
 	ProxyFiles      bool   `toml:"proxyfiles"`
+	Insecure        bool   `toml:"insecure"` // set true for http endpoints
 }
 
 func (app *Application) Run() {
@@ -90,14 +94,23 @@ func (app *Application) Run() {
 		log.Fatal().Err(err).Msg("Failed to start listener")
 	}
 
-	server := &http.Server{Handler: app.Router}
+	server := &http.Server{
+		Handler:           app.Router,
+		ReadHeaderTimeout: 15 * time.Second,
+		ReadTimeout:       1 * time.Hour,
+		WriteTimeout:      1 * time.Hour,
+		IdleTimeout:       2 * time.Minute,
+	}
 
 	serverErr := make(chan error, 1)
-	go func() {
+	app.backgroundWg.Go(func() {
 		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErr <- err
+			select {
+			case serverErr <- err:
+			default:
+			}
 		}
-	}()
+	})
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -122,16 +135,16 @@ func (app *Application) Run() {
 
 func (app *Application) verifySocketUsable() (err error) {
 	socketDir := filepath.Dir(app.config.UnixSocket)
-	if err := os.MkdirAll(socketDir, 0o750); err != nil {
-		return err
+	if err = os.MkdirAll(socketDir, 0o750); err != nil {
+		return
 	}
 
-	if _, err := os.Stat(app.config.UnixSocket); err == nil {
-		if err := os.Remove(app.config.UnixSocket); err != nil {
-			return err
-		}
-	} else if !os.IsNotExist(err) {
-		return err
+	_, err = os.Stat(app.config.UnixSocket)
+	switch {
+	case err == nil:
+		err = os.Remove(app.config.UnixSocket)
+	case os.IsNotExist(err):
+		err = nil
 	}
 
 	return

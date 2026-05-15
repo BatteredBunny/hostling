@@ -44,6 +44,9 @@
             inherit self;
             dbType = "sqlite";
           };
+          service-advanced = pkgs.callPackage ./nix/test-advanced.nix {
+            inherit self;
+          };
         }
       );
 
@@ -66,6 +69,10 @@
           test-service-sqlite = pkgs.callPackage ./nix/test.nix {
             inherit self;
             dbType = "sqlite";
+          };
+          # nix run .#test-service-advanced.driverInteractive
+          test-service-advanced = pkgs.callPackage ./nix/test-advanced.nix {
+            inherit self;
           };
           example-screenshots = pkgs.callPackage ./nix/example-screenshots.nix { inherit self; };
         }

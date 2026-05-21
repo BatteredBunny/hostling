@@ -114,7 +114,7 @@
               wire
               atlas-unfree # Unfree version of atlas
               sqlite
-              pnpm_10
+              pnpm_11
               nodejs
               just
 

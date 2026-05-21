@@ -2,13 +2,13 @@
   buildGoModule,
   fetchPnpmDeps,
   pnpmConfigHook,
-  pnpm_10,
+  pnpm_11,
   nodejs,
   stdenv,
   lib,
 }:
 let
-  pnpm = pnpm_10;
+  pnpm = pnpm_11;
   version = "0.4.0";
 
   frontend = stdenv.mkDerivation {
@@ -28,7 +28,7 @@ let
       inherit version pnpm;
       src = ./frontend;
       fetcherVersion = 3;
-      hash = "sha256-Z0WupQcb1Htb9QdkTy8gPqyJYCQcZ8pnFx9jlpA05+w=";
+      hash = "sha256-/RiPI2FNS4XC0GaMOgl+bzaeYsaWRp7jLuObAiSgEtE=";
     };
 
     postBuild = ''
@@ -46,7 +46,7 @@ buildGoModule {
 
   src = ./.;
 
-  vendorHash = "sha256-erwYPfFuqv0YuLO1WZtRhk0lTmkx764mfWENSN7yEyE=";
+  vendorHash = "sha256-ZLozZWXhbqHMGslNFgA0YYGy0YvxD124A4ONSmbU49c=";
 
   prePatch = ''
     cp -r ${frontend} ./public/dist

@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: cachix/install-nix-action@v31
-      - uses: DeterminateSystems/magic-nix-cache-action@v13
+      - uses: DeterminateSystems/magic-nix-cache-action@v14
 
       - name: Run Go tests
         run: nix develop --command go test ./...

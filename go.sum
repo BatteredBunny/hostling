@@ -1,7 +1,7 @@
 ariga.io/atlas v1.2.0 h1:PJZzG1zTA8SzMR1giJ7XnQe4VjfDWEbJjHnIaK45BFg=
 ariga.io/atlas v1.2.0/go.mod h1:vg7qWSatkNqs04Y4Lheg7vR4bGX0wy51Wz4FIMFVr3U=
-ariga.io/atlas-provider-gorm v0.6.0 h1:nJx1jLKr8pKeIxuYX3NmBuchWR9VldopWyElnPakRDw=
-ariga.io/atlas-provider-gorm v0.6.0/go.mod h1:iod/+0ODkmcNBJsmNrs76btfETyqC+zCyy7sh7aXaig=
+ariga.io/atlas-provider-gorm v0.6.1 h1:Do57gN6CEdXiH0+L44OB0GH/3bBUUmOpvONK56xYTE4=
+ariga.io/atlas-provider-gorm v0.6.1/go.mod h1:iod/+0ODkmcNBJsmNrs76btfETyqC+zCyy7sh7aXaig=
 cel.dev/expr v0.25.2 h1:K6j46C81hXtZQfuX60cVWQFBJahKSE2gfRbNuvr5bFs=
 cel.dev/expr v0.25.2/go.mod h1:hrXvqGP6G6gyx8UAHSHJ5RGk//1Oj5nXQ2NI02Nrsg4=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=

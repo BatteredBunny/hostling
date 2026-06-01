@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	ariga.io/atlas v1.2.0
-	ariga.io/atlas-provider-gorm v0.6.0
+	ariga.io/atlas-provider-gorm v0.6.1
 	github.com/BurntSushi/toml v1.6.0
 	github.com/didip/tollbooth/v8 v8.0.1
 	github.com/dustin/go-humanize v1.0.1

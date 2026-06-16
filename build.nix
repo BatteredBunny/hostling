@@ -28,7 +28,7 @@ let
       inherit version pnpm;
       src = ./frontend;
       fetcherVersion = 3;
-      hash = "sha256-F6cb5yjZ+S9B6dzesKpBrkrLjV6Iv9ddAtgzcbhTA3o=";
+      hash = "sha256-/H7QgJpX87g1y0wKFOlZe7jjRd9Z7Po0b5tMmEQtHbc=";
     };
 
     postBuild = ''
@@ -46,7 +46,7 @@ buildGoModule {
 
   src = ./.;
 
-  vendorHash = "sha256-wsZHXMom1C5d624nzyPorBqC5lKBtarN1copNOy7uDI=";
+  vendorHash = "sha256-9iRUJ8YzKscg++Kgu8KYKGsxzZ1aYhzBZCFcrfZodts=";
 
   prePatch = ''
     cp -r ${frontend} ./public/dist

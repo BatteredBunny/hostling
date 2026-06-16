@@ -86,7 +86,7 @@
           # TODO: upstream?
           atlas-unfree =
             let
-              version = "v1.2.0";
+              version = "v1.2.2";
             in
             pkgs.stdenvNoCC.mkDerivation {
               pname = "atlas";
@@ -97,7 +97,7 @@
                     "https://release.ariga.io/atlas/atlas-linux-amd64-${version}"
                   else
                     throw "Unsupported system for Atlas: ${system}";
-                hash = "sha256-wSuInjNJ8OVhCuwy/jJ+WmkRoORydUoMOBwwx8BjDog=";
+                hash = "sha256-253c/sqJyxGD42KqucJmu7jdxPrxekc5t521+H/Qwts=";
               };
               dontUnpack = true;
               installPhase = ''

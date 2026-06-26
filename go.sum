@@ -1,5 +1,5 @@
-ariga.io/atlas v1.2.2 h1:+cryCHGIVcbQxuK4rB7nK5pDkMC4g4XxqltYIioFWIQ=
-ariga.io/atlas v1.2.2/go.mod h1:bEAo6Igo8PNJUyGOnni9jv+D83HyNEY3tNXV1ATtqI8=
+ariga.io/atlas v1.2.3 h1:DLNK5kiz48XGv4Dbv8sJxPHncmmwUm43PoSA7UMZXEU=
+ariga.io/atlas v1.2.3/go.mod h1:v8ltuOKxFAU8ZF33HNfQs1iRWKuP3hJfu+dU0VE5O0Y=
 ariga.io/atlas-provider-gorm v0.6.1 h1:Do57gN6CEdXiH0+L44OB0GH/3bBUUmOpvONK56xYTE4=
 ariga.io/atlas-provider-gorm v0.6.1/go.mod h1:iod/+0ODkmcNBJsmNrs76btfETyqC+zCyy7sh7aXaig=
 cel.dev/expr v0.25.2 h1:K6j46C81hXtZQfuX60cVWQFBJahKSE2gfRbNuvr5bFs=

@@ -9,7 +9,7 @@
     "lint:fix": "oxlint --fix src && eslint --fix src"
   },
   "dependencies": {
-    "solid-js": "^1.9.13"
+    "solid-js": "^1.9.14"
   },
   "devDependencies": {
     "eslint": "^10.6.0",

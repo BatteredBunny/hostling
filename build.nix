@@ -27,8 +27,8 @@ let
       pname = "hostling-frontend";
       inherit version pnpm;
       src = ./frontend;
-      fetcherVersion = 3;
-      hash = "sha256-DU+1pvrQ+vh4v+WSfcah5RzTE+sG5ZoI2nqBIs9pOC4=";
+      fetcherVersion = 4;
+      hash = "sha256-C2VFOfoX2O44BX3otOvKHnQ0luoDbIbd84lKsN7Z2WI=";
     };
 
     postBuild = ''
@@ -46,7 +46,7 @@ buildGoModule {
 
   src = ./.;
 
-  vendorHash = "sha256-6wRhQnD8v5ruAjqzPN7dmeYmubfv3taYvM1CL3rxZGg=";
+  vendorHash = "sha256-U2thlCZxeLXqS8etLr30npMVpur5caIAc0our310ISE=";
 
   prePatch = ''
     cp -r ${frontend} ./public/dist

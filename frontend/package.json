@@ -12,7 +12,7 @@
     "solid-js": "^1.9.14"
   },
   "devDependencies": {
-    "eslint": "^10.6.0",
+    "eslint": "^10.7.0",
     "eslint-plugin-oxlint": "^1.73.0",
     "eslint-plugin-solid": "^0.14.5",
     "oxlint": "^1.73.0",

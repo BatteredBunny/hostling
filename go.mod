@@ -3,7 +3,7 @@ module github.com/BatteredBunny/hostling
 go 1.26.4
 
 require (
-	ariga.io/atlas v1.2.3
+	ariga.io/atlas v1.3.0
 	ariga.io/atlas-provider-gorm v0.6.1
 	github.com/BurntSushi/toml v1.6.0
 	github.com/didip/tollbooth/v8 v8.0.1

@@ -16,7 +16,7 @@ require (
 	github.com/markbates/goth v1.82.0
 	github.com/minio/minio-go/v7 v7.2.1
 	github.com/rs/zerolog v1.35.1
-	gorm.io/driver/postgres v1.6.0
+	gorm.io/driver/postgres v1.6.2
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
 )

@@ -7,7 +7,7 @@ require (
 	ariga.io/atlas-provider-gorm v0.6.1
 	github.com/BurntSushi/toml v1.6.0
 	github.com/didip/tollbooth/v8 v8.0.1
-	github.com/dustin/go-humanize v1.0.1
+	github.com/dustin/go-humanize v1.1.0
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0

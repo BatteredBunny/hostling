@@ -645,12 +645,53 @@ func (app *Application) fileStatsAPI(c *gin.Context) {
 	c.JSON(http.StatusOK, output)
 }
 
+// FileFilterInput is the tag/filter selection shared by the file listing and
+// the filter tags API.
+type FileFilterInput struct {
+	// Repeatable; files must have every given tag.
+	Tag []string `form:"tag"`
+	// Repeatable: "untagged" for files without tags, "public" for public files, "private" for private files.
+	// Multiple filters combine, e.g. filter=untagged&filter=private.
+	Filter []string `form:"filter"`
+}
+
+// normalize validates the selection and lowercases tags, since they're stored lowercased.
+func (input *FileFilterInput) normalize() bool {
+	allowedFilters := []string{
+		"",
+		"untagged",
+		"public",
+		"private",
+	}
+	for _, f := range input.Filter {
+		if !slices.Contains(allowedFilters, f) {
+			return false
+		}
+	}
+	// A file can't be both, so this can only be a client mistake.
+	if slices.Contains(input.Filter, "public") && slices.Contains(input.Filter, "private") {
+		return false
+	}
+
+	tags := make([]string, 0, len(input.Tag))
+	for _, t := range input.Tag {
+		if t = strings.ToLower(strings.TrimSpace(t)); t != "" {
+			tags = append(tags, t)
+		}
+	}
+	slices.Sort(tags)
+	input.Tag = slices.Compact(tags)
+
+	// Each tag is a subquery; no file can match more than this anyway.
+	return len(input.Tag) <= db.MaxTagsPerFile
+}
+
 type FilesApiInput struct {
-	Skip   uint   `form:"skip,default=0"`          // Used for pagination
-	Sort   string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
-	Desc   bool   `form:"desc,default=true"`       // true for descending, false for ascending
-	Tag    string `form:"tag"`                     // optional tag filter
-	Filter string `form:"filter"`                  // "untagged" for files without tags, "public" for public files, "private" for private files
+	FileFilterInput
+
+	Skip uint   `form:"skip,default=0"`          // Used for pagination
+	Sort string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
+	Desc bool   `form:"desc,default=true"`       // true for descending, false for ascending
 }
 
 type FilesApiOutput struct {
@@ -674,13 +715,7 @@ func (app *Application) filesAPI(c *gin.Context) {
 		return
 	}
 
-	allowedFilters := []string{
-		"",
-		"untagged",
-		"public",
-		"private",
-	}
-	if !slices.Contains(allowedFilters, input.Filter) {
+	if !input.normalize() {
 		c.AbortWithStatus(http.StatusBadRequest)
 
 		return
@@ -696,9 +731,6 @@ func (app *Application) filesAPI(c *gin.Context) {
 
 		return
 	}
-
-	// Tags are stored lowercased
-	input.Tag = strings.ToLower(strings.TrimSpace(input.Tag))
 
 	// Api returns 8 files at a time
 	var limit uint = 8
@@ -720,4 +752,40 @@ func (app *Application) filesAPI(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, FilesApiOutput{Files: files, Count: count})
+}
+
+type FilterTagsApiOutput struct {
+	Tags []string `json:"tags"`
+}
+
+// filterTagsAPI lists the tags on files matching the given tags and filters,
+// so a client can offer only tags that still narrow the selection down.
+func (app *Application) filterTagsAPI(c *gin.Context) {
+	account, _ := getAccount(c)
+
+	var input FileFilterInput
+	if err := c.MustBindWith(&input, binding.Form); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+
+		return
+	}
+
+	if !input.normalize() {
+		c.AbortWithStatus(http.StatusBadRequest)
+
+		return
+	}
+
+	tags, err := app.db.GetFilteredTags(account.ID, input.Tag, input.Filter)
+	if err != nil {
+		log.Err(err).Msg("Failed to get filter tags")
+		c.AbortWithStatus(http.StatusInternalServerError)
+
+		return
+	}
+	if tags == nil {
+		tags = []string{}
+	}
+
+	c.JSON(http.StatusOK, FilterTagsApiOutput{Tags: tags})
 }

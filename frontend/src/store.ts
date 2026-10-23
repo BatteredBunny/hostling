@@ -1,6 +1,6 @@
 import { createSignal, untrack } from 'solid-js';
 import type { FileData, SortField } from './types';
-import { parseUrlParams } from './url';
+import { parseUrlParams, type Visibility } from './url';
 
 const initial = parseUrlParams();
 
@@ -14,8 +14,18 @@ export const [loadingText, setLoadingText] = createSignal('');
 // Sort/Filter state
 export const [sortField, setSortField] = createSignal<SortField>(initial.sort);
 export const [sortDesc, setSortDesc] = createSignal(initial.order === 'desc');
-export const [tagFilter, setTagFilter] = createSignal<string | null>(initial.tag);
-export const [fileFilter, setFileFilter] = createSignal<string | null>(initial.filter);
+export const [tagFilters, setTagFilters] = createSignal<string[]>(initial.tags);
+export const [visibilityFilter, setVisibilityFilter] = createSignal<Visibility | null>(initial.visibility);
+export const [untaggedFilter, setUntaggedFilter] = createSignal(initial.untagged);
+
+// Values for the API's repeatable `filter` parameter.
+export function activeFilters(): string[] {
+  const filters: string[] = [];
+  const visibility = visibilityFilter();
+  if (visibility) filters.push(visibility);
+  if (untaggedFilter()) filters.push('untagged');
+  return filters;
+}
 
 // Stats state
 export const [statsCount, setStatsCount] = createSignal(0);

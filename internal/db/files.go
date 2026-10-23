@@ -176,40 +176,62 @@ func (db *Database) FindExpiredFiles() (files []Files, err error) {
 
 const MaxPaginationLimit = 200
 
+// filteredFilesQuery selects an account's unexpired files matching every
+// given tag (AND) and every filter ("untagged", "public", "private").
+func (db *Database) filteredFilesQuery(accountID uint, tags []string, filters []string) *gorm.DB {
+	q := db.Model(&Files{}).
+		Where("files.uploader_id = ?", accountID).
+		Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
+
+	for _, filter := range filters {
+		switch filter {
+		case "untagged":
+			q = q.Where("files.id NOT IN (SELECT files_id FROM file_tags)")
+		case "public":
+			q = q.Where("files.public = ?", true)
+		case "private":
+			q = q.Where("files.public = ?", false)
+		}
+	}
+
+	// One subquery per tag keeps rows unique, unlike joining file_tags.
+	for _, tag := range tags {
+		q = q.Where("files.id IN (SELECT files_id FROM file_tags WHERE tag_name = ?)", tag)
+	}
+
+	return q
+}
+
+// GetFilteredTags returns the tags present on files matching the given tags
+// and filters, i.e. the tags that can still narrow down that selection.
+func (db *Database) GetFilteredTags(accountID uint, tags []string, filters []string) (result []string, err error) {
+	matching := db.filteredFilesQuery(accountID, tags, filters).Select("files.id")
+
+	err = db.Table("file_tags").
+		Where("files_id IN (?)", matching).
+		Distinct("tag_name").
+		Order("tag_name").
+		Pluck("tag_name", &result).Error
+
+	return result, err
+}
+
 func (db *Database) GetFilesPaginatedFromAccount(
 	accountID, skip, limit uint,
 	sort string,
 	desc bool,
-	tag string, // Tag to filter by
-	filter string,
+	tags []string, // All of them must match
+	filters []string, // All of them apply
 ) (files []Files, totalCount int64, err error) {
 	if limit > MaxPaginationLimit {
 		limit = MaxPaginationLimit
 	}
 
 	baseQuery := func() *gorm.DB {
-		q := db.Model(&Files{}).
-			Where("files.uploader_id = ?", accountID).
-			Where("files.expiry_date IS NULL OR files.expiry_date > ?", time.Now())
-
-		switch {
-		case filter == "untagged":
-			q = q.Where("files.id NOT IN (SELECT files_id FROM file_tags)")
-		case filter == "public":
-			q = q.Where("files.public = ?", true)
-		case filter == "private":
-			q = q.Where("files.public = ?", false)
-		}
-
-		if tag != "" {
-			q = q.Joins("JOIN file_tags ON file_tags.files_id = files.id").
-				Where("file_tags.tag_name = ?", tag)
-		}
-
-		return q
+		return db.filteredFilesQuery(accountID, tags, filters)
 	}
 
-	if err = baseQuery().Distinct("files.id").Count(&totalCount).Error; err != nil {
+	if err = baseQuery().Count(&totalCount).Error; err != nil {
 		return
 	}
 
@@ -230,9 +252,6 @@ func (db *Database) GetFilesPaginatedFromAccount(
 		Limit(int(limit)).
 		Preload("Tags").
 		Select("files.*, (SELECT COUNT(*) FROM file_views WHERE file_views.files_id = files.id) AS views_count")
-	if tag != "" {
-		tx = tx.Group("files.id")
-	}
 	for _, o := range orderClauses {
 		tx = tx.Order(o)
 	}

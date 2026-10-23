@@ -23,21 +23,23 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.25);
         border: none;
         color: white;
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
         cursor: pointer;
         font-size: 12px;
         padding: 0;
+        margin-right: -2px;
         transition: background 0.15s ease;
 
         svg {
-            width: 13px;
-            height: 13px;
-            color: var(--text-color);
+            width: 12px;
+            height: 12px;
+            color: white;
+            stroke-width: 3;
             transition: all 0.2s ease;
         }
 

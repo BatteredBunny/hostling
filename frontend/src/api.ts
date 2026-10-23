@@ -8,8 +8,8 @@ export async function fetchFiles(
   skip: number,
   sort: SortField,
   desc: boolean,
-  tagFilter?: string | null,
-  fileFilter?: string | null,
+  tags: string[] = [],
+  filters: string[] = [],
   signal?: AbortSignal
 ): Promise<FilesResponse> {
   const params = new URLSearchParams({
@@ -17,8 +17,8 @@ export async function fetchFiles(
     sort,
     desc: desc.toString(),
   });
-  if (tagFilter) params.set('tag', tagFilter);
-  if (fileFilter) params.set('filter', fileFilter);
+  for (const tag of tags) params.append('tag', tag);
+  for (const filter of filters) params.append('filter', filter);
 
   const response = await fetch(`/api/account/files?${params}`, { method: 'GET', signal });
 
@@ -27,6 +27,26 @@ export async function fetchFiles(
   }
 
   return response.json();
+}
+
+// Tags on files matching the given selection: the ones that can still narrow it.
+export async function fetchFilterTags(
+  tags: string[],
+  filters: string[],
+  signal?: AbortSignal
+): Promise<string[]> {
+  const params = new URLSearchParams();
+  for (const tag of tags) params.append('tag', tag);
+  for (const filter of filters) params.append('filter', filter);
+
+  const response = await fetch(`/api/account/files/tags?${params}`, { method: 'GET', signal });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch filter tags');
+  }
+
+  const data: { tags: string[] } = await response.json();
+  return data.tags;
 }
 
 export async function fetchFileStats(): Promise<FileStatsResponse> {

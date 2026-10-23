@@ -1,4 +1,4 @@
-import { Show, For, createSignal, createEffect, createMemo, on, onCleanup, onMount } from 'solid-js';
+import { Show, createSignal, createEffect, on, onCleanup, onMount } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import './FileModal.css';
 import {
@@ -8,7 +8,7 @@ import {
   files,
   openFileMenu,
   updateFileInList,
-  tagFilter,
+  tagFilters,
   statsTags,
 } from '../store';
 import {
@@ -21,30 +21,23 @@ import {
   hasExpiry,
   fileUrl,
 } from '../utils';
-import { addFileTag, removeFileTag, TAG_MAX_LENGTH, MAX_TAGS_PER_FILE } from '../api';
+import { addFileTag, removeFileTag } from '../api';
 import { copyFileLink, toggleVisibility } from '../fileActions';
 import { loadStats } from './FileStats';
 import { Icon } from './Icon';
-import { Tag } from './Tag';
+import { TagEditor } from './TagEditor';
 import { loadFiles, showAdjacentFile, hasAdjacentFile } from './FileGrid';
 import type { FileData } from '../types';
 
 export function FileModal(props: { file: FileData }) {
-  const [tagInput, setTagInput] = createSignal('');
   const [localTags, setLocalTags] = createSignal<string[]>([]);
-  const [showAutocomplete, setShowAutocomplete] = createSignal(false);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = createSignal(0);
-  const [isAddingTag, setIsAddingTag] = createSignal(false);
-  const [isRemovingTag, setIsRemovingTag] = createSignal(false);
 
-  let blurTimeoutId: ReturnType<typeof setTimeout> | undefined;
   let closeButton: HTMLButtonElement | undefined;
   let menuButton: HTMLButtonElement | undefined;
   let previouslyFocused: HTMLElement | null = null;
   let backdropMouseDownInside = false;
 
   onCleanup(() => {
-    if (blurTimeoutId) clearTimeout(blurTimeoutId);
     previouslyFocused?.focus?.();
   });
 
@@ -66,8 +59,6 @@ export function FileModal(props: { file: FileData }) {
         return;
       }
       if (e.key !== 'Escape') return;
-      // If autocomplete is open, let its own onKeyDown dismiss it first.
-      if (showAutocomplete()) return;
       e.preventDefault();
       closeModal();
     };
@@ -75,24 +66,11 @@ export function FileModal(props: { file: FileData }) {
     onCleanup(() => document.removeEventListener('keydown', onKey));
   });
 
-  createEffect(on(() => props.file.FileName, () => {
-    setTagInput('');
-    setShowAutocomplete(false);
-    setSelectedSuggestionIndex(0);
-  }));
-
   // Keep localTags in sync whenever the underlying file's tag set changes,
   // including external updates while the same file stays open.
   createEffect(on(() => props.file.Tags, (tags) => {
     setLocalTags(tags?.map((t) => t.Name) || []);
   }));
-
-  createEffect(() => {
-    const currentSuggestions = suggestions();
-    if (tagInput().trim() && currentSuggestions.length === 0 && showAutocomplete()) {
-      setShowAutocomplete(false);
-    }
-  });
 
   const file = () => props.file;
 
@@ -114,20 +92,6 @@ export function FileModal(props: { file: FileData }) {
     file().FileName === fileName
       ? localTags()
       : files().find((f) => f.FileName === fileName)?.Tags?.map((t) => t.Name) ?? [];
-
-  const suggestions = createMemo(() => {
-    const input = tagInput().trim().toLowerCase();
-    if (!input) return [];
-
-    // Shows 5 first suggestions, should probably be done some other way
-    const existingTags = localTags();
-    return statsTags()
-      .filter(tag =>
-        tag.toLowerCase().includes(input) &&
-        !existingTags.includes(tag)
-      )
-      .slice(0, 5);
-  });
 
   const [copied, setCopied] = createSignal(false);
   let copiedTimeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -155,108 +119,36 @@ export function FileModal(props: { file: FileData }) {
     openFileMenu(file(), rect.right, rect.bottom + 4, menuButton);
   };
 
-  const handleAddTag = async (tag?: string) => {
-    if (isAddingTag()) return;
+  const handleAddTag = async (tag: string): Promise<string | null> => {
     const f = file();
-    const tagToAdd = tag || tagInput().trim();
-    if (!tagToAdd) return;
-    if (tagToAdd.length > TAG_MAX_LENGTH) {
-      alert(`Tag must be ${TAG_MAX_LENGTH} characters or fewer`);
-      return;
-    }
-    if (localTags().length >= MAX_TAGS_PER_FILE) {
-      alert(`A file can have at most ${MAX_TAGS_PER_FILE} tags`);
-      return;
-    }
-    if (localTags().includes(tagToAdd)) return;
+    const result = await addFileTag(f.FileName, tag);
+    if (!result.ok) return `Failed to add tag: ${result.error || 'unknown error'}`;
 
-    setIsAddingTag(true);
-    try {
-      const result = await addFileTag(f.FileName, tagToAdd);
-      if (result.ok) {
-        const newTags = [...currentTags(f.FileName), tagToAdd];
-        updateFileInList(f.FileName, {
-          Tags: newTags.map((name) => ({ Name: name })),
-        });
-        if (file().FileName === f.FileName) {
-          setLocalTags(newTags);
-          setTagInput('');
-          setShowAutocomplete(false);
-          setSelectedSuggestionIndex(0);
-        }
-        loadStats();
-      } else {
-        alert(`Failed to add tag: ${result.error || 'unknown error'}`);
-      }
-    } finally {
-      setIsAddingTag(false);
-    }
+    const newTags = [...currentTags(f.FileName), tag];
+    updateFileInList(f.FileName, {
+      Tags: newTags.map((name) => ({ Name: name })),
+    });
+    if (file().FileName === f.FileName) setLocalTags(newTags);
+    loadStats();
+    return null;
   };
 
-  const handleRemoveTag = async (tagName: string) => {
-    if (isRemovingTag()) return;
-    setIsRemovingTag(true);
-    try {
-      const f = file();
-      const result = await removeFileTag(f.FileName, tagName);
-      if (result.ok) {
-        const newTags = currentTags(f.FileName).filter((t) => t !== tagName);
-        updateFileInList(f.FileName, {
-          Tags: newTags.map((name) => ({ Name: name })),
-        });
-        if (file().FileName === f.FileName) setLocalTags(newTags);
-        loadStats();
+  const handleRemoveTag = async (tagName: string): Promise<string | null> => {
+    const f = file();
+    const result = await removeFileTag(f.FileName, tagName);
+    if (!result.ok) return `Failed to remove tag: ${result.error || 'unknown error'}`;
 
-        if (tagFilter() === tagName) {
-          loadFiles(0);
-        }
-      } else {
-        alert(`Failed to remove tag: ${result.error || 'unknown error'}`);
-      }
-    } finally {
-      setIsRemovingTag(false);
+    const newTags = currentTags(f.FileName).filter((t) => t !== tagName);
+    updateFileInList(f.FileName, {
+      Tags: newTags.map((name) => ({ Name: name })),
+    });
+    if (file().FileName === f.FileName) setLocalTags(newTags);
+    loadStats();
+
+    if (tagFilters().includes(tagName)) {
+      loadFiles(0);
     }
-  };
-
-  const handleTagInputChange = (value: string) => {
-    setTagInput(value);
-    setShowAutocomplete(value.trim().length > 0 && suggestions().length > 0);
-    setSelectedSuggestionIndex(0);
-  };
-
-  const handleSelectSuggestion = (tag: string) => {
-    handleAddTag(tag);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const suggestionList = suggestions();
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (showAutocomplete() && suggestionList.length > 0) {
-        setSelectedSuggestionIndex((prev) =>
-          prev < suggestionList.length - 1 ? prev + 1 : prev
-        );
-      }
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (showAutocomplete() && suggestionList.length > 0) {
-        setSelectedSuggestionIndex((prev) => (prev > 0 ? prev - 1 : 0));
-      }
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (showAutocomplete() && suggestionList.length > 0) {
-        handleSelectSuggestion(suggestionList[selectedSuggestionIndex()]);
-      } else {
-        handleAddTag();
-      }
-    } else if (e.key === 'Escape') {
-      if (showAutocomplete()) {
-        e.stopPropagation();
-        setShowAutocomplete(false);
-        setSelectedSuggestionIndex(0);
-      }
-    }
+    return null;
   };
 
   // Don't close if a drag started inside the modal and released on the
@@ -470,62 +362,13 @@ export function FileModal(props: { file: FileData }) {
                   <Icon name="tag" />
                   <span>Tags</span>
                 </div>
-                <div id="file-modal-tags-list">
-                  <For each={localTags()}>
-                    {(tag) => <Tag name={tag} onRemove={handleRemoveTag} />}
-                  </For>
-                </div>
-                <div class="file-modal-add-tag">
-                  <div class="tag-input-wrapper">
-                    <input
-                      type="text"
-                      id="file-modal-tag-input"
-                      placeholder={localTags().length >= MAX_TAGS_PER_FILE ? `Tag limit reached (${MAX_TAGS_PER_FILE})` : 'Add tag...'}
-                      maxLength={TAG_MAX_LENGTH}
-                      disabled={localTags().length >= MAX_TAGS_PER_FILE}
-                      value={tagInput()}
-                      onInput={(e) => handleTagInputChange(e.currentTarget.value)}
-                      onKeyDown={handleKeyDown}
-                      onFocus={() => {
-                        if (tagInput().trim() && suggestions().length > 0) {
-                          setShowAutocomplete(true);
-                        }
-                      }}
-                      onBlur={() => {
-                        // Delay to allow click on suggestion
-                        if (blurTimeoutId) clearTimeout(blurTimeoutId);
-                        blurTimeoutId = setTimeout(() => setShowAutocomplete(false), 200);
-                      }}
-                    />
-                    <Show when={showAutocomplete() && suggestions().length > 0}>
-                      <div class="tag-autocomplete-dropdown">
-                        <For each={suggestions()}>
-                          {(suggestion, index) => (
-                            <div
-                              class="tag-autocomplete-item"
-                              classList={{
-                                selected: index() === selectedSuggestionIndex(),
-                              }}
-                              onClick={() => handleSelectSuggestion(suggestion)}
-                              onMouseEnter={() => setSelectedSuggestionIndex(index())}
-                            >
-                              {suggestion}
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    </Show>
-                  </div>
-                  <button
-                    type="button"
-                    id="file-modal-add-tag-btn"
-                    class="create-button"
-                    disabled={isAddingTag() || !tagInput().trim() || localTags().length >= MAX_TAGS_PER_FILE}
-                    onClick={() => handleAddTag()}
-                  >
-                    Add
-                  </button>
-                </div>
+                <TagEditor
+                  tags={localTags()}
+                  allTags={statsTags()}
+                  resetKey={file().FileName}
+                  onAdd={handleAddTag}
+                  onRemove={handleRemoveTag}
+                />
               </div>
             </div>
           </div>

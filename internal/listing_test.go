@@ -66,6 +66,15 @@ func TestListingSorting(t *testing.T) {
 		if status, body := admin.get("/api/account/files?filter=nope"); status != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d: %s", status, body)
 		}
+		if status, body := admin.get("/api/account/files?filter=untagged&filter=nope"); status != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d: %s", status, body)
+		}
+	})
+
+	t.Run("contradictory filters", func(t *testing.T) {
+		if status, body := admin.get("/api/account/files?filter=public&filter=private"); status != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d: %s", status, body)
+		}
 	})
 }
 
@@ -200,6 +209,9 @@ func TestListingTagFilterComposesWithVisibility(t *testing.T) {
 		{"tag=combo&filter=private", []string{privateTagged}},
 		{"tag=combo&filter=untagged", []string{}},
 		{"filter=public", []string{tagged, untagged}},
+		{"filter=untagged&filter=public", []string{untagged}},
+		{"filter=untagged&filter=private", []string{}},
+		{"filter=private&filter=untagged", []string{}},
 	}
 
 	for _, tt := range tests {
@@ -221,4 +233,72 @@ func TestListingTagFilterIsCaseInsensitive(t *testing.T) {
 			expectNames(t, "tag="+tag, fileNames(admin.listFiles("tag="+url.QueryEscape(tag)).Files), []string{file})
 		})
 	}
+}
+
+// The example from the filter popup design: picking tags narrows both the
+// files and the tags still on offer.
+func TestListingMultipleTagsAndFilterTags(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	file1 := admin.upload()
+	file2 := admin.upload()
+	file3 := admin.upload()
+
+	admin.addTag(file1, "tiger")
+	admin.addTag(file1, "cat")
+	admin.addTag(file2, "dog")
+	admin.addTag(file3, "cat")
+	admin.addTag(file3, "meow")
+	admin.togglePublic(file3)
+
+	filterTags := func(query string) []string {
+		t.Helper()
+		var out struct {
+			Tags []string `json:"tags"`
+		}
+		admin.getJSON("/api/account/files/tags?"+query, &out)
+
+		return out.Tags
+	}
+
+	listings := []struct {
+		query string
+		want  []string
+	}{
+		{"tag=cat", []string{file1, file3}},
+		{"tag=cat&tag=tiger", []string{file1}},
+		{"tag=tiger&tag=cat", []string{file1}},
+		{"tag=cat&tag=dog", []string{}},
+		{"tag=cat&tag=CAT", []string{file1, file3}},
+		{"tag=cat&filter=private", []string{file3}},
+	}
+	for _, tt := range listings {
+		t.Run("files "+tt.query, func(t *testing.T) {
+			got := fileNames(admin.listFiles(tt.query + "&sort=created_at&desc=false").Files)
+			expectNames(t, tt.query, got, tt.want)
+		})
+	}
+
+	facets := []struct {
+		query string
+		want  []string
+	}{
+		{"", []string{"cat", "dog", "meow", "tiger"}},
+		{"tag=cat", []string{"cat", "meow", "tiger"}},
+		{"tag=cat&tag=tiger", []string{"cat", "tiger"}},
+		{"tag=cat&tag=dog", []string{}},
+		{"filter=private", []string{"cat", "meow"}},
+		{"filter=untagged", []string{}},
+	}
+	for _, tt := range facets {
+		t.Run("tags "+tt.query, func(t *testing.T) {
+			expectNames(t, tt.query, filterTags(tt.query), tt.want)
+		})
+	}
+
+	t.Run("invalid filter", func(t *testing.T) {
+		if status, body := admin.get("/api/account/files/tags?filter=nope"); status != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d: %s", status, body)
+		}
+	})
 }

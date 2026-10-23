@@ -12,13 +12,10 @@ import {
   loadingText,
   setLoadingText,
   sortField,
-  setSortField,
   sortDesc,
-  setSortDesc,
-  tagFilter,
-  setTagFilter,
-  fileFilter,
-  setFileFilter,
+  tagFilters,
+  setTagFilters,
+  activeFilters,
   pendingModalFile,
   setPendingModalFile,
   pendingModalEdge,
@@ -31,8 +28,8 @@ import {
 import { fetchFiles, FILES_PER_PAGE } from '../api';
 import { FileEntry } from './FileEntry';
 import { Icon } from './Icon';
-import { SelectBox } from './SelectBox';
-import type { SortField } from '../types';
+import { FileFilters } from './FileFilters';
+import { FileStats } from './FileStats';
 
 export function FileGrid() {
   onMount(() => {
@@ -46,33 +43,6 @@ export function FileGrid() {
     const start = skip + 1;
     const end = Math.min(skip + FILES_PER_PAGE, totalFiles());
     return `${start}-${end} of ${totalFiles()}`;
-  };
-
-  const handleSortChange = (value: string) => {
-    const [field, order] = value.split(':') as [SortField, string];
-    setSortField(field);
-    setSortDesc(order === 'desc');
-    setCurrentPage(0);
-    loadFiles(0);
-  };
-
-  const handleFilterChange = (value: string) => {
-    if (value === 'all') {
-      setTagFilter(null);
-      setFileFilter(null);
-    } else if (value === 'untagged') {
-      setTagFilter(null);
-      setFileFilter('untagged');
-    } else if (value === 'public') {
-      setTagFilter(null);
-      setFileFilter('public');
-    } else if (value === 'private') {
-      setTagFilter(null);
-      setFileFilter('private');
-    }
-
-    setCurrentPage(0);
-    loadFiles(0);
   };
 
   const handlePrev = () => {
@@ -91,48 +61,17 @@ export function FileGrid() {
     }
   };
 
-  const currentFilterValue = () => {
-    if (fileFilter() === 'untagged') return 'untagged';
-    if (fileFilter() === 'public') return 'public';
-    if (fileFilter() === 'private') return 'private';
-    return 'all';
-  };
-
   return (
     <>
       <div class="setting-group-header">
         <div class="files-top-row">
           <h2>Files</h2>
-          <div class="options">
-            <SelectBox
-              id="filter-dropdown"
-              value={currentFilterValue()}
-              onChange={handleFilterChange}
-              options={[
-                { value: 'all', label: 'All Files' },
-                { value: 'untagged', label: 'Untagged' },
-                { value: 'public', label: 'Public' },
-                { value: 'private', label: 'Private' },
-              ]}
-            />
-            <SelectBox
-              id="sort-dropdown"
-              value={`${sortField()}:${sortDesc() ? 'desc' : 'asc'}`}
-              onChange={handleSortChange}
-              options={[
-                { value: 'created_at:desc', label: 'Newest First' },
-                { value: 'created_at:asc', label: 'Oldest First' },
-                { value: 'views:desc', label: 'Most Views' },
-                { value: 'views:asc', label: 'Least Views' },
-                { value: 'file_size:desc', label: 'Largest First' },
-                { value: 'file_size:asc', label: 'Smallest First' },
-              ]}
-            />
-          </div>
+          <FileStats />
         </div>
       </div>
 
       <div class="setting-group-body">
+        <FileFilters />
         <div class="file-grid" classList={{ loading: isLoading() && files().length > 0 }}>
           <Show when={loadingText()}>
             <p id="file-grid-loading-text">{loadingText()}</p>
@@ -197,17 +136,18 @@ export async function loadFiles(skip: number) {
     let data: Awaited<ReturnType<typeof fetchFiles>> | undefined;
 
     for (let attempt = 0; attempt < 3; attempt++) {
-      data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), tagFilter(), fileFilter(), controller.signal);
+      data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), tagFilters(), activeFilters(), controller.signal);
 
-      // Tags can only be filtered if there are files with that tag.
-      // Empty result most likely means the tag was removed recently.
-      if (data.files.length === 0 && tagFilter()) {
+      // Tags only exist while some file has them, so an empty result for a
+      // single tag alone most likely means it was removed recently. With more
+      // tags or other filters, an empty result can be legitimate.
+      if (data.files.length === 0 && tagFilters().length === 1 && activeFilters().length === 0) {
         if (controller.signal.aborted) return;
         batch(() => {
           markReplaceNextUrlSync();
-          setTagFilter(null);
+          setTagFilters([]);
         });
-        data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), null, fileFilter(), controller.signal);
+        data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), [], activeFilters(), controller.signal);
       }
 
       const count = data.count || 0;
@@ -245,8 +185,8 @@ export async function loadFiles(skip: number) {
 
     if (data.files && data.files.length > 0) {
       setLoadingText('');
-    } else if (tagFilter() || fileFilter()) {
-      setLoadingText('No files found.');
+    } else if (tagFilters().length > 0 || activeFilters().length > 0) {
+      setLoadingText('No files match these filters.');
     } else {
       setLoadingText('No files uploaded yet.');
     }

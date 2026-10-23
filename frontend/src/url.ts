@@ -2,14 +2,16 @@ import type { SortField } from './types';
 
 const VALID_SORT_FIELDS: SortField[] = ['created_at', 'views', 'file_size'];
 const VALID_ORDERS = ['asc', 'desc'] as const;
-const VALID_FILTERS = ['untagged', 'public', 'private'] as const;
+const VALID_VISIBILITIES = ['public', 'private'] as const;
+export type Visibility = (typeof VALID_VISIBILITIES)[number];
 
 export interface UrlParams {
   page: number;
   sort: SortField;
   order: 'asc' | 'desc';
-  tag: string | null;
-  filter: string | null;
+  tags: string[];
+  visibility: Visibility | null;
+  untagged: boolean;
   file: string | null;
 }
 
@@ -33,24 +35,27 @@ export function parseUrlParams(): UrlParams {
     ? (orderStr as 'asc' | 'desc')
     : 'desc';
 
-  const tagStr = params.get('tag');
-  const tag = tagStr && tagStr.trim() ? tagStr.trim() : null;
+  // `tag` is repeatable too; files must have every tag.
+  const tags = [...new Set(params.getAll('tag').map((t) => t.trim().toLowerCase()).filter(Boolean))];
 
-  const filterStr = params.get('filter');
-  const filter = filterStr && (VALID_FILTERS as readonly string[]).includes(filterStr) ? filterStr : null;
+  // `filter` is repeatable, mirroring the API: e.g. ?filter=private&filter=untagged
+  const filters = params.getAll('filter');
+  const untagged = filters.includes('untagged');
+  const visibility = VALID_VISIBILITIES.find((v) => filters.includes(v)) ?? null;
 
   const fileStr = params.get('file');
   const file = fileStr && fileStr.trim() ? fileStr.trim() : null;
 
-  return { page, sort, order, tag, filter, file };
+  return { page, sort, order, tags, visibility, untagged, file };
 }
 
 interface UrlState {
   page: number;
   sort: SortField;
   desc: boolean;
-  tag: string | null;
-  filter: string | null;
+  tags: string[];
+  visibility: Visibility | null;
+  untagged: boolean;
   file: string | null;
 }
 
@@ -69,12 +74,16 @@ export function updateUrl(state: UrlState, options: { replace?: boolean } = {}) 
     params.set('order', 'asc');
   }
 
-  if (state.tag) {
-    params.set('tag', state.tag);
+  for (const tag of state.tags) {
+    params.append('tag', tag);
   }
 
-  if (state.filter) {
-    params.set('filter', state.filter);
+  if (state.visibility) {
+    params.append('filter', state.visibility);
+  }
+
+  if (state.untagged) {
+    params.append('filter', 'untagged');
   }
 
   if (state.file) {

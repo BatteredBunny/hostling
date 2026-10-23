@@ -1,0 +1,317 @@
+.file-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 6px;
+
+    .file-filters-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .file-filters-anchor {
+        position: relative;
+    }
+
+    /* Matches .select-box-button so the toolbar reads as one set of controls. */
+    .file-filters-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border: 1px solid var(--menu-border-color);
+        border-radius: 8px;
+        background-color: var(--menu-bg-color-translucent);
+        color: var(--text-color);
+        font-size: 14px;
+        transition: all 0.2s ease;
+
+        svg {
+            width: 16px;
+            height: 16px;
+            opacity: 0.7;
+        }
+
+        &:hover,
+        &.open {
+            border-color: var(--text-color);
+            background-color: var(--background-color);
+        }
+
+        &:focus-visible {
+            outline: none;
+            border-color: var(--link-color);
+            box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.1);
+        }
+
+        .file-filters-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9px;
+            background-color: var(--text-color);
+            color: var(--background-color);
+            font-size: 12px;
+            font-weight: 700;
+        }
+    }
+}
+
+.file-filters-backdrop {
+    display: none;
+}
+
+.file-filters-popover {
+    position: fixed;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 300px;
+    padding: 12px;
+    background-color: var(--menu-bg-color);
+    border: 1px solid var(--menu-border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+
+    section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    h4 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.6;
+    }
+}
+
+.file-filters-popover-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+
+    .file-filters-close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        border: none;
+        border-radius: 6px;
+        background: none;
+        color: var(--text-color);
+
+        svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        &:hover {
+            background-color: var(--alternative-bg-color);
+        }
+    }
+}
+
+.file-filters-segmented {
+    display: flex;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid var(--menu-border-color);
+    border-radius: 8px;
+    background-color: var(--background-color);
+
+    button {
+        flex: 1;
+        padding: 6px 8px;
+        border: none;
+        border-radius: 6px;
+        background: none;
+        color: var(--text-color);
+        font-size: 14px;
+        opacity: 0.7;
+        transition: all 0.15s ease;
+
+        &:hover {
+            opacity: 1;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--link-color);
+            outline-offset: -2px;
+        }
+
+        &[aria-checked="true"] {
+            opacity: 1;
+            font-weight: 600;
+            color: var(--link-color);
+            background-color: color-mix(in srgb, var(--link-color) 12%, transparent);
+        }
+    }
+}
+
+.file-filters-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-color);
+    font-size: 14px;
+    text-align: left;
+
+    .file-filters-checkbox-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        border: 2px solid var(--menu-border-color);
+        border-radius: 4px;
+        box-sizing: border-box;
+        transition: all 0.15s ease;
+
+        svg {
+            width: 12px;
+            height: 12px;
+            stroke-width: 3;
+            color: var(--background-color);
+            opacity: 0;
+        }
+    }
+
+    &:hover .file-filters-checkbox-box {
+        border-color: var(--text-color);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--link-color);
+        outline-offset: 1px;
+    }
+
+    &[aria-checked="true"] .file-filters-checkbox-box {
+        border-color: var(--text-color);
+        background-color: var(--text-color);
+
+        svg {
+            opacity: 1;
+        }
+    }
+}
+
+.file-filters-search {
+    padding: 6px 10px;
+    font-size: 14px;
+}
+
+.file-filters-tag-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.file-filters-tag-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-color);
+    font-size: 14px;
+    text-align: left;
+
+    svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        opacity: 0.6;
+    }
+
+    &:hover,
+    &:focus-visible {
+        background-color: var(--alternative-bg-color);
+        outline: none;
+    }
+
+    &[aria-selected="true"] {
+        font-weight: 600;
+
+        svg {
+            opacity: 1;
+        }
+    }
+}
+
+.file-filters-empty {
+    padding: 7px 8px;
+    font-size: 14px;
+    opacity: 0.6;
+}
+
+.file-filters-popover-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid var(--menu-border-color);
+}
+
+.file-filters-clear {
+    padding: 0 4px;
+    border: none;
+    background: none;
+    color: var(--link-color);
+    font-size: 14px;
+
+    &:hover:not(:disabled) {
+        text-decoration: underline;
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
+    }
+}
+
+/* Phones: the popover becomes a bottom sheet over a dimmed page.
+   Keep in sync with SHEET_QUERY in FileFilters.tsx. */
+@media (max-width: 640px) {
+    .file-filters-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1049;
+        background-color: rgba(0, 0, 0, 0.3);
+    }
+
+    .file-filters-popover {
+        /* Override the inline desktop position. */
+        top: auto !important;
+        left: 0 !important;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 16px;
+        border-radius: 16px 16px 0 0;
+        border-bottom: none;
+    }
+}

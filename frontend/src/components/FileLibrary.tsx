@@ -1,6 +1,5 @@
 import { createEffect, onCleanup, onMount, Show } from 'solid-js';
 import { FileGrid, loadFiles } from './FileGrid';
-import { FileStats } from './FileStats';
 import { FileModal } from './FileModal';
 import { FileMenu } from './FileMenu';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -12,10 +11,12 @@ import {
   setSortField,
   sortDesc,
   setSortDesc,
-  tagFilter,
-  setTagFilter,
-  fileFilter,
-  setFileFilter,
+  tagFilters,
+  setTagFilters,
+  visibilityFilter,
+  untaggedFilter,
+  setVisibilityFilter,
+  setUntaggedFilter,
   modalFile,
   fileMenu,
   confirmRequest,
@@ -30,25 +31,27 @@ import { FILES_PER_PAGE } from '../api';
 
 export function FileLibrary() {
   let lastPage = currentPage();
-  let lastTag = tagFilter();
+  let lastTags = tagFilters().join(",");
 
   createEffect(() => {
     const page = currentPage();
-    const tag = tagFilter();
+    const tags = tagFilters();
+    const tagsKey = tags.join(",");
     // Only push a new history entry on discrete navigation (page / tag).
     // Sort toggles, filter changes, and modal open/close mutate in place.
     const forceReplace = consumeReplaceNextUrlSync();
-    const isNavigation = !forceReplace && (page !== lastPage || tag !== lastTag);
+    const isNavigation = !forceReplace && (page !== lastPage || tagsKey !== lastTags);
     lastPage = page;
-    lastTag = tag;
+    lastTags = tagsKey;
 
     updateUrl(
       {
         page,
         sort: sortField(),
         desc: sortDesc(),
-        tag,
-        filter: fileFilter(),
+        tags,
+        visibility: visibilityFilter(),
+        untagged: untaggedFilter(),
         file: modalFile()?.FileName ?? pendingModalFile() ?? null,
       },
       { replace: !isNavigation },
@@ -60,8 +63,9 @@ export function FileLibrary() {
       const next = parseUrlParams();
       setSortField(next.sort);
       setSortDesc(next.order === 'desc');
-      setTagFilter(next.tag);
-      setFileFilter(next.filter);
+      setTagFilters(next.tags);
+      setVisibilityFilter(next.visibility);
+      setUntaggedFilter(next.untagged);
       setCurrentPage(next.page);
       setPendingModalEdge(null);
       if (next.file) {
@@ -79,14 +83,6 @@ export function FileLibrary() {
 
   return (
     <>
-      <setting-group>
-        <div class="setting-group-header">
-          <h2>Overview</h2>
-        </div>
-        <div class="setting-group-body">
-          <FileStats />
-        </div>
-      </setting-group>
       <setting-group>
         <FileGrid />
       </setting-group>

@@ -1,4 +1,4 @@
-import { Show } from 'solid-js';
+import { Show, onCleanup } from 'solid-js';
 import './FileEntry.css';
 import type { FileData } from '../types';
 import {
@@ -10,30 +10,84 @@ import {
   hasExpiry,
   fileUrl,
 } from '../utils';
-import { openModal } from '../store';
+import { closeFileMenu, fileMenu, openFileMenu, openModal } from '../store';
 import { Icon } from './Icon';
 
-interface FileEntryProps {
-  file: FileData;
-  onDelete: (fileName: string) => void;
-}
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_MOVE_TOLERANCE = 10;
 
-export function FileEntry(props: FileEntryProps) {
+export function FileEntry(props: { file: FileData }) {
   const file = () => props.file;
+
+  let menuButton: HTMLButtonElement | undefined;
+  let longPressTimer: ReturnType<typeof setTimeout> | undefined;
+  let longPressFired = false;
+  let touching = false;
+  let touchStartX = 0;
+  let touchStartY = 0;
+
+  onCleanup(() => clearTimeout(longPressTimer));
 
   const viewsText = () => {
     const count = file().ViewsCount || 0;
     return count === 1 ? '1 view' : `${count} views`;
   };
 
-  const handleDelete = (e: Event) => {
-    e.stopPropagation();
-    if (confirm(`Are you sure you want to delete "${file().FileName}"?`)) {
-      props.onDelete(file().FileName);
+  const isMenuOpen = () => fileMenu()?.file.FileName === file().FileName;
+
+  const openMenuAt = (x: number, y: number) => {
+    // Android fires both our long-press timer and a native contextmenu event.
+    if (isMenuOpen()) return;
+    openFileMenu(file(), x, y, menuButton);
+  };
+
+  const handleMenuButton = () => {
+    if (isMenuOpen()) {
+      closeFileMenu();
+      return;
     }
+    const rect = menuButton!.getBoundingClientRect();
+    openFileMenu(file(), rect.left, rect.bottom + 4, menuButton);
+  };
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    clearTimeout(longPressTimer);
+    if (touching) longPressFired = true;
+    openMenuAt(e.clientX, e.clientY);
+  };
+
+  // iOS Safari never fires contextmenu, so long-press is detected manually.
+  const handleTouchStart = (e: TouchEvent) => {
+    longPressFired = false;
+    if ((e.target as HTMLElement).closest('.file-entry-menu-button')) return;
+    touching = true;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      longPressFired = true;
+      openMenuAt(touchStartX, touchStartY);
+    }, LONG_PRESS_MS);
+  };
+  const handleTouchMove = (e: TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) clearTimeout(longPressTimer);
+  };
+  const handleTouchEnd = (e: TouchEvent) => {
+    clearTimeout(longPressTimer);
+    touching = false;
+    // Stop the tap that ended a long-press from also opening the file.
+    if (longPressFired) e.preventDefault();
   };
 
   const openCurrent = () => openModal(file());
+  // The whole card is clickable; keyboard users get the focusable preview below.
+  const handleCardClick = (e: MouseEvent) => {
+    if ((e.target as HTMLElement).closest('.file-entry-menu-button')) return;
+    openCurrent();
+  };
   const handlePreviewKey = (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -43,12 +97,35 @@ export function FileEntry(props: FileEntryProps) {
   const previewAlt = () => file().OriginalFileName || file().FileName;
 
   return (
-    <div class="file-entry">
+    <div
+      class="file-entry"
+      onClick={handleCardClick}
+      classList={{ 'menu-open': isMenuOpen() }}
+      onContextMenu={handleContextMenu}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => {
+        clearTimeout(longPressTimer);
+        touching = false;
+      }}
+    >
+      <button
+        type="button"
+        ref={menuButton}
+        class="file-entry-menu-button"
+        aria-label="File actions"
+        aria-haspopup="menu"
+        aria-expanded={isMenuOpen()}
+        onClick={handleMenuButton}
+      >
+        <Icon name="ellipsis" />
+      </button>
+
       <div
         class="file-preview"
         role="button"
         tabindex="0"
-        onClick={openCurrent}
         onKeyDown={handlePreviewKey}
       >
         <div class="file-thumbnail">
@@ -89,27 +166,25 @@ export function FileEntry(props: FileEntryProps) {
       </div>
 
       <div class="file-info">
+        <div class="views" title={viewsText()}>
+          <Icon name="eye" />
+          <span class="views-text">{file().ViewsCount || 0}</span>
+        </div>
+
+        <div class="visibility-status" title={file().Public ? 'Public' : 'Private'}>
+          <Icon name={file().Public ? 'lock-open' : 'lock'} />
+        </div>
+
         <Show when={hasExpiry(file().ExpiryDate)}>
-          <div class="expires-info" title={formatTimeDate(file().ExpiryDate)}>
+          <div
+            class="expires-info"
+            title={`Expires ${relativeTime(file().ExpiryDate)} (${formatTimeDate(file().ExpiryDate)})`}
+          >
             <Icon name="trash-2" />
-            <span class="expiry-text">{relativeTime(file().ExpiryDate)}</span>
+            <span class="expiry-text">{relativeTime(file().ExpiryDate).replace(/^in /, '')}</span>
           </div>
         </Show>
-
-        <div class="views">
-          <Icon name="eye" />
-          <span class="views-text">{viewsText()}</span>
-        </div>
-
-        <div class="visibility-status">
-          <Icon name={file().Public ? 'lock-open' : 'lock'} />
-          <span class="visibility-text">{file().Public ? 'Public' : 'Private'}</span>
-        </div>
       </div>
-
-      <button type="button" class="delete-button-form delete-button" onClick={handleDelete}>
-        Delete
-      </button>
     </div>
   );
 }

@@ -41,6 +41,51 @@ export function closeModal() {
   setPendingModalEdge(null);
 }
 
+// Context menu state
+export interface FileMenuState {
+  file: FileData;
+  x: number;
+  y: number;
+  // Element to return focus to once the menu closes.
+  returnFocus?: HTMLElement | null;
+}
+export const [fileMenu, setFileMenu] = createSignal<FileMenuState | null>(null);
+
+export function openFileMenu(file: FileData, x: number, y: number, returnFocus?: HTMLElement | null) {
+  setFileMenu({ file, x, y, returnFocus });
+}
+
+export function closeFileMenu(restoreFocus = true) {
+  const menu = fileMenu();
+  setFileMenu(null);
+  if (restoreFocus) menu?.returnFocus?.focus?.();
+}
+
+// Confirm dialog state
+export interface ConfirmRequest {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  danger?: boolean;
+  resolve: (confirmed: boolean) => void;
+}
+export const [confirmRequest, setConfirmRequest] = createSignal<ConfirmRequest | null>(null);
+
+export function confirmDialog(options: Omit<ConfirmRequest, 'resolve'>): Promise<boolean> {
+  confirmRequest()?.resolve(false);
+  return new Promise((resolve) => setConfirmRequest({ ...options, resolve }));
+}
+
+// Toast state
+export const [toastMessage, setToastMessage] = createSignal<string | null>(null);
+let toastTimeoutId: ReturnType<typeof setTimeout> | undefined;
+
+export function showToast(message: string) {
+  if (toastTimeoutId) clearTimeout(toastTimeoutId);
+  setToastMessage(message);
+  toastTimeoutId = setTimeout(() => setToastMessage(null), 2000);
+}
+
 export function updateFileInList(fileName: string, updates: Partial<FileData>) {
   setFiles((prev) =>
     prev.map((f) => (f.FileName === fileName ? { ...f, ...updates } : f))

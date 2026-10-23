@@ -15,7 +15,6 @@ import {
   setSortField,
   sortDesc,
   setSortDesc,
-  removeFileFromList,
   tagFilter,
   setTagFilter,
   fileFilter,
@@ -29,8 +28,7 @@ import {
   openModal,
   markReplaceNextUrlSync,
 } from '../store';
-import { fetchFiles, deleteFile, FILES_PER_PAGE } from '../api';
-import { loadStats } from './FileStats';
+import { fetchFiles, FILES_PER_PAGE } from '../api';
 import { FileEntry } from './FileEntry';
 import { Icon } from './Icon';
 import { SelectBox } from './SelectBox';
@@ -93,24 +91,6 @@ export function FileGrid() {
     }
   };
 
-  const handleDelete = async (fileName: string) => {
-    const result = await deleteFile(fileName);
-    if (result.ok) {
-      removeFileFromList(fileName);
-      loadStats();
-
-      if (files().length === 0 && currentPage() > 0) {
-        const newPage = currentPage() - 1;
-        setCurrentPage(newPage);
-        loadFiles(newPage * FILES_PER_PAGE);
-      } else if (tagFilter()) {
-        loadFiles(currentPage() * FILES_PER_PAGE);
-      }
-    } else {
-      alert(`Failed to delete file: ${result.error || 'unknown error'}`);
-    }
-  };
-
   const currentFilterValue = () => {
     if (fileFilter() === 'untagged') return 'untagged';
     if (fileFilter() === 'public') return 'public';
@@ -159,7 +139,7 @@ export function FileGrid() {
           </Show>
 
           <For each={files()}>
-            {(file) => <FileEntry file={file} onDelete={handleDelete} />}
+            {(file) => <FileEntry file={file} />}
           </For>
         </div>
 

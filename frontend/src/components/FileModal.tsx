@@ -3,9 +3,11 @@ import { Portal } from 'solid-js/web';
 import './FileModal.css';
 import {
   closeModal,
+  closeFileMenu,
+  fileMenu,
   files,
+  openFileMenu,
   updateFileInList,
-  removeFileFromList,
   tagFilter,
   statsTags,
 } from '../store';
@@ -19,7 +21,8 @@ import {
   hasExpiry,
   fileUrl,
 } from '../utils';
-import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag, TAG_MAX_LENGTH, MAX_TAGS_PER_FILE } from '../api';
+import { addFileTag, removeFileTag, TAG_MAX_LENGTH, MAX_TAGS_PER_FILE } from '../api';
+import { copyFileLink, toggleVisibility } from '../fileActions';
 import { loadStats } from './FileStats';
 import { Icon } from './Icon';
 import { Tag } from './Tag';
@@ -31,13 +34,12 @@ export function FileModal(props: { file: FileData }) {
   const [localTags, setLocalTags] = createSignal<string[]>([]);
   const [showAutocomplete, setShowAutocomplete] = createSignal(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = createSignal(0);
-  const [isDeleting, setIsDeleting] = createSignal(false);
   const [isAddingTag, setIsAddingTag] = createSignal(false);
   const [isRemovingTag, setIsRemovingTag] = createSignal(false);
-  const [isTogglingVisibility, setIsTogglingVisibility] = createSignal(false);
 
   let blurTimeoutId: ReturnType<typeof setTimeout> | undefined;
   let closeButton: HTMLButtonElement | undefined;
+  let menuButton: HTMLButtonElement | undefined;
   let previouslyFocused: HTMLElement | null = null;
   let backdropMouseDownInside = false;
 
@@ -127,39 +129,30 @@ export function FileModal(props: { file: FileData }) {
       .slice(0, 5);
   });
 
-  const handleToggleVisibility = async () => {
-    if (isTogglingVisibility()) return;
-    setIsTogglingVisibility(true);
-    try {
-      const f = file();
-      const result = await toggleFileVisibility(f.FileName);
-      if (result.ok) {
-        updateFileInList(f.FileName, { Public: !f.Public });
-      } else {
-        alert(`Failed to change visibility: ${result.error || 'unknown error'}`);
-      }
-    } finally {
-      setIsTogglingVisibility(false);
-    }
+  const [copied, setCopied] = createSignal(false);
+  let copiedTimeoutId: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(copiedTimeoutId));
+  createEffect(on(() => props.file.FileName, () => {
+    clearTimeout(copiedTimeoutId);
+    setCopied(false);
+  }, { defer: true }));
+
+  const handleCopyLink = async () => {
+    if (!(await copyFileLink(file()))) return;
+    clearTimeout(copiedTimeoutId);
+    setCopied(true);
+    copiedTimeoutId = setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleDelete = async () => {
-    if (isDeleting()) return;
-    const f = file();
-    if (!confirm(`Are you sure you want to delete "${f.FileName}"?`)) return;
-    setIsDeleting(true);
-    try {
-      const result = await deleteFile(f.FileName);
-      if (result.ok) {
-        removeFileFromList(f.FileName);
-        loadStats();
-        closeModal();
-      } else {
-        alert(`Failed to delete file: ${result.error || 'unknown error'}`);
-      }
-    } finally {
-      setIsDeleting(false);
+  const isMenuOpen = () => fileMenu()?.returnFocus === menuButton;
+  const handleMenuButton = () => {
+    if (isMenuOpen()) {
+      closeFileMenu();
+      return;
     }
+    // Open leftwards from the button's right edge; the menu flips if needed.
+    const rect = menuButton!.getBoundingClientRect();
+    openFileMenu(file(), rect.right, rect.bottom + 4, menuButton);
   };
 
   const handleAddTag = async (tag?: string) => {
@@ -299,7 +292,7 @@ export function FileModal(props: { file: FileData }) {
         id="file-modal"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="file-modal-filename"
+        aria-label={file().OriginalFileName || file().FileName}
         onMouseDown={onBackdropMouseDown}
         onClick={onBackdropClick}
       >
@@ -309,23 +302,41 @@ export function FileModal(props: { file: FileData }) {
           onTouchEnd={onWindowTouchEnd}
         >
           <div class="file-modal-titlebar">
-            <a
-              id="file-modal-filename-url"
-              href={fileUrl(file().FileName)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span id="file-modal-filename">{file().FileName}</span>
-            </a>
-            <button
-              type="button"
-              ref={closeButton}
-              class="file-modal-close"
-              aria-label="Close"
-              onClick={closeModal}
-            >
-              <Icon name="x" />
-            </button>
+            <div class="file-modal-titlebar-actions">
+              <button
+                type="button"
+                class="file-modal-titlebar-button file-modal-copy"
+                classList={{ copied: copied() }}
+                aria-label={copied() ? 'Link copied' : 'Copy link'}
+                title={copied() ? 'Link copied' : 'Copy link'}
+                onClick={handleCopyLink}
+              >
+                <Show when={copied()} fallback={<Icon name="link" />}>
+                  <Icon name="check" />
+                </Show>
+              </button>
+              <button
+                type="button"
+                ref={menuButton}
+                class="file-modal-titlebar-button file-modal-more"
+                aria-label="File actions"
+                title="More actions"
+                aria-haspopup="menu"
+                aria-expanded={isMenuOpen()}
+                onClick={handleMenuButton}
+              >
+                <Icon name="ellipsis" />
+              </button>
+              <button
+                type="button"
+                ref={closeButton}
+                class="file-modal-titlebar-button file-modal-close"
+                aria-label="Close"
+                onClick={closeModal}
+              >
+                <Icon name="x" />
+              </button>
+            </div>
           </div>
 
           <div class="file-modal-contents">
@@ -394,10 +405,16 @@ export function FileModal(props: { file: FileData }) {
             <div class="file-modal-info">
               <div class="file-properties">
                 <Show when={file().OriginalFileName}>
-                  <div class="original-file-name">
+                  <div class="original-file-name" title="Original filename">
+                    <Icon name="case-sensitive" />
                     <code id="file-modal-original-filename">{file().OriginalFileName}</code>
                   </div>
                 </Show>
+
+                <div class="file-id" title="File ID">
+                  <Icon name="hash" />
+                  <code id="file-modal-filename">{file().FileName}</code>
+                </div>
 
                 <div class="views">
                   <Icon name="eye" />
@@ -410,6 +427,13 @@ export function FileModal(props: { file: FileData }) {
                   <Icon name="hard-drive" />
                   <span id="file-modal-filesize">{humanizeBytes(file().FileSize)}</span>
                 </div>
+
+                <Show when={file().MimeType}>
+                  <div class="mime-type" title="MIME type">
+                    <Icon name="file-type" />
+                    <span id="file-modal-mimetype">{file().MimeType}</span>
+                  </div>
+                </Show>
 
                 <div id="file-modal-createdat-wrapper" title={`Uploaded ${relativeTime(file().CreatedAt)}`}>
                   <Icon name="clock" />
@@ -427,10 +451,18 @@ export function FileModal(props: { file: FileData }) {
                   </div>
                 </Show>
 
-                <div class="visibility-status" title={file().Public ? 'This file can be viewed by anyone with the link.' : 'This file can only be viewed by you.'}>
+                <button
+                  type="button"
+                  class="visibility-status"
+                  id="file-modal-toggle-public-button"
+                  title={file().Public
+                    ? 'This file can be viewed by anyone with the link. Click to make it private.'
+                    : 'This file can only be viewed by you. Click to make it public.'}
+                  onClick={() => toggleVisibility(file())}
+                >
                   <Icon name={file().Public ? 'lock-open' : 'lock'} />
                   <span id="file-modal-visibility">{file().Public ? 'Public' : 'Private'}</span>
-                </div>
+                </button>
               </div>
 
               <div class="file-modal-tags">
@@ -494,27 +526,6 @@ export function FileModal(props: { file: FileData }) {
                     Add
                   </button>
                 </div>
-              </div>
-
-              <div class="file-actions">
-                <button
-                  type="button"
-                  class="toggle-visibility-button create-button"
-                  id="file-modal-toggle-public-button"
-                  disabled={isTogglingVisibility()}
-                  onClick={handleToggleVisibility}
-                >
-                  {file().Public ? 'Make Private' : 'Make Public'}
-                </button>
-                <button
-                  type="button"
-                  class="delete-button"
-                  id="file-modal-delete-button"
-                  disabled={isDeleting()}
-                  onClick={handleDelete}
-                >
-                  Delete
-                </button>
               </div>
             </div>
           </div>

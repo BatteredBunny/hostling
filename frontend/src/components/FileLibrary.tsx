@@ -2,6 +2,9 @@ import { createEffect, onCleanup, onMount, Show } from 'solid-js';
 import { FileGrid, loadFiles } from './FileGrid';
 import { FileStats } from './FileStats';
 import { FileModal } from './FileModal';
+import { FileMenu } from './FileMenu';
+import { ConfirmDialog } from './ConfirmDialog';
+import { Toast } from './Toast';
 import {
   currentPage,
   setCurrentPage,
@@ -14,6 +17,8 @@ import {
   fileFilter,
   setFileFilter,
   modalFile,
+  fileMenu,
+  confirmRequest,
   pendingModalFile,
   setPendingModalFile,
   setPendingModalEdge,
@@ -88,6 +93,13 @@ export function FileLibrary() {
       <Show when={modalFile()}>
         {(file) => <FileModal file={file()} />}
       </Show>
+      <Show when={fileMenu()} keyed>
+        {(menu) => <FileMenu menu={menu} />}
+      </Show>
+      <Show when={confirmRequest()} keyed>
+        {(request) => <ConfirmDialog request={request} />}
+      </Show>
+      <Toast />
     </>
   );
 }

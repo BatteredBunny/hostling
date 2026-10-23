@@ -30,29 +30,17 @@
         .file-modal-titlebar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 20px 24px;
+            justify-content: flex-end;
+            padding: 12px 16px;
             border-bottom: 1px solid var(--menu-border-color);
 
-            #file-modal-filename-url {
-                margin: 0;
-                font-size: 1.3rem;
-                font-weight: 600;
-                word-break: break-word;
-                max-width: calc(100% - 48px);
-                color: var(--text-color);
+            .file-modal-titlebar-actions {
                 display: flex;
                 align-items: center;
-                gap: 8px;
-                transition: color 0.2s ease;
-
-                &:hover {
-                    color: var(--link-color);
-                    text-decoration: none;
-                }
+                gap: 4px;
             }
 
-            .file-modal-close {
+            .file-modal-titlebar-button {
                 display: flex;
                 justify-content: center;
                 align-items: center;
@@ -70,13 +58,30 @@
                     transition: all 0.2s ease;
                 }
 
-                &:hover {
+                &:hover,
+                &[aria-expanded="true"] {
                     background-color: light-dark(rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.1));
-
-                    svg {
-                        transform: rotate(90deg);
-                    }
                 }
+            }
+
+            .file-modal-close:hover svg {
+                transform: rotate(90deg);
+            }
+
+            .file-modal-copy {
+                &:hover svg {
+                    transform: rotate(-20deg) scale(1.1);
+                }
+
+                &.copied svg {
+                    color: light-dark(rgb(0, 150, 60), rgb(80, 210, 120));
+                    transform: none;
+                    animation: file-modal-copied-pop 0.3s ease;
+                }
+            }
+
+            .file-modal-more:hover svg {
+                transform: scale(1.25);
             }
         }
 
@@ -177,7 +182,7 @@
                 gap: 16px;
                 min-width: 280px;
                 max-width: 320px;
-                justify-content: space-between;
+                justify-content: flex-start;
 
                 .file-properties {
                     display: flex;
@@ -188,7 +193,18 @@
                     border-radius: 10px;
                     padding: 8px;
 
-                    div {
+                    .visibility-status {
+                        width: 100%;
+                        background: none;
+                        border: none;
+                        color: inherit;
+                        font: inherit;
+                        text-align: left;
+                        cursor: pointer;
+                    }
+
+                    div,
+                    .visibility-status {
                         display: flex;
                         align-items: center;
                         padding: 10px 12px;
@@ -306,22 +322,6 @@
                         }
                     }
                 }
-
-                .file-actions {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-
-                    .toggle-visibility-button {
-                        width: 100%;
-                        padding: 12px 18px;
-                    }
-
-                    .delete-button {
-                        width: 100%;
-                        padding: 12px 18px;
-                    }
-                }
             }
         }
     }
@@ -355,5 +355,19 @@
             max-width: none !important;
             min-width: auto !important;
         }
+    }
+}
+
+@keyframes file-modal-copied-pop {
+    0% {
+        transform: scale(0.6);
+    }
+
+    60% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
     }
 }

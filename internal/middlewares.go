@@ -2,10 +2,12 @@ package internal
 
 import (
 	"errors"
+	"math"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/BatteredBunny/hostling/internal/db"
-	"github.com/didip/tollbooth/v8"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -13,9 +15,23 @@ import (
 
 func (app *Application) ratelimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		httpError := tollbooth.LimitByKeys(app.RateLimiter, []string{c.ClientIP()})
-		if httpError != nil {
-			c.Data(httpError.StatusCode, app.RateLimiter.GetMessageContentType(), []byte(httpError.Message))
+		limit, remaining, reset, ok, err := app.RateLimiter.Take(c.Request.Context(), c.ClientIP())
+		if err != nil {
+			log.Err(err).Msg("Rate limiter failed")
+			c.AbortWithStatus(http.StatusInternalServerError)
+
+			return
+		}
+
+		resetTime := time.Unix(0, int64(reset))
+		c.Header("X-RateLimit-Limit", strconv.FormatUint(limit, 10))
+		c.Header("X-RateLimit-Remaining", strconv.FormatUint(remaining, 10))
+		c.Header("X-RateLimit-Reset", resetTime.UTC().Format(http.TimeFormat))
+
+		if !ok {
+			retryAfter := max(1, int(math.Ceil(time.Until(resetTime).Seconds())))
+			c.Header("Retry-After", strconv.Itoa(retryAfter))
+			c.String(http.StatusTooManyRequests, "You have reached maximum request limit.")
 			c.Abort()
 
 			return

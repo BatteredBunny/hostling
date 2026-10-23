@@ -3,22 +3,37 @@ package internal
 import (
 	"context"
 	"html/template"
+	"math"
 	"time"
 
 	embed "github.com/BatteredBunny/hostling"
-	"github.com/didip/tollbooth/v8"
-	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/sethvargo/go-limiter"
+	"github.com/sethvargo/go-limiter/memorystore"
 )
 
-func setupRatelimiting(c Config) *limiter.Limiter {
+func setupRatelimiting(c Config) limiter.Store {
 	rate := c.RateLimit
 	if rate <= 0 {
 		rate = 10
 	}
 
-	return tollbooth.NewLimiter(rate, &limiter.ExpirableOptions{DefaultExpirationTTL: time.Hour})
+	// requests/second -> interval
+	tokens := max(1, uint64(math.Round(rate)))
+	interval := time.Duration(float64(tokens) / rate * float64(time.Second))
+
+	store, err := memorystore.New(&memorystore.Config{
+		Tokens:        tokens,
+		Interval:      interval,
+		SweepInterval: 10 * time.Minute,
+		SweepMinTTL:   time.Hour,
+	})
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to setup rate limiter")
+	}
+
+	return store
 }
 
 func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *Application) {

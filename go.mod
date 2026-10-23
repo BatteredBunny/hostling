@@ -6,7 +6,6 @@ require (
 	ariga.io/atlas v1.3.0
 	ariga.io/atlas-provider-gorm v0.6.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/didip/tollbooth/v8 v8.0.1
 	github.com/dustin/go-humanize v1.1.0
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/gin-gonic/gin v1.12.0
@@ -16,6 +15,7 @@ require (
 	github.com/markbates/goth v1.82.0
 	github.com/minio/minio-go/v7 v7.4.1
 	github.com/rs/zerolog v1.35.1
+	github.com/sethvargo/go-limiter v1.2.0
 	gorm.io/driver/postgres v1.6.3
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.2
@@ -52,7 +52,6 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/inflect v1.0.1 // indirect
-	github.com/go-pkgz/expirable-cache/v3 v3.1.1 // indirect
 	github.com/go-playground/locales v0.14.2 // indirect
 	github.com/go-playground/universal-translator v0.18.2 // indirect
 	github.com/go-playground/validator/v10 v10.30.5 // indirect

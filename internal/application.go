@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/BatteredBunny/hostling/internal/db"
-	"github.com/didip/tollbooth/v8/limiter"
 	"github.com/gin-gonic/gin"
 	"github.com/minio/minio-go/v7"
 	"github.com/rs/zerolog/log"
+	"github.com/sethvargo/go-limiter"
 )
 
 const shutdownTimeout = 30 * time.Second
@@ -26,7 +26,7 @@ type Application struct {
 	config      Config
 	db          db.Database
 	s3client    *minio.Client
-	RateLimiter *limiter.Limiter
+	RateLimiter limiter.Store
 	Router      *gin.Engine
 
 	shutdownCtx    context.Context
@@ -43,6 +43,12 @@ type Application struct {
 func (app *Application) Shutdown() {
 	if app.shutdownCancel != nil {
 		app.shutdownCancel()
+	}
+
+	if app.RateLimiter != nil {
+		if err := app.RateLimiter.Close(context.Background()); err != nil {
+			log.Warn().Err(err).Msg("Failed to close rate limiter")
+		}
 	}
 }
 

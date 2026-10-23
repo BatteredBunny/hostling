@@ -53,10 +53,16 @@ const multipartMaxMemory = 32 << 20 // 32 MiB
 
 // parses form
 func (app *Application) apiMiddleware() gin.HandlerFunc {
+	return app.multipartFormMiddleware(multipartMaxMemory)
+}
+
+// multipartFormMiddleware keeps standard multipart parsing and its field-order
+// semantics. A zero file-memory budget spools upload bodies directly to disk.
+func (app *Application) multipartFormMiddleware(maxFileMemory int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.ContentLength > 0 {
+		if c.Request.ContentLength != 0 {
 			if err := c.Request.ParseMultipartForm(
-				multipartMaxMemory,
+				maxFileMemory,
 			); err != nil &&
 				!errors.Is(err, http.ErrNotMultipart) {
 				c.String(http.StatusRequestEntityTooLarge, "Too big file")

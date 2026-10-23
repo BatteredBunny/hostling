@@ -89,7 +89,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	fileAPI := api.Group("/file")
 	fileAPI.Use(
 		app.ratelimitMiddleware(),
-		app.apiMiddleware(),
+		app.multipartFormMiddleware(0),
 		app.hasUploadOrSessionTokenMiddleware(),
 	)
 

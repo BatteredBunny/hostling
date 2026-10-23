@@ -2,6 +2,7 @@ package internal
 
 import (
 	"net/http"
+	"net/url"
 	"slices"
 	"testing"
 )
@@ -178,4 +179,46 @@ func TestListingCombinedQueryParams(t *testing.T) {
 		listing := admin.listFiles("tag=combo&sort=file_size&desc=true")
 		expectNames(t, "tag=combo sorted by size desc", fileNames(listing.Files), []string{large, small})
 	})
+}
+
+func TestListingTagFilterComposesWithVisibility(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	tagged := admin.upload()
+	untagged := admin.upload()
+	privateTagged := admin.upload()
+
+	admin.addTag(tagged, "combo")
+	admin.addTag(privateTagged, "combo")
+	admin.togglePublic(privateTagged)
+
+	tests := []struct {
+		query string
+		want  []string
+	}{
+		{"tag=combo&filter=public", []string{tagged}},
+		{"tag=combo&filter=private", []string{privateTagged}},
+		{"tag=combo&filter=untagged", []string{}},
+		{"filter=public", []string{tagged, untagged}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			got := fileNames(admin.listFiles(tt.query + "&sort=created_at&desc=false").Files)
+			expectNames(t, tt.query, got, tt.want)
+		})
+	}
+}
+
+func TestListingTagFilterIsCaseInsensitive(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	file := admin.upload()
+	admin.addTag(file, "Alpha")
+
+	for _, tag := range []string{"alpha", "ALPHA", " Alpha "} {
+		t.Run(tag, func(t *testing.T) {
+			expectNames(t, "tag="+tag, fileNames(admin.listFiles("tag="+url.QueryEscape(tag)).Files), []string{file})
+		})
+	}
 }

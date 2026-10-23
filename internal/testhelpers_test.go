@@ -31,8 +31,8 @@ type testServer struct {
 	srv *httptest.Server
 }
 
-// Spins up the full app against a fresh sqlite database and data folder
-func newTestServer(t *testing.T) *testServer {
+// Spins up the full app against a fresh sqlite database and data folder, opts can tweak the config
+func newTestServer(t *testing.T, opts ...func(*Config)) *testServer {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	t.Setenv("INITIAL_REGISTER_TOKEN", testInitialToken)
@@ -47,6 +47,9 @@ func newTestServer(t *testing.T) *testServer {
 		RateLimit:             1000,
 		PublicUrl:             "http://localhost",
 		Branding:              "Hostling",
+	}
+	for _, opt := range opts {
+		opt(&c)
 	}
 
 	app := setupRouter(&uninitializedApplication{
@@ -72,6 +75,8 @@ type testClient struct {
 	t    *testing.T
 	base string
 	http *http.Client
+
+	lastHeader http.Header // headers of the most recent response
 }
 
 // Client with its own cookie jar that doesn't follow redirects, so tests can assert on 3xx
@@ -118,6 +123,7 @@ func (tc *testClient) do(req *http.Request) (int, string) {
 		tc.t.Fatalf("%s %s: %v", req.Method, req.URL.Path, err)
 	}
 	defer resp.Body.Close()
+	tc.lastHeader = resp.Header
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

@@ -5,6 +5,9 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
+	"time"
+
+	"github.com/BatteredBunny/hostling/internal/db"
 )
 
 func idValues(id uint) url.Values {
@@ -161,5 +164,44 @@ func TestAccountSelfDelete(t *testing.T) {
 	}
 	if ts.blobExists(file) || ts.fileRowCount(file) != 0 {
 		t.Errorf("file blob and row should be removed")
+	}
+}
+
+// Expired files that cleanup hasn't swept yet must not be orphaned on disk when the account goes away
+func TestAccountDeletionRemovesExpiredBlobs(t *testing.T) {
+	tests := []struct {
+		name   string
+		delete func(ts *testServer, admin, user *testClient, userID uint)
+	}{
+		{"self delete", func(_ *testServer, _, user *testClient, _ uint) {
+			user.expectStatus(http.StatusOK, http.MethodDelete, "/api/account/", nil)
+		}},
+		{"admin delete", func(_ *testServer, admin, _ *testClient, userID uint) {
+			admin.expectStatus(http.StatusOK, http.MethodDelete, "/api/admin/user", idValues(userID))
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ts := newTestServer(t)
+			admin := ts.registerAdmin()
+			user, userID := ts.registerUser(admin)
+
+			expired := user.upload()
+			if err := ts.app.db.Model(&db.Files{}).
+				Where("file_name = ?", expired).
+				Update("expiry_date", time.Now().Add(-time.Minute)).Error; err != nil {
+				t.Fatal(err)
+			}
+
+			tt.delete(ts, admin, user, userID)
+
+			if ts.blobExists(expired) {
+				t.Errorf("expired file blob was orphaned on disk")
+			}
+			if ts.fileRowCount(expired) != 0 {
+				t.Errorf("expired file row should be removed")
+			}
+		})
 	}
 }

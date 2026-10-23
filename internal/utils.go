@@ -2,7 +2,6 @@ package internal
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -57,8 +56,28 @@ func formatContentDisposition(disposition, filename string) string {
 		`%s; filename="%s"; filename*=UTF-8''%s`,
 		disposition,
 		ascii.String(),
-		url.PathEscape(filename),
+		encodeRFC5987(filename),
 	)
+}
+
+// Percent-encodes everything outside RFC 5987 attr-char, url.PathEscape leaves chars like = and : that aren't allowed
+func encodeRFC5987(s string) string {
+	const upperhex = "0123456789ABCDEF"
+
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || strings.IndexByte("!#$&+-.^_`|~", c) >= 0 {
+			b.WriteByte(c)
+
+			continue
+		}
+		b.WriteByte('%')
+		b.WriteByte(upperhex[c>>4])
+		b.WriteByte(upperhex[c&15])
+	}
+
+	return b.String()
 }
 
 // Dangerous mime types that we force download for to prevent potential malicious file from rendering or executing

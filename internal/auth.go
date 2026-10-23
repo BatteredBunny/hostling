@@ -491,19 +491,24 @@ func (app *Application) linkApi(c *gin.Context) {
 		return
 	}
 
-	alreadyLinked := false
-	switch provider {
-	case "github":
-		alreadyLinked = account.GithubID > 0
-	case "openid-connect":
-		alreadyLinked = account.OIDCID != ""
-	}
-
 	if !loggedIn {
 		c.Redirect(http.StatusSeeOther, "/login")
 
 		return
 	}
+
+	var alreadyLinked bool
+	switch provider {
+	case "github":
+		alreadyLinked = account.GithubID > 0
+	case "openid-connect":
+		alreadyLinked = account.OIDCID != ""
+	default:
+		c.AbortWithStatus(http.StatusBadRequest)
+
+		return
+	}
+
 	if alreadyLinked {
 		c.Redirect(http.StatusSeeOther, "/settings")
 

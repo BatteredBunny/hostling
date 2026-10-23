@@ -378,7 +378,7 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 		return
 	}
-	if file, err := embed.PublicFiles().Open(path.Join("public", cleaned)); err == nil {
+	if file, err := embed.PublicFiles().Open(cleaned); err == nil {
 		info, statErr := file.Stat()
 		file.Close()
 		if statErr == nil && !info.IsDir() {
@@ -696,6 +696,9 @@ func (app *Application) filesAPI(c *gin.Context) {
 
 		return
 	}
+
+	// Tags are stored lowercased
+	input.Tag = strings.ToLower(strings.TrimSpace(input.Tag))
 
 	// Api returns 8 files at a time
 	var limit uint = 8

@@ -148,3 +148,28 @@ func TestLogoutInvalidatesSession(t *testing.T) {
 		t.Errorf("expected 303 for unauthenticated logout, got %d: %s", status, body)
 	}
 }
+
+func TestPublicFolderRedirect(t *testing.T) {
+	ts := newTestServer(t)
+	anon := ts.newClient()
+
+	for _, file := range []string{"favicon.ico", "robots.txt"} {
+		t.Run(file, func(t *testing.T) {
+			resp, err := anon.http.Get(anon.base + "/" + file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resp.Body.Close()
+
+			if resp.StatusCode != http.StatusFound {
+				t.Fatalf("expected 302, got %d", resp.StatusCode)
+			}
+			if got, want := resp.Header.Get("Location"), "/public/"+file; got != want {
+				t.Fatalf("expected redirect to %s, got %s", want, got)
+			}
+			if status, _ := anon.get("/public/" + file); status != http.StatusOK {
+				t.Errorf("expected redirect target to serve 200, got %d", status)
+			}
+		})
+	}
+}

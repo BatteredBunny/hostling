@@ -124,10 +124,9 @@ func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
 }
 
 func (db *Database) GetAllFilesFromAccount(accountID uint) (files []Files, err error) {
+	// Includes expired files not yet swept by cleanup, so deleting an account doesn't orphan their blobs
 	err = db.Model(&Files{}).
 		Where("uploader_id = ?", accountID).
-		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
-		// Filters expired files
 		Find(&files).Error
 
 	return
@@ -200,7 +199,9 @@ func (db *Database) GetFilesPaginatedFromAccount(
 			q = q.Where("files.public = ?", true)
 		case filter == "private":
 			q = q.Where("files.public = ?", false)
-		case tag != "":
+		}
+
+		if tag != "" {
 			q = q.Joins("JOIN file_tags ON file_tags.files_id = files.id").
 				Where("file_tags.tag_name = ?", tag)
 		}

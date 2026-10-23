@@ -1,10 +1,11 @@
 import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
+import { Portal } from 'solid-js/web';
 import { Icon } from './Icon';
 import { HostlingToast } from './HostlingToast';
-import { showToast } from '../toast';
+import { showToast, toast } from '../toast';
 import {
   fetchTokens, createUploadToken, deleteUploadToken, deleteInviteCode,
-  type UploadToken, type InviteCode,
+  type UploadToken, type CreatedUploadToken, type InviteCode,
 } from '../tokensApi';
 import { formatTimeDate, relativeTime } from '../utils';
 import './TokensPage.css';
@@ -18,6 +19,7 @@ export function TokensPage() {
   const [error, setError] = createSignal('');
   const [name, setName] = createSignal('');
   const [creating, setCreating] = createSignal(false);
+  const [createdToken, setCreatedToken] = createSignal<CreatedUploadToken>();
   let nameInput: HTMLInputElement | undefined;
 
   const load = async () => {
@@ -38,7 +40,7 @@ export function TokensPage() {
 
   const create = async (event: SubmitEvent) => {
     event.preventDefault();
-    if (creating()) return;
+    if (creating() || createdToken()) return;
     const nickname = name().trim();
     if (!nickname) {
       nameInput?.setCustomValidity('Give this token a name.');
@@ -49,9 +51,10 @@ export function TokensPage() {
     setError('');
     try {
       const token = await createUploadToken(nickname);
-      setTokens((previous) => [token, ...previous]);
+      const { token: secret, ...metadata } = token;
+      setTokens((previous) => [metadata, ...previous]);
+      setCreatedToken({ ...metadata, token: secret });
       if (name().trim() === nickname) setName('');
-      nameInput?.focus();
     } catch (err) {
       setError((err as Error).message || 'Could not create the token.');
     } finally {
@@ -60,8 +63,9 @@ export function TokensPage() {
   };
 
   const removeToken = async (token: UploadToken) => {
-    await deleteUploadToken(token.token);
-    setTokens((previous) => previous.filter((item) => item.token !== token.token));
+    await deleteUploadToken(token.id);
+    setTokens((previous) => previous.filter((item) => item.id !== token.id));
+    if (createdToken()?.id === token.id) setCreatedToken(undefined);
     showToast(`Deleted “${token.name || 'Unnamed token'}”.`);
     nameInput?.focus();
   };
@@ -90,7 +94,7 @@ export function TokensPage() {
                 <label for="token-name">Token name</label>
                 <input
                   ref={nameInput} id="token-name" name="nickname" type="text" required maxLength={64}
-                  placeholder="e.g. Screenshot uploader" autocomplete="off" aria-describedby="token-name-hint"
+                  placeholder="e.g. Screenshot uploader" autocomplete="off"
                   value={name()}
                   onInput={(event) => {
                     event.currentTarget.setCustomValidity('');
@@ -98,10 +102,13 @@ export function TokensPage() {
                   }}
                 />
               </div>
-              <button class="create-button" type="submit" disabled={creating()} aria-label={creating() ? 'Creating upload token' : 'Create upload token'} title="Create upload token">
+              <button class="create-button" type="submit" disabled={creating() || !!createdToken()} aria-label={creating() ? 'Creating upload token' : 'Create upload token'} title="Create upload token">
                 <Icon name={creating() ? 'loader-circle' : 'plus'} />
               </button>
             </form>
+          </Show>
+          <Show when={createdToken()} keyed>
+            {(token) => <CreatedTokenPanel token={token.token} onDismiss={() => { setCreatedToken(undefined); nameInput?.focus(); }} />}
           </Show>
           <Show when={error()}><p id="tokens-error" role="alert">{error()}</p></Show>
           <Show when={loaded()}>
@@ -141,33 +148,7 @@ function TokenEntry(props: {
   onDelete: () => Promise<void>;
   onError: (message: string) => void;
 }) {
-  const [revealed, setRevealed] = createSignal(false);
-  const [copied, setCopied] = createSignal(false);
   const [deleting, setDeleting] = createSignal(false);
-  let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-  const hide = () => setRevealed(false);
-  onMount(() => {
-    window.addEventListener('blur', hide);
-    document.addEventListener('visibilitychange', hide);
-  });
-  onCleanup(() => {
-    clearTimeout(copyTimeout);
-    window.removeEventListener('blur', hide);
-    document.removeEventListener('visibilitychange', hide);
-  });
-
-  const copy = async () => {
-    props.onError('');
-    try {
-      await copyText(props.token.token);
-      setCopied(true);
-      showToast('Token copied.');
-      clearTimeout(copyTimeout);
-      copyTimeout = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      props.onError('Could not copy the token.');
-    }
-  };
   const remove = async () => {
     if (deleting()) return;
     setDeleting(true);
@@ -184,46 +165,93 @@ function TokenEntry(props: {
     <article class="upload-token-entry">
       <div class="token-info">
         <h4 class="token-name">{props.token.name || 'Unnamed token'}</h4>
-        <span class="token-last-used">Last used: <span title={props.token.last_used ? formatTimeDate(props.token.last_used) : undefined}>
+        <span class="token-last-used">Created: <span title={formatTimeDate(props.token.created_at)}>{relativeTime(props.token.created_at)}</span> · Last used: <span title={props.token.last_used ? formatTimeDate(props.token.last_used) : undefined}>
           {props.token.last_used ? relativeTime(props.token.last_used) : 'Never'}
         </span></span>
       </div>
-      <div class="token-secret-row">
-        <code class="token-secret" aria-label={revealed() ? undefined : 'Hidden upload token'}>
-          {revealed() ? props.token.token : '••••••••••••••••••••••••'}
-        </code>
-        <div class="token-actions">
-          <button
-            type="button" class="token-action token-reveal" title="Hold to reveal" aria-label="Hold to reveal token" aria-pressed={revealed()}
-            onPointerDown={(event) => {
-              if (event.button !== 0) return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              setRevealed(true);
-            }}
-            onPointerUp={hide} onPointerCancel={hide} onLostPointerCapture={hide} onPointerLeave={hide} onBlur={hide}
-            onContextMenu={(event) => event.preventDefault()}
-            onKeyDown={(event) => {
-              if (event.key === ' ' || event.key === 'Enter') {
-                event.preventDefault();
-                setRevealed(true);
-              }
-            }}
-            onKeyUp={(event) => {
-              if (event.key === ' ' || event.key === 'Enter') {
-                event.preventDefault();
-                hide();
-              }
-            }}
-          ><Icon name={revealed() ? 'eye-off' : 'eye'} /></button>
-          <button type="button" class="token-action token-copy" classList={{ copied: copied() }} onClick={copy} title={copied() ? 'Copied' : 'Copy token'} aria-label={copied() ? 'Token copied' : 'Copy token'}>
-            <Icon name={copied() ? 'check' : 'copy'} />
-          </button>
-          <button type="button" class="token-action token-delete" onClick={remove} disabled={deleting()} title="Delete token" aria-label="Delete token">
-            <Icon name={deleting() ? 'loader-circle' : 'trash-2'} />
-          </button>
-        </div>
+      <div class="token-actions">
+        <button type="button" class="token-action token-delete" onClick={remove} disabled={deleting()} title="Delete token" aria-label="Delete token">
+          <Icon name={deleting() ? 'loader-circle' : 'trash-2'} />
+        </button>
       </div>
     </article>
+  );
+}
+
+function CreatedTokenPanel(props: { token: string; onDismiss: () => void }) {
+  const [copied, setCopied] = createSignal(false);
+  const [copyError, setCopyError] = createSignal('');
+  let dialog: HTMLDialogElement | undefined;
+  let copyButton: HTMLButtonElement | undefined;
+  let dismissButton: HTMLButtonElement | undefined;
+  let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+  let backdropPressed = false;
+
+  onMount(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const wasScrollLocked = document.body.classList.contains('no-scroll');
+    dialog?.showModal();
+    queueMicrotask(() => copyButton?.isConnected && copyButton.focus());
+    document.body.classList.add('no-scroll');
+    onCleanup(() => {
+      clearTimeout(copyTimeout);
+      dialog?.close();
+      if (!wasScrollLocked) document.body.classList.remove('no-scroll');
+      if (previousFocus?.isConnected) previousFocus.focus();
+    });
+  });
+
+  const outsideDialog = (event: MouseEvent) => {
+    if (event.target !== dialog || !dialog) return false;
+    const bounds = dialog.getBoundingClientRect();
+    return event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom;
+  };
+  const copy = async () => {
+    setCopyError('');
+    try {
+      await copyText(props.token, dialog ?? document.body);
+      setCopied(true);
+      showToast('Token copied.');
+      clearTimeout(copyTimeout);
+      copyTimeout = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyError('Could not copy the token. You can select and copy it below.');
+    }
+  };
+  return (
+    <Portal>
+      <dialog
+        ref={dialog} class="created-token-modal" aria-modal="true"
+        aria-labelledby="created-token-title" aria-describedby="created-token-notice"
+        onCancel={(event) => { event.preventDefault(); props.onDismiss(); }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Tab') return;
+          if (event.shiftKey && document.activeElement === copyButton) {
+            event.preventDefault();
+            dismissButton?.focus();
+          } else if (!event.shiftKey && document.activeElement === dismissButton) {
+            event.preventDefault();
+            copyButton?.focus();
+          }
+        }}
+        onMouseDown={(event) => { backdropPressed = outsideDialog(event); }}
+        onClick={(event) => { if (backdropPressed && outsideDialog(event)) props.onDismiss(); backdropPressed = false; }}
+      >
+        <header class="created-token-titlebar"><h2 id="created-token-title">Save your upload token</h2></header>
+        <div class="created-token-contents">
+          <p id="created-token-notice">This is your upload token. Please save it as you won't be able to view it again.</p>
+          <pre class="created-token-code"><code>{props.token}</code></pre>
+          <Show when={copyError()}><p class="created-token-error" role="alert">{copyError()}</p></Show>
+        </div>
+        <footer class="created-token-footer">
+          <button ref={copyButton} type="button" class="created-token-copy" onClick={copy}>
+            <Icon name={copied() ? 'check' : 'copy'} />{copied() ? 'Copied' : 'Copy token'}
+          </button>
+          <button ref={dismissButton} type="button" class="created-token-dismiss" onClick={() => props.onDismiss()}>Dismiss</button>
+        </footer>
+        <Show when={toast()} keyed>{(notification) => <div class="hostling-toast" role="status">{notification.message}</div>}</Show>
+      </dialog>
+    </Portal>
   );
 }
 
@@ -252,7 +280,7 @@ function InviteEntry(props: { invite: InviteCode; onDelete: () => Promise<void>;
   );
 }
 
-async function copyText(text: string) {
+async function copyText(text: string, container: HTMLElement) {
   try {
     await navigator.clipboard.writeText(text);
   } catch {
@@ -261,7 +289,7 @@ async function copyText(text: string) {
     textarea.value = text;
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
+    container.appendChild(textarea);
     try {
       textarea.select();
       if (!document.execCommand('copy')) throw new Error('Copy failed');

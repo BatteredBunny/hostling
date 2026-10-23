@@ -114,12 +114,12 @@ func TestUploadTokenNicknameLength(t *testing.T) {
 		"/api/account/upload_tokens",
 		url.Values{"nickname": {strings.Repeat("x", maxUploadTokenNickname)}},
 	)
-	var created db.UiUploadToken
+	var created db.CreatedUploadToken
 	if err := json.Unmarshal([]byte(token), &created); err != nil {
 		t.Fatal(err)
 	}
-	if status != http.StatusCreated || len(created.Token.String()) != 36 {
-		t.Errorf("max length nickname: expected 201 with UUID, got %d: %q", status, token)
+	if status != http.StatusCreated || len(created.Token) != 53 {
+		t.Errorf("max length nickname: expected 201 with random secret, got %d: %q", status, token)
 	}
 
 	status, body := admin.postForm(

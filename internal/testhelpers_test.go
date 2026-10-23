@@ -75,9 +75,10 @@ func newTestServer(t *testing.T, opts ...func(*Config)) *testServer {
 }
 
 type testClient struct {
-	t    *testing.T
-	base string
-	http *http.Client
+	server *testServer
+	t      *testing.T
+	base   string
+	http   *http.Client
 
 	lastHeader http.Header // headers of the most recent response
 }
@@ -90,8 +91,9 @@ func (ts *testServer) newClient() *testClient {
 	}
 
 	return &testClient{
-		t:    ts.t,
-		base: ts.srv.URL,
+		server: ts,
+		t:      ts.t,
+		base:   ts.srv.URL,
 		http: &http.Client{
 			Jar: jar,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -392,12 +394,12 @@ func (tc *testClient) newUploadToken(nickname string) string {
 		"/api/account/upload_tokens",
 		url.Values{"nickname": {nickname}},
 	)
-	var token db.UiUploadToken
+	var token db.CreatedUploadToken
 	if err := json.Unmarshal([]byte(body), &token); err != nil {
 		tc.t.Fatal(err)
 	}
 
-	return token.Token.String()
+	return token.Token
 }
 
 // Admin gives an invite code to the account, returns the code
@@ -457,4 +459,18 @@ func (ts *testServer) fileRowCount(name string) int64 {
 	}
 
 	return n
+}
+
+func (tc *testClient) uploadTokenID(secret string) string {
+	tc.t.Helper()
+	hash, err := db.HashUploadToken(secret)
+	if err != nil {
+		tc.t.Fatal(err)
+	}
+	var record db.UploadTokens
+	if err := tc.server.app.db.Where("token_hash = ?", hash).First(&record).Error; err != nil {
+		tc.t.Fatal(err)
+	}
+
+	return fmt.Sprint(record.ID)
 }

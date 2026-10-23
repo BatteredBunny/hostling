@@ -1,7 +1,12 @@
 export interface UploadToken {
-  token: string;
+  id: number;
+  created_at: string;
   name: string;
   last_used: string | null;
+}
+
+export interface CreatedUploadToken extends UploadToken {
+  token: string;
 }
 
 export interface InviteCode {
@@ -35,13 +40,13 @@ export async function fetchTokens(): Promise<TokensData> {
   return { upload_tokens: await tokensResponse.json(), invite_codes: await invitesResponse.json() };
 }
 
-export async function createUploadToken(name: string): Promise<UploadToken> {
+export async function createUploadToken(name: string): Promise<CreatedUploadToken> {
   const response = await request('/api/account/upload_tokens', 'POST', { nickname: name });
   return response.json();
 }
 
-export async function deleteUploadToken(token: string): Promise<void> {
-  await request('/api/account/upload_tokens', 'DELETE', { upload_token: token });
+export async function deleteUploadToken(id: number): Promise<void> {
+  await request('/api/account/upload_tokens', 'DELETE', { id: String(id) });
 }
 
 export async function deleteInviteCode(code: string): Promise<void> {

@@ -345,7 +345,7 @@ func TestCannotRevokeOtherUsersCredentials(t *testing.T) {
 	token := admin.newUploadToken("admin-token")
 	invite := admin.giveInviteCode(ts.adminID(), 1)
 
-	other.formRequest(http.MethodDelete, "/api/account/upload_tokens", url.Values{"upload_token": {token}})
+	other.formRequest(http.MethodDelete, "/api/account/upload_tokens", url.Values{"id": {admin.uploadTokenID(token)}})
 	other.formRequest(http.MethodDelete, "/api/account/invite_code", url.Values{"invite_code": {invite}})
 
 	if status, body := ts.newClient().uploadStatus(formField{"upload_token", token}); status != http.StatusOK {

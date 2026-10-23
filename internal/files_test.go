@@ -142,8 +142,8 @@ func TestUploadTokenLifecycle(t *testing.T) {
 	anon := ts.newClient()
 
 	token := admin.newUploadToken("test-token")
-	if len(token) != 36 {
-		t.Fatalf("expected UUID upload token, got %q", token)
+	if len(token) != 53 {
+		t.Fatalf("expected random upload token, got %q", token)
 	}
 
 	file := anon.upload(formField{"upload_token", token})
@@ -158,7 +158,7 @@ func TestUploadTokenLifecycle(t *testing.T) {
 		http.StatusOK,
 		http.MethodDelete,
 		"/api/account/upload_tokens",
-		url.Values{"upload_token": {token}},
+		url.Values{"id": {admin.uploadTokenID(token)}},
 	)
 
 	if status, body := anon.uploadStatus(formField{"upload_token", token}); status != http.StatusUnauthorized {

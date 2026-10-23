@@ -17,7 +17,6 @@ import (
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -547,27 +546,20 @@ func (app *Application) newUploadTokenAPI(c *gin.Context) {
 	}
 
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusCreated, db.UiUploadToken{Token: uploadToken, Nickname: nickname})
+	c.JSON(http.StatusCreated, uploadToken)
 }
 
 func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
 	account, _ := getAccount(c)
 
-	rawUploadToken := c.PostForm("upload_token")
-	if rawUploadToken == "" {
+	id, err := strconv.ParseUint(c.PostForm("id"), 10, 32)
+	if err != nil || id == 0 {
 		c.AbortWithStatus(http.StatusBadRequest)
 
 		return
 	}
 
-	uploadToken, err := uuid.Parse(rawUploadToken)
-	if err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
-
-		return
-	}
-
-	if err = app.db.DeleteUploadToken(account.ID, uploadToken); err != nil {
+	if err = app.db.DeleteUploadToken(account.ID, uint(id)); err != nil {
 		log.Err(err).Msg("Failed to delete upload token")
 		c.AbortWithStatus(http.StatusInternalServerError)
 

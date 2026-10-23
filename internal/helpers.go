@@ -13,7 +13,6 @@ import (
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
@@ -159,7 +158,7 @@ func (app *Application) generateFullFileName(mime *mimetype.MIME) string {
 	return randomString() + ext
 }
 
-func (app *Application) isValidUploadToken(uploadToken uuid.UUID) (bool, error) {
+func (app *Application) isValidUploadToken(uploadToken string) (bool, error) {
 	_, err := app.db.GetAccountByUploadToken(uploadToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil

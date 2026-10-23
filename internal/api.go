@@ -159,7 +159,7 @@ func (app *Application) toggleFilePublicAPI(c *gin.Context) {
 
 /*
 Api for uploading file
-curl -F 'upload_token=1234567890' -F 'file=@yourfile.png'
+curl -F "upload_token=$HOSTLING_UPLOAD_TOKEN" -F 'file=@yourfile.png' https://your-hostling/api/file/upload
 
 Additional inputs:
 expiry_timestamp: unix timestamp in seconds
@@ -269,7 +269,9 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	case fileStorageS3:
 		written, err = app.uploadFileS3(c.Request.Context(), body, fileHeader.Size, fullFileName)
 	case fileStorageLocal:
-		written, err = writeLocalFile(filepath.Join(app.config.DataFolder, fullFileName), body)
+		written, err = writeLocalUploadFile(
+			filepath.Join(app.config.DataFolder, fullFileName), body, fileRaw, fileHeader.Size,
+		)
 	default:
 		err = ErrUnknownStorageMethod
 	}
@@ -301,7 +303,7 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	if sid, ok := getSessionToken(c); ok {
 		input.SessionToken = uuid.NullUUID{UUID: sid, Valid: true}
 	} else if uid, ok := getUploadToken(c); ok {
-		input.UploadToken = uuid.NullUUID{UUID: uid, Valid: true}
+		input.UploadTokenHash = uid
 	} else {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 30*time.Second)
 		defer cancel()

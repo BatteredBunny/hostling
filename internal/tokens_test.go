@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
 	"github.com/BatteredBunny/hostling/internal/db"
-	"github.com/google/uuid"
 )
 
 func TestTokenListsRequireSession(t *testing.T) {
@@ -44,23 +44,24 @@ func TestUploadTokenManagementAPI(t *testing.T) {
 	admin := ts.registerAdmin()
 	other, _ := ts.registerUser(admin)
 	token := admin.newUploadToken("  Screenshot uploader  ")
-	otherToken := other.newUploadToken("Other account")
+	other.newUploadToken("Other account")
+	tokenID := admin.uploadTokenID(token)
 
 	var tokens []db.UiUploadToken
 	admin.getJSON("/api/account/upload_tokens", &tokens)
-	if len(tokens) != 1 || tokens[0].Token.String() != token || tokens[0].Nickname != "Screenshot uploader" ||
+	if len(tokens) != 1 || fmt.Sprint(tokens[0].ID) != tokenID || tokens[0].Nickname != "Screenshot uploader" ||
 		tokens[0].LastUsed != nil {
 		t.Fatalf("unexpected token list: %+v", tokens)
 	}
 	other.getJSON("/api/account/upload_tokens", &tokens)
-	if len(tokens) != 1 || tokens[0].Token.String() != otherToken {
+	if len(tokens) != 1 || tokens[0].Nickname != "Other account" {
 		t.Fatalf("other account's list contains the wrong tokens: %+v", tokens)
 	}
 
 	// A different account cannot revoke this token.
-	other.formRequest(http.MethodDelete, "/api/account/upload_tokens", url.Values{"upload_token": {token}})
+	other.formRequest(http.MethodDelete, "/api/account/upload_tokens", url.Values{"id": {tokenID}})
 	admin.getJSON("/api/account/upload_tokens", &tokens)
-	if len(tokens) != 1 || tokens[0].Token.String() != token {
+	if len(tokens) != 1 || fmt.Sprint(tokens[0].ID) != tokenID {
 		t.Fatal("cross-account deletion removed a token")
 	}
 
@@ -74,7 +75,7 @@ func TestUploadTokenManagementAPI(t *testing.T) {
 		http.StatusOK,
 		http.MethodDelete,
 		"/api/account/upload_tokens",
-		url.Values{"upload_token": {token}},
+		url.Values{"id": {tokenID}},
 	)
 	admin.getJSON("/api/account/upload_tokens", &tokens)
 	if len(tokens) != 0 {
@@ -117,7 +118,7 @@ func TestUploadTokenLimit(t *testing.T) {
 	admin := ts.registerAdmin()
 	tokens := make([]db.UploadTokens, maxUploadTokensPerAccount)
 	for i := range tokens {
-		tokens[i] = db.UploadTokens{AccountID: ts.adminID(), Token: uuid.New(), Nickname: "existing"}
+		tokens[i] = db.UploadTokens{AccountID: ts.adminID(), TokenHash: fmt.Sprintf("%064x", i+1), Nickname: "existing"}
 	}
 	if err := ts.app.db.Create(&tokens).Error; err != nil {
 		t.Fatal(err)
@@ -172,5 +173,62 @@ func TestInviteCodeListingIsScopedAndActive(t *testing.T) {
 	admin.getJSON("/api/account/invite_code", &invites)
 	if len(invites) != 0 {
 		t.Fatal("deleted invite is still listed")
+	}
+}
+
+func TestUploadTokenSecretIsOnlyReturnedAtCreation(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	secret := admin.newUploadToken("one time")
+	if !strings.HasPrefix(secret, "hl_upload_") || len(secret) != 53 {
+		t.Fatalf("unexpected token format: %q", secret)
+	}
+	if got := admin.lastHeader.Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("creation cache policy: %q", got)
+	}
+	hash, err := db.HashUploadToken(secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored db.UploadTokens
+	if err := ts.app.db.Where("token_hash = ?", hash).First(&stored).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.TokenHash == secret || len(stored.TokenHash) != 64 {
+		t.Fatal("secret was not hashed")
+	}
+	_, body := admin.get("/api/account/upload_tokens")
+	if strings.Contains(body, secret) || strings.Contains(body, hash) || strings.Contains(body, `"token"`) ||
+		strings.Contains(body, `"token_hash"`) {
+		t.Fatalf("listing discloses credential: %s", body)
+	}
+	if status, _ := ts.newClient().uploadStatus(formField{"upload_token", hash}); status != http.StatusUnauthorized {
+		t.Fatalf("hash authenticated: %d", status)
+	}
+}
+
+func TestUploadTokenRevokedBetweenAuthenticationAndFileCreation(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	secret := admin.newUploadToken("revoked")
+	if valid, err := ts.app.isValidUploadToken(secret); err != nil || !valid {
+		t.Fatalf("initial authentication: %v %v", valid, err)
+	}
+	hash, _ := db.HashUploadToken(secret)
+	admin.expectStatus(
+		http.StatusOK,
+		http.MethodDelete,
+		"/api/account/upload_tokens",
+		url.Values{"id": {admin.uploadTokenID(secret)}},
+	)
+	if err := ts.app.db.CreateFileEntry(
+		db.CreateFileEntryInput{UploadTokenHash: hash, Files: db.Files{FileName: "revoked.png"}},
+	); err == nil {
+		t.Fatal("revoked token created a file")
+	}
+	var count int64
+	ts.app.db.Model(&db.Files{}).Where("file_name = ?", "revoked.png").Count(&count)
+	if count != 0 {
+		t.Fatal("revoked token left a file record")
 	}
 }

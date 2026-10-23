@@ -80,14 +80,14 @@ func getSessionToken(c *gin.Context) (uuid.UUID, bool) {
 	return id, ok
 }
 
-func getUploadToken(c *gin.Context) (uuid.UUID, bool) {
+func getUploadToken(c *gin.Context) (string, bool) {
 	v, ok := c.Get("uploadToken")
 	if !ok {
-		return uuid.Nil, false
+		return "", false
 	}
-	id, ok := v.(uuid.UUID)
+	hash, ok := v.(string)
 
-	return id, ok
+	return hash, ok
 }
 
 func getAccount(c *gin.Context) (db.Accounts, bool) {
@@ -142,10 +142,10 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 		rawUploadToken, uploadTokenExists := c.GetPostForm("upload_token")
 
 		if uploadTokenExists && rawUploadToken != "" {
-			var uploadToken uuid.UUID
-			var err error
-			if uploadToken, err = uuid.Parse(rawUploadToken); err != nil {
-				_ = c.AbortWithError(http.StatusUnauthorized, err)
+			uploadToken := rawUploadToken
+			hash, err := db.HashUploadToken(uploadToken)
+			if err != nil {
+				c.AbortWithStatus(http.StatusUnauthorized)
 
 				return
 			}
@@ -162,7 +162,7 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			c.Set("uploadToken", uploadToken)
+			c.Set("uploadToken", hash)
 		} else {
 			sessionToken, account, loggedIn, err := app.validateAuthCookie(c)
 			if err != nil && !errors.Is(err, ErrInvalidAuthCookie) {

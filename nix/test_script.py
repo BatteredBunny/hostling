@@ -128,20 +128,21 @@ def verify_file_deletion(small_file, large_file):
 
 
 def verify_upload_token_lifecycle():
-    upload_token = api_call(
-        "/api/account/upload_token", fields={"nickname": "test-token"}
-    )
-    assert len(upload_token) == 36, (
-        f"Expected UUID upload token, got {repr(upload_token)}"
+    created = json.loads(api_call(
+        "/api/account/upload_tokens", fields={"nickname": "test-token"}
+    ))
+    upload_token = created["token"]
+    assert upload_token.startswith("hl_upload_") and len(upload_token) == 53, (
+        f"Expected random upload token, got {repr(upload_token)}"
     )
 
     token_uploaded = upload_file(cookies=None, fields={"upload_token": upload_token})
     assert token_uploaded, f"Expected upload path, got {repr(token_uploaded)}"
 
     api_call(
-        "/api/account/upload_token",
+        "/api/account/upload_tokens",
         method="DELETE",
-        fields={"upload_token": upload_token},
+        fields={"id": str(created["id"])},
     )
 
     status = api_status(

@@ -120,19 +120,75 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 		return err
 	}
 
-	// Apply all pending migrations
-	if err = executor.ExecuteN(ctx, 0); err != nil {
-		if !errors.Is(err, migrate.ErrNoPendingFiles) {
-			err = fmt.Errorf("failed to execute migrations: %w", err)
-
-			return
-		}
-		err = nil
-	} else {
-		log.Info().Msg("Migrations applied successfully")
+	if err = executePendingMigrations(ctx, executor, database, databaseType, dir); err != nil {
+		return err
 	}
+	log.Info().Msg("Migrations applied successfully")
 
 	return
+}
+
+const uploadTokenFinalizeVersion = "20261023000001"
+
+func executePendingMigrations(
+	ctx context.Context,
+	executor *migrate.Executor,
+	database *gorm.DB,
+	databaseType string,
+	dir migrate.Dir,
+) error {
+	for {
+		pending, err := executor.Pending(ctx)
+		if errors.Is(err, migrate.ErrNoPendingFiles) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read pending migrations: %w", err)
+		}
+		if len(pending) == 0 {
+			return nil
+		}
+		if pending[0].Version() == uploadTokenFinalizeVersion {
+			if err := finalizeUploadTokenMigration(ctx, database, databaseType, dir); err != nil {
+				return fmt.Errorf("failed to migrate upload token secrets: %w", err)
+			}
+
+			continue
+		}
+		if err := executor.ExecuteN(ctx, 1); err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", pending[0].Version(), err)
+		}
+	}
+}
+
+// Backfill, schema changes, and Atlas revision tracking commit together. A
+// stopped upgrade can therefore retry without a half-rebuilt SQLite table or a
+// plaintext column removed before its verifier was committed.
+func finalizeUploadTokenMigration(ctx context.Context, database *gorm.DB, databaseType string, dir migrate.Dir) error {
+	return database.Transaction(func(tx *gorm.DB) error {
+		if err := db.BackfillUploadTokenHashes(tx); err != nil {
+			return err
+		}
+		var driver migrate.Driver
+		var err error
+		switch databaseType {
+		case "postgresql":
+			driver, err = postgres.Open(tx.Statement.ConnPool)
+		case "sqlite":
+			driver, err = sqlite.Open(tx.Statement.ConnPool)
+		default:
+			return fmt.Errorf("unsupported database type %q", databaseType)
+		}
+		if err != nil {
+			return err
+		}
+		executor, err := migrate.NewExecutor(driver, dir, db.NewRevisionReaderWriter(tx), migrate.WithAllowDirty(true))
+		if err != nil {
+			return err
+		}
+
+		return executor.ExecuteN(ctx, 1)
+	})
 }
 
 // Temporary code to migrate from existing database from before migration system

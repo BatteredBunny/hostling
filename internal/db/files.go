@@ -53,8 +53,8 @@ func (db *Database) DeleteFileEntry(fileName string, accountID uint) error {
 type CreateFileEntryInput struct {
 	Files Files
 
-	UploadToken  uuid.NullUUID
-	SessionToken uuid.NullUUID
+	UploadTokenHash string
+	SessionToken    uuid.NullUUID
 }
 
 var ErrNotAuthenticated = errors.New("not authenticated")
@@ -74,9 +74,10 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 				First(&accountID).Error; err != nil {
 				return err
 			}
-		case input.UploadToken.Valid:
+		case input.UploadTokenHash != "":
 			if err := tx.Model(&UploadTokens{}).
-				Where(&UploadTokens{Token: input.UploadToken.UUID}).
+				Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("token_hash = ?", input.UploadTokenHash).
 				Select("account_id").
 				First(&accountID).Error; err != nil {
 				return err
@@ -112,7 +113,7 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 		}
 
 		return tx.Model(&UploadTokens{}).
-			Where(&UploadTokens{Token: input.UploadToken.UUID}).
+			Where("token_hash = ?", input.UploadTokenHash).
 			Update("last_used", now).Error
 	})
 }

@@ -356,29 +356,16 @@ func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Ac
 	return
 }
 
-func (db *Database) GetAccountByUploadToken(uploadToken uuid.UUID) (account Accounts, err error) {
-	now := time.Now()
-
-	var accountID uint
-	if err = db.Model(&UploadTokens{}).
-		Where("token = ?", uploadToken).
-		Select("account_id").
-		First(&accountID).Error; err != nil {
+func (db *Database) GetAccountByUploadToken(uploadToken string) (account Accounts, err error) {
+	hash, err := HashUploadToken(uploadToken)
+	if err != nil {
+		return account, gorm.ErrRecordNotFound
+	}
+	var record UploadTokens
+	if err = db.Where("token_hash = ?", hash).First(&record).Error; err != nil {
 		return
 	}
-
-	if err = db.Model(&Accounts{}).
-		Where("id = ?", accountID).
-		First(&account).Error; err != nil {
-		return
-	}
-
-	if updErr := db.Model(&UploadTokens{}).
-		Where("token = ?", uploadToken).
-		Where("last_used IS NULL OR last_used < ?", now.Add(-lastUsedDebounce)).
-		Update("last_used", now).Error; updErr != nil {
-		log.Err(updErr).Msg("Failed to update last used time for upload token")
-	}
+	err = db.First(&account, record.AccountID).Error
 
 	return
 }

@@ -128,7 +128,10 @@ func RunMigrations(database *gorm.DB, databaseType string, databaseConnectionUrl
 	return
 }
 
-const uploadTokenFinalizeVersion = "20261023000001"
+const (
+	uploadTokenFinalizeVersion  = "20261023000001"
+	sessionTokenFinalizeVersion = "20261023000003"
+)
 
 func executePendingMigrations(
 	ctx context.Context,
@@ -148,9 +151,16 @@ func executePendingMigrations(
 		if len(pending) == 0 {
 			return nil
 		}
-		if pending[0].Version() == uploadTokenFinalizeVersion {
-			if err := finalizeUploadTokenMigration(ctx, database, databaseType, dir); err != nil {
-				return fmt.Errorf("failed to migrate upload token secrets: %w", err)
+		var backfill func(*gorm.DB) error
+		switch pending[0].Version() {
+		case uploadTokenFinalizeVersion:
+			backfill = db.BackfillUploadTokenHashes
+		case sessionTokenFinalizeVersion:
+			backfill = db.BackfillSessionTokenHashes
+		}
+		if backfill != nil {
+			if err := finalizeTokenHashMigration(ctx, database, databaseType, dir, backfill); err != nil {
+				return fmt.Errorf("failed to migrate token secrets in %s: %w", pending[0].Version(), err)
 			}
 
 			continue
@@ -164,9 +174,15 @@ func executePendingMigrations(
 // Backfill, schema changes, and Atlas revision tracking commit together. A
 // stopped upgrade can therefore retry without a half-rebuilt SQLite table or a
 // plaintext column removed before its verifier was committed.
-func finalizeUploadTokenMigration(ctx context.Context, database *gorm.DB, databaseType string, dir migrate.Dir) error {
+func finalizeTokenHashMigration(
+	ctx context.Context,
+	database *gorm.DB,
+	databaseType string,
+	dir migrate.Dir,
+	backfill func(*gorm.DB) error,
+) error {
 	return database.Transaction(func(tx *gorm.DB) error {
-		if err := db.BackfillUploadTokenHashes(tx); err != nil {
+		if err := backfill(tx); err != nil {
 			return err
 		}
 		var driver migrate.Driver

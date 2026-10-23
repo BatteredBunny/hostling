@@ -1,4 +1,4 @@
-h1:tSHmH5KYLmiB6wI8UKEMqHyamEpR4qynh9Ztnll6zdU=
+h1:c7fiO6pM9C1Rp/SRTSyrCkLRe6UuFTi1dnvs7GAbTZs=
 20260124190605.sql h1:LhjHyEYwAo8RQJhchP8aLEzcBgO1LEIAGD9Pibw2aVE=
 20260124190627.sql h1:KeJ9DC6gahBccliNtCa2GWymK7B0jFMXc0i5u+F+Uwo=
 20260308160459.sql h1:0o6SGk224BXGmJpTc7U6UEsQvnzYwpn6CgjDWqM7epc=
@@ -10,3 +10,5 @@ h1:tSHmH5KYLmiB6wI8UKEMqHyamEpR4qynh9Ztnll6zdU=
 20260513000000_reset_view_hashes.sql h1:K9R/rzQK8A8jRu7xCiaA2kY2HrU8YpBzY4hxjWCpRl8=
 20261023000000_add_upload_token_hash.sql h1:k8am3nA/rx6+CjDH4FIpm41Mk6y2YtI2NBRYrTfI+HI=
 20261023000001_remove_plaintext_upload_tokens.sql h1:FQyqyAU5Dv7sLVOB3IYvKSksVXIKIl/h7+hZMJ3LQxM=
+20261023000002_add_session_token_hash.sql h1:cKA0egqRvyZcd6M6wgUKcgFjl6hq1RDVwoXewVyPdHA=
+20261023000003_remove_plaintext_session_tokens.sql h1:7br7N7LYS1pZMYyhMv0tkDPjSgYCo2bMazxC4gdP0fQ=

@@ -9,7 +9,6 @@ import (
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -76,14 +75,14 @@ func (app *Application) multipartFormMiddleware(maxFileMemory int64) gin.Handler
 	}
 }
 
-func getSessionToken(c *gin.Context) (uuid.UUID, bool) {
+func getSessionToken(c *gin.Context) (string, bool) {
 	v, ok := c.Get("sessionToken")
 	if !ok {
-		return uuid.Nil, false
+		return "", false
 	}
-	id, ok := v.(uuid.UUID)
+	hash, ok := v.(string)
 
-	return id, ok
+	return hash, ok
 }
 
 func getUploadToken(c *gin.Context) (string, bool) {
@@ -123,7 +122,8 @@ func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("sessionToken", sessionToken)
+		sessionHash, _ := db.HashSessionToken(sessionToken) // Cookie validation already checked its format.
+		c.Set("sessionToken", sessionHash)
 		c.Set("account", account)
 		c.Next()
 	}
@@ -182,7 +182,8 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			c.Set("sessionToken", sessionToken)
+			sessionHash, _ := db.HashSessionToken(sessionToken) // Cookie validation already checked its format.
+			c.Set("sessionToken", sessionHash)
 			c.Set("account", account)
 		}
 

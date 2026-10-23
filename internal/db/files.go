@@ -4,7 +4,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -53,8 +52,8 @@ func (db *Database) DeleteFileEntry(fileName string, accountID uint) error {
 type CreateFileEntryInput struct {
 	Files Files
 
-	UploadTokenHash string
-	SessionToken    uuid.NullUUID
+	UploadTokenHash  string
+	SessionTokenHash string
 }
 
 var ErrNotAuthenticated = errors.New("not authenticated")
@@ -66,9 +65,10 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 		now := time.Now()
 
 		switch {
-		case input.SessionToken.Valid:
+		case input.SessionTokenHash != "":
 			if err := tx.Model(&SessionTokens{}).
-				Where(&SessionTokens{Token: input.SessionToken.UUID}).
+				Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("token_hash = ?", input.SessionTokenHash).
 				Where("expiry_date > ?", now).
 				Select("account_id").
 				First(&accountID).Error; err != nil {
@@ -106,9 +106,9 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 			}
 		}
 
-		if input.SessionToken.Valid {
+		if input.SessionTokenHash != "" {
 			return tx.Model(&SessionTokens{}).
-				Where(&SessionTokens{Token: input.SessionToken.UUID}).
+				Where("token_hash = ?", input.SessionTokenHash).
 				Update("last_used", now).Error
 		}
 

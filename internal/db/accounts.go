@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -328,12 +327,16 @@ func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
 // write on every authenticated request.
 const lastUsedDebounce = time.Minute
 
-func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Accounts, err error) {
+func (db *Database) GetAccountBySessionToken(sessionToken string) (account Accounts, err error) {
+	hash, err := HashSessionToken(sessionToken)
+	if err != nil {
+		return account, gorm.ErrRecordNotFound
+	}
 	now := time.Now()
 
 	var accountID uint
 	if err = db.Model(&SessionTokens{}).
-		Where("token = ?", sessionToken).
+		Where("token_hash = ?", hash).
 		Where("expiry_date > ?", now).
 		Select("account_id").
 		First(&accountID).Error; err != nil {
@@ -347,7 +350,7 @@ func (db *Database) GetAccountBySessionToken(sessionToken uuid.UUID) (account Ac
 	}
 
 	if updErr := db.Model(&SessionTokens{}).
-		Where("token = ?", sessionToken).
+		Where("token_hash = ?", hash).
 		Where("last_used < ?", now.Add(-lastUsedDebounce)).
 		Update("last_used", now).Error; updErr != nil {
 		log.Err(updErr).Msg("Failed to update last used time for session token")
@@ -406,7 +409,7 @@ func (db *Database) CreateAccount(accountType string, invitedBy uint) (account A
 	return
 }
 
-func (db *Database) RegisterWithInviteCode(code string) (account Accounts, sessionToken uuid.UUID, err error) {
+func (db *Database) RegisterWithInviteCode(code string) (account Accounts, sessionToken string, err error) {
 	err = db.Transaction(func(tx *gorm.DB) error {
 		txDB := &Database{DB: tx}
 

@@ -12,7 +12,6 @@ import (
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -104,8 +103,8 @@ func (app *Application) clearLinkingCookie(c *gin.Context) {
 	app.setCookie(c, LINKING_COOKIE, "", -1)
 }
 
-func (app *Application) setAuthCookie(sessionToken uuid.UUID, c *gin.Context) {
-	app.setCookie(c, AUTH_COOKIE, sessionToken.String(), authCookieMaxAge)
+func (app *Application) setAuthCookie(sessionToken string, c *gin.Context) {
+	app.setCookie(c, AUTH_COOKIE, sessionToken, authCookieMaxAge)
 }
 
 func (app *Application) clearAuthCookie(c *gin.Context) {
@@ -114,18 +113,22 @@ func (app *Application) clearAuthCookie(c *gin.Context) {
 
 var ErrInvalidAuthCookie = errors.New("invalid session token")
 
-func (app *Application) parseAuthCookie(c *gin.Context) (sessionToken uuid.UUID, err error) {
+func (app *Application) parseAuthCookie(c *gin.Context) (sessionToken string, err error) {
 	rawSessionToken, err := c.Cookie(AUTH_COOKIE)
 	if err != nil {
 		return
 	}
 
-	return uuid.Parse(rawSessionToken)
+	if _, err := db.HashSessionToken(rawSessionToken); err != nil {
+		return "", ErrInvalidAuthCookie
+	}
+
+	return rawSessionToken, nil
 }
 
 func (app *Application) validateAuthCookie(
 	c *gin.Context,
-) (sessionToken uuid.UUID, account db.Accounts, loggedIn bool, err error) {
+) (sessionToken string, account db.Accounts, loggedIn bool, err error) {
 	sessionToken, err = app.parseAuthCookie(c)
 	if err != nil {
 		err = ErrInvalidAuthCookie

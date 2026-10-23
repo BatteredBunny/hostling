@@ -16,7 +16,6 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -301,7 +300,7 @@ func (app *Application) uploadFileAPI(c *gin.Context) {
 	}
 
 	if sid, ok := getSessionToken(c); ok {
-		input.SessionToken = uuid.NullUUID{UUID: sid, Valid: true}
+		input.SessionTokenHash = sid
 	} else if uid, ok := getUploadToken(c); ok {
 		input.UploadTokenHash = uid
 	} else {

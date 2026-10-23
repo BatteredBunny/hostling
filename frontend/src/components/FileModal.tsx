@@ -3,6 +3,7 @@ import { Portal } from 'solid-js/web';
 import './FileModal.css';
 import {
   closeModal,
+  files,
   updateFileInList,
   removeFileFromList,
   tagFilter,
@@ -22,7 +23,7 @@ import { toggleFileVisibility, deleteFile, addFileTag, removeFileTag, TAG_MAX_LE
 import { loadStats } from './FileStats';
 import { Icon } from './Icon';
 import { Tag } from './Tag';
-import { loadFiles } from './FileGrid';
+import { loadFiles, showAdjacentFile, hasAdjacentFile } from './FileGrid';
 import type { FileData } from '../types';
 
 export function FileModal(props: { file: FileData }) {
@@ -52,6 +53,16 @@ export function FileModal(props: { file: FileData }) {
     onCleanup(() => document.body.classList.remove('no-scroll'));
 
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        // Leave arrows alone where they already mean something:
+        // text cursor movement and media seeking.
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        const target = e.target as HTMLElement | null;
+        if (target?.closest('input, textarea, video, audio')) return;
+        e.preventDefault();
+        showAdjacentFile(e.key === 'ArrowLeft' ? -1 : 1);
+        return;
+      }
       if (e.key !== 'Escape') return;
       // If autocomplete is open, let its own onKeyDown dismiss it first.
       if (showAutocomplete()) return;
@@ -82,6 +93,25 @@ export function FileModal(props: { file: FileData }) {
   });
 
   const file = () => props.file;
+
+  // Warm the cache for neighbouring images so stepping through feels instant.
+  createEffect(on(() => props.file.FileName, (name) => {
+    const list = files();
+    const index = list.findIndex((f) => f.FileName === name);
+    if (index === -1) return;
+    for (const neighbour of [list[index - 1], list[index + 1]]) {
+      if (neighbour && mimeIsImage(neighbour.MimeType)) {
+        new Image().src = fileUrl(neighbour.FileName);
+      }
+    }
+  }));
+
+  // Tags of a file as currently known, which may no longer be the open one
+  // if the user moved on while a tag request was in flight.
+  const currentTags = (fileName: string) =>
+    file().FileName === fileName
+      ? localTags()
+      : files().find((f) => f.FileName === fileName)?.Tags?.map((t) => t.Name) ?? [];
 
   const suggestions = createMemo(() => {
     const input = tagInput().trim().toLowerCase();
@@ -151,14 +181,16 @@ export function FileModal(props: { file: FileData }) {
     try {
       const result = await addFileTag(f.FileName, tagToAdd);
       if (result.ok) {
-        const newTags = [...localTags(), tagToAdd];
-        setLocalTags(newTags);
+        const newTags = [...currentTags(f.FileName), tagToAdd];
         updateFileInList(f.FileName, {
           Tags: newTags.map((name) => ({ Name: name })),
         });
-        setTagInput('');
-        setShowAutocomplete(false);
-        setSelectedSuggestionIndex(0);
+        if (file().FileName === f.FileName) {
+          setLocalTags(newTags);
+          setTagInput('');
+          setShowAutocomplete(false);
+          setSelectedSuggestionIndex(0);
+        }
         loadStats();
       } else {
         alert(`Failed to add tag: ${result.error || 'unknown error'}`);
@@ -175,11 +207,11 @@ export function FileModal(props: { file: FileData }) {
       const f = file();
       const result = await removeFileTag(f.FileName, tagName);
       if (result.ok) {
-        const newTags = localTags().filter((t) => t !== tagName);
-        setLocalTags(newTags);
+        const newTags = currentTags(f.FileName).filter((t) => t !== tagName);
         updateFileInList(f.FileName, {
           Tags: newTags.map((name) => ({ Name: name })),
         });
+        if (file().FileName === f.FileName) setLocalTags(newTags);
         loadStats();
 
         if (tagFilter() === tagName) {
@@ -239,6 +271,23 @@ export function FileModal(props: { file: FileData }) {
   const onBackdropMouseDown = (e: MouseEvent) => {
     backdropMouseDownInside = e.target !== e.currentTarget;
   };
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchIgnored = false;
+  const onWindowTouchStart = (e: TouchEvent) => {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    // Swipes over inputs are text selection, over audio likely scrubbing.
+    touchIgnored = !!(e.target as HTMLElement).closest('input, textarea, audio');
+  };
+  const onWindowTouchEnd = (e: TouchEvent) => {
+    if (touchIgnored) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    showAdjacentFile(dx > 0 ? -1 : 1);
+  };
+
   const onBackdropClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget && !backdropMouseDownInside) closeModal();
     backdropMouseDownInside = false;
@@ -254,7 +303,11 @@ export function FileModal(props: { file: FileData }) {
         onMouseDown={onBackdropMouseDown}
         onClick={onBackdropClick}
       >
-        <div class="file-modal-window">
+        <div
+          class="file-modal-window"
+          onTouchStart={onWindowTouchStart}
+          onTouchEnd={onWindowTouchEnd}
+        >
           <div class="file-modal-titlebar">
             <a
               id="file-modal-filename-url"
@@ -277,6 +330,26 @@ export function FileModal(props: { file: FileData }) {
 
           <div class="file-modal-contents">
             <div class="file-big-preview">
+              <Show when={hasAdjacentFile(-1)}>
+                <button
+                  type="button"
+                  class="file-modal-nav file-modal-nav-prev"
+                  aria-label="Previous file"
+                  onClick={() => showAdjacentFile(-1)}
+                >
+                  <Icon name="chevron-left" />
+                </button>
+              </Show>
+              <Show when={hasAdjacentFile(1)}>
+                <button
+                  type="button"
+                  class="file-modal-nav file-modal-nav-next"
+                  aria-label="Next file"
+                  onClick={() => showAdjacentFile(1)}
+                >
+                  <Icon name="chevron-right" />
+                </button>
+              </Show>
               <Show when={mimeIsImage(file().MimeType)}>
                 <img
                   id="file-preview-image"

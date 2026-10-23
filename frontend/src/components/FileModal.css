@@ -101,6 +101,48 @@
                 border-radius: 12px;
                 padding: 20px;
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                position: relative;
+
+                .file-modal-nav {
+                    position: absolute;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    z-index: 1;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 50%;
+                    border: 1px solid var(--menu-border-color);
+                    background-color: var(--menu-bg-color-translucent);
+                    cursor: pointer;
+                    opacity: 0;
+                    transition: opacity 0.2s ease, background-color 0.2s ease;
+
+                    svg {
+                        width: 20px;
+                        height: 20px;
+                        color: var(--text-color);
+                    }
+
+                    &:hover {
+                        background-color: var(--menu-bg-color);
+                    }
+                }
+
+                .file-modal-nav-prev {
+                    left: 12px;
+                }
+
+                .file-modal-nav-next {
+                    right: 12px;
+                }
+
+                &:hover .file-modal-nav,
+                .file-modal-nav:focus-visible {
+                    opacity: 1;
+                }
 
                 #file-preview-generic {
                     .file-icon {
@@ -302,6 +344,11 @@
         .file-big-preview {
             max-width: none !important;
             max-height: 50vh !important;
+
+            /* Swiping replaces the buttons on small screens */
+            .file-modal-nav {
+                display: none !important;
+            }
         }
 
         .file-modal-info {

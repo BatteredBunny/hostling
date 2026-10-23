@@ -16,6 +16,7 @@ import {
   modalFile,
   pendingModalFile,
   setPendingModalFile,
+  setPendingModalEdge,
   closeModal,
   consumeReplaceNextUrlSync,
 } from '../store';
@@ -57,6 +58,7 @@ export function FileLibrary() {
       setTagFilter(next.tag);
       setFileFilter(next.filter);
       setCurrentPage(next.page);
+      setPendingModalEdge(null);
       if (next.file) {
         setPendingModalFile(next.file);
       } else {

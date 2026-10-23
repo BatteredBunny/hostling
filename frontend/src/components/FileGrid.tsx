@@ -22,6 +22,10 @@ import {
   setFileFilter,
   pendingModalFile,
   setPendingModalFile,
+  pendingModalEdge,
+  setPendingModalEdge,
+  modalFile,
+  setModalFile,
   openModal,
   markReplaceNextUrlSync,
 } from '../store';
@@ -253,6 +257,12 @@ export async function loadFiles(skip: number) {
       // until the user navigates to a page/filter where the file is visible.
     }
 
+    const edge = pendingModalEdge();
+    if (edge && data.files && data.files.length > 0) {
+      setModalFile(edge === 'first' ? data.files[0] : data.files[data.files.length - 1]);
+    }
+    setPendingModalEdge(null);
+
     if (data.files && data.files.length > 0) {
       setLoadingText('');
     } else if (tagFilter() || fileFilter()) {
@@ -269,4 +279,32 @@ export async function loadFiles(skip: number) {
       setIsLoading(false);
     }
   }
+}
+function modalIndex() {
+  const name = modalFile()?.FileName;
+  return files().findIndex((f) => f.FileName === name);
+}
+
+export function hasAdjacentFile(delta: -1 | 1): boolean {
+  const index = modalIndex();
+  if (index === -1) return false;
+  const target = currentPage() * FILES_PER_PAGE + index + delta;
+  return target >= 0 && target < totalFiles();
+}
+
+// Moves the modal to the previous/next file, loading the adjacent page
+// when stepping past either end of the current one.
+export function showAdjacentFile(delta: -1 | 1) {
+  if (isLoading() || !hasAdjacentFile(delta)) return;
+
+  const target = modalIndex() + delta;
+  if (target >= 0 && target < files().length) {
+    setModalFile(files()[target]);
+    return;
+  }
+
+  const newPage = currentPage() + delta;
+  setPendingModalEdge(delta === 1 ? 'first' : 'last');
+  setCurrentPage(newPage);
+  loadFiles(newPage * FILES_PER_PAGE);
 }

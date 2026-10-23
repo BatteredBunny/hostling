@@ -26,6 +26,9 @@ export const [statsTags, setStatsTags] = createSignal<string[]>([]);
 export const [modalFile, setModalFile] = createSignal<FileData | null>(null);
 export const [isModalOpen, setIsModalOpen] = createSignal(false);
 export const [pendingModalFile, setPendingModalFile] = createSignal<string | null>(initial.file);
+// Which end of the next loaded page to open in the modal, used when
+// stepping through files across a page boundary.
+export const [pendingModalEdge, setPendingModalEdge] = createSignal<'first' | 'last' | null>(null);
 
 export function openModal(file: FileData) {
   setModalFile(file);
@@ -35,6 +38,7 @@ export function openModal(file: FileData) {
 export function closeModal() {
   setIsModalOpen(false);
   setModalFile(null);
+  setPendingModalEdge(null);
 }
 
 export function updateFileInList(fileName: string, updates: Partial<FileData>) {

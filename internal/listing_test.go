@@ -66,13 +66,17 @@ func TestListingSorting(t *testing.T) {
 		if status, body := admin.get("/api/account/files?filter=nope"); status != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d: %s", status, body)
 		}
-		if status, body := admin.get("/api/account/files?filter=untagged&filter=nope"); status != http.StatusBadRequest {
+		if status, body := admin.get(
+			"/api/account/files?filter=untagged&filter=nope",
+		); status != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d: %s", status, body)
 		}
 	})
 
 	t.Run("contradictory filters", func(t *testing.T) {
-		if status, body := admin.get("/api/account/files?filter=public&filter=private"); status != http.StatusBadRequest {
+		if status, body := admin.get(
+			"/api/account/files?filter=public&filter=private",
+		); status != http.StatusBadRequest {
 			t.Errorf("expected 400, got %d: %s", status, body)
 		}
 	})

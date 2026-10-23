@@ -1,0 +1,31 @@
+.panel {
+  display: block;
+  min-width: 0;
+  border: 1px solid var(--menu-border-color);
+  background-color: var(--menu-bg-color-translucent);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--menu-border-color);
+  background-color: var(--alternative-bg-color-translucent);
+
+  h2 {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+  }
+}
+
+.body {
+  padding: 20px;
+}

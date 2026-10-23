@@ -30,11 +30,8 @@ type Accounts struct {
 }
 
 // Returns number of accounts in the database
-func (db *Database) AccountAmount() (count int64, err error) {
-	err = db.Model(&Accounts{}).
-		Count(&count).Error
-
-	return
+func (db *Database) AccountAmount() (int64, error) {
+	return gorm.G[Accounts](db.DB).Count(db.Statement.Context, "*")
 }
 
 func (db *Database) FindAccountByGithubID(rawID string) (account Accounts, err error) {
@@ -48,19 +45,15 @@ func (db *Database) FindAccountByGithubID(rawID string) (account Accounts, err e
 		return
 	}
 
-	if err = db.Model(&Accounts{}).
-		Where("github_id = ?", uint(id)).
-		First(&account).Error; err != nil {
-		return
-	}
-
-	return
+	return gorm.G[Accounts](db.DB).Where("github_id = ?", uint(id)).First(db.Statement.Context)
 }
 
 func (db *Database) UpdateGithubUsername(accountID uint, username string) (err error) {
-	return db.Model(&Accounts{}).
+	_, err = gorm.G[Accounts](db.DB).
 		Where("id = ?", accountID).
-		Update("github_username", username).Error
+		Update(db.Statement.Context, "github_username", username)
+
+	return
 }
 
 var ErrProviderAlreadyLinked = errors.New("provider identity already linked to another account")
@@ -100,19 +93,15 @@ func (db *Database) FindAccountByOIDCID(oidcID string) (account Accounts, err er
 		return
 	}
 
-	if err = db.Model(&Accounts{}).
-		Where("oidc_id = ?", oidcID).
-		First(&account).Error; err != nil {
-		return
-	}
-
-	return
+	return gorm.G[Accounts](db.DB).Where("oidc_id = ?", oidcID).First(db.Statement.Context)
 }
 
 func (db *Database) UpdateOIDCUsername(accountID uint, username string) (err error) {
-	return db.Model(&Accounts{}).
+	_, err = gorm.G[Accounts](db.DB).
 		Where("id = ?", accountID).
-		Update("oidc_username", username).Error
+		Update(db.Statement.Context, "oidc_username", username)
+
+	return
 }
 
 func (db *Database) UnlinkGithub(accountID uint) error {
@@ -334,25 +323,23 @@ func (db *Database) GetAccountBySessionToken(sessionToken string) (account Accou
 	}
 	now := time.Now()
 
-	var accountID uint
-	if err = db.Model(&SessionTokens{}).
+	session, err := gorm.G[SessionTokens](db.DB).
 		Where("token_hash = ?", hash).
 		Where("expiry_date > ?", now).
 		Select("account_id").
-		First(&accountID).Error; err != nil {
+		First(db.Statement.Context)
+	if err != nil {
 		return
 	}
 
-	if err = db.Model(&Accounts{}).
-		Where("id = ?", accountID).
-		First(&account).Error; err != nil {
+	if account, err = db.GetAccountByID(session.AccountID); err != nil {
 		return
 	}
 
-	if updErr := db.Model(&SessionTokens{}).
+	if _, updErr := gorm.G[SessionTokens](db.DB).
 		Where("token_hash = ?", hash).
 		Where("last_used < ?", now.Add(-lastUsedDebounce)).
-		Update("last_used", now).Error; updErr != nil {
+		Update(db.Statement.Context, "last_used", now); updErr != nil {
 		log.Err(updErr).Msg("Failed to update last used time for session token")
 	}
 
@@ -364,32 +351,29 @@ func (db *Database) GetAccountByUploadToken(uploadToken string) (account Account
 	if err != nil {
 		return account, gorm.ErrRecordNotFound
 	}
-	var record UploadTokens
-	if err = db.Where("token_hash = ?", hash).First(&record).Error; err != nil {
+	record, err := gorm.G[UploadTokens](db.DB).
+		Select("account_id").
+		Where("token_hash = ?", hash).
+		First(db.Statement.Context)
+	if err != nil {
 		return
 	}
-	err = db.First(&account, record.AccountID).Error
 
-	return
+	return db.GetAccountByID(record.AccountID)
 }
 
 func (db *Database) DeleteAccount(accountID uint) error {
-	return db.Delete(&Accounts{}, accountID).Error
+	_, err := gorm.G[Accounts](db.DB).Where("id = ?", accountID).Delete(db.Statement.Context)
+
+	return err
 }
 
-func (db *Database) GetAccounts() (accounts []Accounts, err error) {
-	err = db.Model(&Accounts{}).
-		Scan(&accounts).Error
-
-	return
+func (db *Database) GetAccounts() ([]Accounts, error) {
+	return gorm.G[Accounts](db.DB).Find(db.Statement.Context)
 }
 
-func (db *Database) GetAccountByID(accountID uint) (account Accounts, err error) {
-	err = db.Model(&Accounts{}).
-		Where("id = ?", accountID).
-		First(&account).Error
-
-	return
+func (db *Database) GetAccountByID(accountID uint) (Accounts, error) {
+	return gorm.G[Accounts](db.DB).Where("id = ?", accountID).First(db.Statement.Context)
 }
 
 var ErrInvalidAccountType = errors.New("invalid account type specified")
@@ -401,7 +385,7 @@ func (db *Database) CreateAccount(accountType string, invitedBy uint) (account A
 			InvitedBy:   invitedBy,
 		}
 
-		err = db.Model(&Accounts{}).Create(&account).Error
+		err = gorm.G[Accounts](db.DB).Create(db.Statement.Context, &account)
 	} else {
 		err = ErrInvalidAccountType
 	}

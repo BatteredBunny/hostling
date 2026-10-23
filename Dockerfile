@@ -20,6 +20,7 @@ RUN go mod download
 COPY . .
 
 COPY --from=frontend /app/public/dist ./public/dist
+RUN go run ./cmd/openapi /tmp/openapi.json && cmp /tmp/openapi.json frontend/openapi.json
 RUN go build -ldflags '-s -w -extldflags "-static"' -o /app/hostling ./cmd/hostling
 
 FROM alpine:3.24

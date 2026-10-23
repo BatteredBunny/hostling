@@ -22,13 +22,11 @@ type InviteCodes struct {
 	InviteCreator   Accounts `gorm:"foreignKey:InviteCreatorID;constraint:OnDelete:CASCADE"`
 }
 
-func (db *Database) InviteCodeAmount() (count int64, err error) {
-	err = db.Model(&InviteCodes{}).
+func (db *Database) InviteCodeAmount() (int64, error) {
+	return gorm.G[InviteCodes](db.DB).
 		Where("expiry_date > ?", time.Now()).
 		Where("uses > 0").
-		Count(&count).Error
-
-	return
+		Count(db.Statement.Context, "*")
 }
 
 func (db *Database) CreateInviteCode(
@@ -53,7 +51,7 @@ func (db *Database) CreateInviteCodeWithCode(
 		ExpiryDate:      time.Now().Add(time.Hour * 24 * 7), // A week from now
 	}
 
-	err = db.Create(&inviteCode).Error
+	err = gorm.G[InviteCodes](db.DB).Create(db.Statement.Context, &inviteCode)
 
 	return
 }
@@ -65,8 +63,12 @@ func (db *Database) DeleteInviteCode(code string, accountID uint) (err error) {
 		return ErrEmptyInviteCode
 	}
 
-	return db.Where("code = ? AND invite_creator_id = ?", code, accountID).
-		Delete(&InviteCodes{}).Error
+	_, err = gorm.G[InviteCodes](
+		db.DB,
+	).Where("code = ? AND invite_creator_id = ?", code, accountID).
+		Delete(db.Statement.Context)
+
+	return
 }
 
 func (db *Database) UseCode(code string) (accountType string, invitedBy uint, err error) {
@@ -98,21 +100,21 @@ func (db *Database) UseCode(code string) (accountType string, invitedBy uint, er
 }
 
 func (db *Database) DeleteInviteCodesFromAccount(accountID uint) (err error) {
-	return db.Where("invite_creator_id = ?", accountID).
-		Delete(&InviteCodes{}).Error
-}
-
-func (db *Database) InviteCodesByAccount(accountID uint) (inviteCodes []InviteCodes, err error) {
-	err = db.Model(&InviteCodes{}).
-		Where("expiry_date > ?", time.Now()).
-		Where("uses > 0").
-		Where("invite_creator_id = ?", accountID).
-		Scan(&inviteCodes).Error
+	_, err = gorm.G[InviteCodes](db.DB).Where("invite_creator_id = ?", accountID).Delete(db.Statement.Context)
 
 	return
 }
 
+func (db *Database) InviteCodesByAccount(accountID uint) ([]InviteCodes, error) {
+	return gorm.G[InviteCodes](db.DB).
+		Where("expiry_date > ?", time.Now()).
+		Where("uses > 0").
+		Where("invite_creator_id = ?", accountID).
+		Find(db.Statement.Context)
+}
+
 func (db *Database) DeleteExpiredInviteCodes() (err error) {
-	return db.Where("expiry_date < ?", time.Now()).
-		Delete(&InviteCodes{}).Error
+	_, err = gorm.G[InviteCodes](db.DB).Where("expiry_date < ?", time.Now()).Delete(db.Statement.Context)
+
+	return
 }

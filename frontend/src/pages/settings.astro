@@ -1,0 +1,13 @@
+---
+import { LoadingSections } from "../components/LoadingSections";
+import AccountLayout from "../layouts/AccountLayout.astro";
+import { SettingsPage } from "../components/SettingsPage";
+---
+
+<AccountLayout title="Settings" currentPage="settings">
+  <SettingsPage client:only="solid-js">
+    <div slot="fallback">
+      <LoadingSections sections={["Social login", "Account"]} />
+    </div>
+  </SettingsPage>
+</AccountLayout>

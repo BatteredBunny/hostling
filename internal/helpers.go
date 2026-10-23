@@ -57,6 +57,9 @@ func writeLocalFile(path string, body io.Reader) (written int64, err error) {
 		if cerr := f.Close(); cerr != nil && err == nil {
 			err = cerr
 		}
+		if err != nil {
+			err = errors.Join(err, os.Remove(path))
+		}
 	}()
 	if written, err = io.Copy(f, body); err != nil {
 		return
@@ -158,8 +161,8 @@ func (app *Application) generateFullFileName(mime *mimetype.MIME) string {
 	return randomString() + ext
 }
 
-func (app *Application) isValidUploadToken(uploadToken string) (bool, error) {
-	_, err := app.db.GetAccountByUploadToken(uploadToken)
+func (app *Application) isValidUploadToken(ctx context.Context, uploadToken string) (bool, error) {
+	_, err := app.db.WithContext(ctx).GetAccountByUploadToken(uploadToken)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	} else if err != nil {

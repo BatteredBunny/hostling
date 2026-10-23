@@ -1,13 +1,26 @@
-import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
-import { Portal } from 'solid-js/web';
-import './FileMenu.css';
-import { closeFileMenu, showToast, type FileMenuState } from '../store';
-import { absoluteFileUrl, copyFileLink, deleteFileWithConfirm, toggleVisibility } from '../fileActions';
-import { Icon } from './Icon';
+import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
+import { Portal } from "solid-js/web";
+import "./FileMenu.css";
+import { closeFileMenu, showToast, type FileMenuState } from "../store";
+import {
+  absoluteFileUrl,
+  copyFileLink,
+  deleteFileWithConfirm,
+  toggleVisibility,
+} from "../fileActions";
+import {
+  Download as DownloadIcon,
+  ExternalLink as ExternalLinkIcon,
+  Link as LinkIcon,
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
+  Trash2 as Trash2Icon,
+} from "lucide-solid";
+import { Dynamic } from "solid-js/web";
 
 interface MenuItem {
   label: string;
-  icon: string;
+  icon: typeof LinkIcon;
   danger?: boolean;
   separatorBefore?: boolean;
   href?: string;
@@ -19,28 +32,32 @@ function menuItems(menu: FileMenuState): MenuItem[] {
   const file = menu.file;
   return [
     {
-      label: 'Copy link',
-      icon: 'link',
+      label: "Copy link",
+      icon: LinkIcon,
       action: async () => {
         // The menu is gone by now, so confirm via toast instead.
-        if (await copyFileLink(file)) showToast('Link copied');
+        if (await copyFileLink(file)) showToast("Link copied");
       },
     },
-    { label: 'Open in new tab', icon: 'external-link', href: absoluteFileUrl(file) },
     {
-      label: 'Download',
-      icon: 'download',
+      label: "Open in new tab",
+      icon: ExternalLinkIcon,
+      href: absoluteFileUrl(file),
+    },
+    {
+      label: "Download",
+      icon: DownloadIcon,
       href: absoluteFileUrl(file),
       download: file.OriginalFileName || file.FileName,
     },
     {
-      label: file.Public ? 'Make private' : 'Make public',
-      icon: file.Public ? 'lock' : 'lock-open',
+      label: file.Public ? "Make private" : "Make public",
+      icon: file.Public ? LockIcon : LockOpenIcon,
       action: () => toggleVisibility(file),
     },
     {
-      label: 'Delete',
-      icon: 'trash-2',
+      label: "Delete",
+      icon: Trash2Icon,
       danger: true,
       separatorBefore: true,
       action: () => deleteFileWithConfirm(file),
@@ -54,7 +71,7 @@ export function FileMenu(props: { menu: FileMenuState }) {
   const [position, setPosition] = createSignal({ left: 0, top: 0 });
 
   const menuButtons = () =>
-    Array.from(menuEl?.querySelectorAll<HTMLElement>('.file-menu-item') ?? []);
+    Array.from(menuEl?.querySelectorAll<HTMLElement>(".file-menu-item") ?? []);
 
   const moveFocus = (delta: number) => {
     const buttons = menuButtons();
@@ -70,8 +87,10 @@ export function FileMenu(props: { menu: FileMenuState }) {
     const margin = 8;
     let left = props.menu.x;
     let top = props.menu.y;
-    if (left + rect.width > window.innerWidth - margin) left = Math.max(margin, left - rect.width);
-    if (top + rect.height > window.innerHeight - margin) top = Math.max(margin, top - rect.height);
+    if (left + rect.width > window.innerWidth - margin)
+      left = Math.max(margin, left - rect.width);
+    if (top + rect.height > window.innerHeight - margin)
+      top = Math.max(margin, top - rect.height);
     setPosition({ left, top });
     menuButtons()[0]?.focus();
 
@@ -79,28 +98,28 @@ export function FileMenu(props: { menu: FileMenuState }) {
     // doesn't also react while the menu is open.
     const onKey = (e: KeyboardEvent) => {
       e.stopPropagation();
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.preventDefault();
         closeFileMenu();
-      } else if (e.key === 'ArrowDown') {
+      } else if (e.key === "ArrowDown") {
         e.preventDefault();
         moveFocus(1);
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         moveFocus(-1);
-      } else if (e.key === 'Tab') {
+      } else if (e.key === "Tab") {
         closeFileMenu();
       }
     };
     const onDismiss = () => closeFileMenu(false);
 
-    window.addEventListener('keydown', onKey, true);
-    window.addEventListener('scroll', onDismiss, true);
-    window.addEventListener('resize', onDismiss);
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("scroll", onDismiss, true);
+    window.addEventListener("resize", onDismiss);
     onCleanup(() => {
-      window.removeEventListener('keydown', onKey, true);
-      window.removeEventListener('scroll', onDismiss, true);
-      window.removeEventListener('resize', onDismiss);
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("scroll", onDismiss, true);
+      window.removeEventListener("resize", onDismiss);
     });
   });
 
@@ -112,7 +131,12 @@ export function FileMenu(props: { menu: FileMenuState }) {
   };
 
   return (
-    <Portal>
+    <Portal
+      mount={
+        document.querySelector<HTMLDialogElement>("#file-modal[open]") ??
+        undefined
+      }
+    >
       {/* Swallows the dismissing click so it doesn't also hit what's underneath. */}
       <div
         class="file-menu-overlay"
@@ -126,7 +150,9 @@ export function FileMenu(props: { menu: FileMenuState }) {
         ref={menuEl}
         class="file-menu"
         role="menu"
-        aria-label={props.menu.file.OriginalFileName || props.menu.file.FileName}
+        aria-label={
+          props.menu.file.OriginalFileName || props.menu.file.FileName
+        }
         style={{ left: `${position().left}px`, top: `${position().top}px` }}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -146,7 +172,11 @@ export function FileMenu(props: { menu: FileMenuState }) {
                     classList={{ danger: item.danger }}
                     onClick={() => runItem(item)}
                   >
-                    <Icon name={item.icon} />
+                    <Dynamic
+                      component={item.icon}
+                      class="lucide-icon"
+                      aria-hidden="true"
+                    />
                     <span>{item.label}</span>
                   </button>
                 }
@@ -155,12 +185,16 @@ export function FileMenu(props: { menu: FileMenuState }) {
                   role="menuitem"
                   class="file-menu-item"
                   href={item.href}
-                  target={item.download ? undefined : '_blank'}
+                  target={item.download ? undefined : "_blank"}
                   rel="noopener noreferrer"
                   download={item.download}
                   onClick={() => closeFileMenu()}
                 >
-                  <Icon name={item.icon} />
+                  <Dynamic
+                    component={item.icon}
+                    class="lucide-icon"
+                    aria-hidden="true"
+                  />
                   <span>{item.label}</span>
                 </a>
               </Show>

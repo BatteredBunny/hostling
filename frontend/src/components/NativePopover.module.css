@@ -1,0 +1,25 @@
+.popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  color: var(--text-color);
+  max-width: calc(100vw - 16px);
+
+  &:not(:popover-open) {
+    display: none;
+  }
+}
+
+@supports (position-anchor: --anchor) {
+  .popover {
+    top: calc(anchor(bottom) + 6px);
+    right: anchor(right);
+    position-try-fallbacks: flip-block, flip-inline;
+  }
+}
+
+@supports (position-anchor: --anchor) and (min-width: anchor-size(width)) {
+  .popover {
+    min-width: anchor-size(width);
+  }
+}

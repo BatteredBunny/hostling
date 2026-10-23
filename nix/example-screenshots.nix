@@ -6,7 +6,7 @@
 let
   port = 8080;
   token = "screenshot-token";
-  mascotFile = ../public/assets/mascot.png;
+  mascotFile = ../frontend/src/assets/mascot.png;
   pythonEnv = pkgs.python3.withPackages (ps: [
     ps.selenium
   ]);

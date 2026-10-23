@@ -3,43 +3,9 @@ package internal
 import (
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 )
-
-func formatTimeDate(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-
-	return t.Format("2006-01-02 15:04:05")
-}
-
-func relativeTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-
-	return humanize.Time(t)
-}
-
-func mimeIsImage(mimeType string) bool {
-	return strings.HasPrefix(mimeType, "image/")
-}
-
-func mimeIsVideo(mimeType string) bool {
-	return strings.HasPrefix(mimeType, "video/")
-}
-
-func mimeIsAudio(mimeType string) bool {
-	return strings.HasPrefix(mimeType, "audio/")
-}
-
-func humanizeBytes(size uint) string {
-	return humanize.Bytes(uint64(size))
-}
 
 func formatContentDisposition(disposition, filename string) string {
 	var ascii strings.Builder
@@ -67,7 +33,8 @@ func encodeRFC5987(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || strings.IndexByte("!#$&+-.^_`|~", c) >= 0 {
+		if ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') ||
+			strings.IndexByte("!#$&+-.^_`|~", c) >= 0 {
 			b.WriteByte(c)
 
 			continue

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -12,7 +13,16 @@ import (
 // second file copy, preserves exclusive creation, and lets net/http own cleanup
 // of the temporary name. Shared multipart sections and memory-backed uploads
 // continue through the normal buffered-reader copy path.
-func writeLocalUploadFile(path string, body io.Reader, upload multipart.File, size int64) (int64, error) {
+func writeLocalUploadFile(
+	ctx context.Context,
+	path string,
+	body io.Reader,
+	upload multipart.File,
+	size int64,
+) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	if file, ok := upload.(*os.File); ok {
 		info, err := file.Stat()
 		if err == nil && info.Mode().IsRegular() && info.Size() == size {
@@ -30,5 +40,18 @@ func writeLocalUploadFile(path string, body io.Reader, upload multipart.File, si
 		}
 	}
 
-	return writeLocalFile(path, body)
+	return writeLocalFile(path, uploadReader{ctx: ctx, Reader: body})
+}
+
+type uploadReader struct {
+	ctx context.Context
+	io.Reader
+}
+
+func (reader uploadReader) Read(buffer []byte) (int, error) {
+	if err := reader.ctx.Err(); err != nil {
+		return 0, err
+	}
+
+	return reader.Reader.Read(buffer)
 }

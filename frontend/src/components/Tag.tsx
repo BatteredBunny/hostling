@@ -1,8 +1,8 @@
-import type { JSX } from 'solid-js';
-import { Show, createMemo } from 'solid-js';
-import './Tag.css';
-import { hashStringToHSL } from '../utils';
-import { Icon } from './Icon';
+import type { JSX } from "solid-js";
+import { Show, createMemo } from "solid-js";
+import "./Tag.css";
+import { hashStringToHSL } from "../utils";
+import { X as XIcon } from "lucide-solid";
 
 interface TagProps {
   name: string;
@@ -31,7 +31,7 @@ export function Tag(props: TagProps): JSX.Element {
 
   const handleKey = (e: KeyboardEvent) => {
     if (!props.onClicked) return;
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       props.onClicked();
     }
@@ -40,13 +40,13 @@ export function Tag(props: TagProps): JSX.Element {
   return (
     <span
       class="file-tag"
-      role={props.onClicked ? 'button' : undefined}
+      role={props.onClicked ? "button" : undefined}
       tabindex={props.onClicked ? 0 : undefined}
-      aria-pressed={props.onClicked ? props.selected ?? false : undefined}
+      aria-pressed={props.onClicked ? (props.selected ?? false) : undefined}
       style={{
         ...style(),
-        "cursor": props.onClicked ? "pointer" : "default",
-        "opacity": props.enabled === false ? "0.5" : "1"
+        cursor: props.onClicked ? "pointer" : "default",
+        opacity: props.enabled === false ? "0.5" : "1",
       }}
       onClick={() => props.onClicked?.()}
       onKeyDown={handleKey}
@@ -62,7 +62,7 @@ export function Tag(props: TagProps): JSX.Element {
             props.onRemove!(props.name);
           }}
         >
-          <Icon name="x" />
+          <XIcon class="lucide-icon" aria-hidden="true" />
         </button>
       </Show>
     </span>

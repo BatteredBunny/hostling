@@ -1,54 +1,66 @@
 .file-tag {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  text-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.4),
+    0 0 2px rgba(0, 0, 0, 0.3);
+  border: 2px solid;
+
+  /* Modal tag variant with remove button */
+  .file-modal-tags & {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+  }
+
+  .file-modal-tag-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.25);
+    border: none;
     color: white;
-    text-transform: uppercase;
-    text-shadow:
-        0 2px 2px rgba(0, 0, 0, 0.4),
-        0 0 2px rgba(0, 0, 0, 0.3);
-    border: 2px solid;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    margin-right: -2px;
+    transition: background 0.15s ease;
 
-    /* Modal tag variant with remove button */
-    .file-modal-tags & {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 8px;
+    svg {
+      width: 12px;
+      height: 12px;
+      color: white;
+      stroke-width: 3;
+      transition: all 0.2s ease;
     }
 
-    .file-modal-tag-remove {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.25);
-        border: none;
-        color: white;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 12px;
-        padding: 0;
-        margin-right: -2px;
-        transition: background 0.15s ease;
+    &:hover {
+      background: rgba(0, 0, 0, 0.4);
 
-        svg {
-            width: 12px;
-            height: 12px;
-            color: white;
-            stroke-width: 3;
-            transition: all 0.2s ease;
-        }
-
-        &:hover {
-            background: rgba(0, 0, 0, 0.4);
-
-            svg {
-                transform: rotate(90deg);
-            }
-        }
+      svg {
+        transform: rotate(90deg);
+      }
     }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-tag .file-modal-tag-remove {
+    svg {
+      transition: none;
+    }
+
+    &:hover svg {
+      transform: none;
+    }
+  }
 }

@@ -1,7 +1,16 @@
-import { For, Show, createEffect, createSignal, createUniqueId, onCleanup } from 'solid-js';
-import { Portal } from 'solid-js/web';
-import './SelectBox.css';
-import { Icon } from './Icon';
+import {
+  For,
+  Show,
+  createEffect,
+  createSignal,
+  createUniqueId,
+} from "solid-js";
+import { NativePopover } from "./NativePopover";
+import "./SelectBox.css";
+import {
+  Check as CheckIcon,
+  ChevronDown as ChevronDownIcon,
+} from "lucide-solid";
 
 export interface SelectBoxOption {
   value: string;
@@ -13,7 +22,7 @@ interface SelectBoxProps {
   value: string;
   options: SelectBoxOption[];
   onChange: (value: string) => void;
-  'aria-label'?: string;
+  "aria-label"?: string;
 }
 
 // A styled replacement for <select>, whose option list can't be themed.
@@ -23,21 +32,15 @@ export function SelectBox(props: SelectBoxProps) {
   const [activeIndex, setActiveIndex] = createSignal(0);
   const listId = createUniqueId();
 
-  let root: HTMLDivElement | undefined;
   let button: HTMLButtonElement | undefined;
   let list: HTMLDivElement | undefined;
 
-  const selectedIndex = () => props.options.findIndex((o) => o.value === props.value);
-  const selectedLabel = () => props.options[selectedIndex()]?.label ?? '';
+  const selectedIndex = () =>
+    props.options.findIndex((o) => o.value === props.value);
+  const selectedLabel = () => props.options[selectedIndex()]?.label ?? "";
   const optionId = (index: number) => `${listId}-${index}`;
 
-  const [position, setPosition] = createSignal({ top: 0, right: 0, minWidth: 0 });
-
   const openList = () => {
-    // Rendered in a portal so containers with overflow: hidden can't clip it;
-    // right-aligned with the button.
-    const rect = button!.getBoundingClientRect();
-    setPosition({ top: rect.bottom + 6, right: window.innerWidth - rect.right, minWidth: rect.width });
     setActiveIndex(Math.max(0, selectedIndex()));
     setOpen(true);
   };
@@ -55,34 +58,11 @@ export function SelectBox(props: SelectBoxProps) {
 
   createEffect(() => {
     if (!open()) return;
-    list?.focus();
-
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Node;
-      if (!root?.contains(target) && !list?.contains(target)) close(false);
-    };
-    // The list is placed against the viewport, so it would drift on scroll.
-    const onScroll = (e: Event) => {
-      if (!list?.contains(e.target as Node)) close(false);
-    };
-    const onResize = () => close(false);
-    document.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onResize);
-    onCleanup(() => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onResize);
-    });
-  });
-
-  createEffect(() => {
-    if (!open()) return;
-    list?.children[activeIndex()]?.scrollIntoView({ block: 'nearest' });
+    list?.children[activeIndex()]?.scrollIntoView({ block: "nearest" });
   });
 
   const onButtonKeyDown = (e: KeyboardEvent) => {
-    if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key)) {
+    if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
       e.preventDefault();
       openList();
     }
@@ -91,40 +71,40 @@ export function SelectBox(props: SelectBoxProps) {
   const onListKeyDown = (e: KeyboardEvent) => {
     const last = props.options.length - 1;
     switch (e.key) {
-      case 'ArrowDown':
+      case "ArrowDown":
         e.preventDefault();
         setActiveIndex((i) => Math.min(last, i + 1));
         break;
-      case 'ArrowUp':
+      case "ArrowUp":
         e.preventDefault();
         setActiveIndex((i) => Math.max(0, i - 1));
         break;
-      case 'Home':
+      case "Home":
         e.preventDefault();
         setActiveIndex(0);
         break;
-      case 'End':
+      case "End":
         e.preventDefault();
         setActiveIndex(last);
         break;
-      case 'Enter':
-      case ' ':
+      case "Enter":
+      case " ":
         e.preventDefault();
         choose(activeIndex());
         break;
-      case 'Escape':
+      case "Escape":
         e.preventDefault();
         e.stopPropagation();
         close();
         break;
-      case 'Tab':
+      case "Tab":
         close(false);
         break;
     }
   };
 
   return (
-    <div class="select-box" classList={{ open: open() }} ref={root}>
+    <div class="select-box" classList={{ open: open() }}>
       <button
         type="button"
         ref={button}
@@ -133,51 +113,48 @@ export function SelectBox(props: SelectBoxProps) {
         aria-haspopup="listbox"
         aria-expanded={open()}
         aria-controls={listId}
-        aria-label={props['aria-label']}
+        aria-label={props["aria-label"]}
         onClick={() => (open() ? close() : openList())}
         onKeyDown={onButtonKeyDown}
       >
         <span>{selectedLabel()}</span>
-        <Icon name="chevron-down" />
+        <ChevronDownIcon class="lucide-icon" aria-hidden="true" />
       </button>
 
-      <Show when={open()}>
-        <Portal>
-          <div
-            ref={list}
-            id={listId}
-            class="select-box-list"
-            role="listbox"
-            tabindex="-1"
-            aria-activedescendant={optionId(activeIndex())}
-            style={{
-              top: `${position().top}px`,
-              right: `${position().right}px`,
-              'min-width': `${position().minWidth}px`,
-            }}
-            onKeyDown={onListKeyDown}
-          >
-            <For each={props.options}>
-              {(option, index) => (
-                <div
-                  id={optionId(index())}
-                  role="option"
-                  class="select-box-option"
-                  classList={{ active: index() === activeIndex() }}
-                  aria-selected={option.value === props.value}
-                  onClick={() => choose(index())}
-                  onMouseEnter={() => setActiveIndex(index())}
-                >
-                  <span>{option.label}</span>
-                  <Show when={option.value === props.value}>
-                    <Icon name="check" />
-                  </Show>
-                </div>
-              )}
-            </For>
-          </div>
-        </Portal>
-      </Show>
+      <NativePopover
+        open={open()}
+        anchor={() => button}
+        onOpenChange={setOpen}
+        onOpen={() => list?.focus()}
+        ref={(element) => {
+          list = element;
+        }}
+        id={listId}
+        class="select-box-list"
+        role="listbox"
+        label={props["aria-label"]}
+        activeDescendant={optionId(activeIndex())}
+        onKeyDown={onListKeyDown}
+      >
+        <For each={props.options}>
+          {(option, index) => (
+            <div
+              id={optionId(index())}
+              role="option"
+              class="select-box-option"
+              classList={{ active: index() === activeIndex() }}
+              aria-selected={option.value === props.value}
+              onClick={() => choose(index())}
+              onMouseEnter={() => setActiveIndex(index())}
+            >
+              <span>{option.label}</span>
+              <Show when={option.value === props.value}>
+                <CheckIcon class="lucide-icon" aria-hidden="true" />
+              </Show>
+            </div>
+          )}
+        </For>
+      </NativePopover>
     </div>
   );
 }

@@ -1,18 +1,25 @@
-import { Show } from 'solid-js';
-import { Portal } from 'solid-js/web';
-import { toast } from '../toast';
-import styles from './HostlingToast.css?inline';
+import "./HostlingToast.css";
+import { Show } from "solid-js";
+import { Portal } from "solid-js/web";
+import { toast } from "../toast";
 
-export function HostlingToast() {
+export function HostlingToast(props: { inline?: boolean } = {}) {
+  const notification = () => (
+    <Show when={toast()} keyed>
+      {(item) => (
+        <div
+          class="hostling-toast"
+          classList={{ error: item.kind === "error" }}
+          role={item.kind === "error" ? "alert" : "status"}
+        >
+          {item.message}
+        </div>
+      )}
+    </Show>
+  );
   return (
-    <Portal>
-      {/* Keep the shared component's styles with it across frontend entry points. */}
-      <style>{styles}</style>
-      <Show when={toast()} keyed>
-        {(notification) => (
-          <div class="hostling-toast" role="status">{notification.message}</div>
-        )}
-      </Show>
-    </Portal>
+    <Show when={props.inline} fallback={<Portal>{notification()}</Portal>}>
+      {notification()}
+    </Show>
   );
 }

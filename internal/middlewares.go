@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/BatteredBunny/hostling/internal/db"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 )
@@ -17,7 +18,7 @@ func (app *Application) ratelimitMiddleware() gin.HandlerFunc {
 		limit, remaining, reset, ok, err := app.RateLimiter.Take(c.Request.Context(), c.ClientIP())
 		if err != nil {
 			log.Err(err).Msg("Rate limiter failed")
-			c.AbortWithStatus(http.StatusInternalServerError)
+			abortAPI(c, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 
 			return
 		}
@@ -30,8 +31,7 @@ func (app *Application) ratelimitMiddleware() gin.HandlerFunc {
 		if !ok {
 			retryAfter := max(1, int(math.Ceil(time.Until(resetTime).Seconds())))
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
-			c.String(http.StatusTooManyRequests, "You have reached maximum request limit.")
-			c.Abort()
+			abortAPI(c, http.StatusTooManyRequests, "You have reached maximum request limit.")
 
 			return
 		}
@@ -64,8 +64,7 @@ func (app *Application) multipartFormMiddleware(maxFileMemory int64) gin.Handler
 				maxFileMemory,
 			); err != nil &&
 				!errors.Is(err, http.ErrNotMultipart) {
-				c.String(http.StatusRequestEntityTooLarge, "Too big file")
-				c.Abort()
+				abortAPI(c, http.StatusRequestEntityTooLarge, "Too big file")
 
 				return
 			}
@@ -112,12 +111,12 @@ func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 		sessionToken, account, loggedIn, err := app.validateAuthCookie(c)
 		if err != nil && !errors.Is(err, ErrInvalidAuthCookie) {
 			log.Err(err).Msg("validateAuthCookie failed")
-			c.AbortWithStatus(http.StatusInternalServerError)
+			abortAPI(c, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 
 			return
 		}
 		if !loggedIn {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			abortAPI(c, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 
 			return
 		}
@@ -134,7 +133,7 @@ func (app *Application) isAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		account, ok := getAccount(c)
 		if !ok || account.AccountType != "ADMIN" {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			abortAPI(c, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 
 			return
 		}
@@ -151,19 +150,19 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 			uploadToken := rawUploadToken
 			hash, err := db.HashUploadToken(uploadToken)
 			if err != nil {
-				c.AbortWithStatus(http.StatusUnauthorized)
+				abortAPI(c, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 
 				return
 			}
 
-			valid, err := app.isValidUploadToken(uploadToken)
+			valid, err := app.isValidUploadToken(c.Request.Context(), uploadToken)
 			if err != nil { // Could be a database error
 				log.Err(err).Msg("Failed to check if upload token is valid")
-				c.AbortWithStatus(http.StatusInternalServerError)
+				abortAPI(c, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 
 				return
 			} else if !valid { // Wrong or expired token given
-				c.AbortWithStatus(http.StatusUnauthorized)
+				abortAPI(c, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 
 				return
 			}
@@ -172,12 +171,13 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 		} else {
 			sessionToken, account, loggedIn, err := app.validateAuthCookie(c)
 			if err != nil && !errors.Is(err, ErrInvalidAuthCookie) {
-				_ = c.AbortWithError(http.StatusInternalServerError, err)
+				log.Err(err).Msg("Authentication failed")
+				abortAPI(c, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 
 				return
 			}
 			if !loggedIn {
-				c.AbortWithStatus(http.StatusUnauthorized)
+				abortAPI(c, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 
 				return
 			}
@@ -189,4 +189,10 @@ func (app *Application) hasUploadOrSessionTokenMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// Middleware and typed handlers share the same documented API error format.
+func abortAPI(c *gin.Context, status int, message string) {
+	c.Header("Content-Type", "application/problem+json")
+	c.AbortWithStatusJSON(status, huma.NewError(status, message))
 }

@@ -1,29 +1,43 @@
-import { createSignal, untrack } from 'solid-js';
-import type { FileData, SortField } from './types';
-import { parseUrlParams, type Visibility } from './url';
+import { createSignal, untrack } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
+import type { FileData, SortField } from "./types";
+import { parseUrlParams, type Visibility } from "./url";
 
 const initial = parseUrlParams();
 
 // Files state
-export const [files, setFiles] = createSignal<FileData[]>([]);
+const [fileState, setFileState] = createStore<{ files: FileData[] }>({
+  files: [],
+});
+export const files = () => fileState.files;
+export function setFiles(
+  next: FileData[] | ((previous: FileData[]) => FileData[]),
+) {
+  const updated = typeof next === "function" ? next(fileState.files) : next;
+  // Keep cards and media mounted when metadata changes or a list is refreshed.
+  setFileState("files", reconcile(updated, { key: "FileName" }));
+}
 export const [totalFiles, setTotalFiles] = createSignal(0);
 export const [currentPage, setCurrentPage] = createSignal(initial.page);
 export const [isLoading, setIsLoading] = createSignal(false);
-export const [loadingText, setLoadingText] = createSignal('');
+export const [loadingText, setLoadingText] = createSignal("");
 
 // Sort/Filter state
 export const [sortField, setSortField] = createSignal<SortField>(initial.sort);
-export const [sortDesc, setSortDesc] = createSignal(initial.order === 'desc');
+export const [sortDesc, setSortDesc] = createSignal(initial.order === "desc");
 export const [tagFilters, setTagFilters] = createSignal<string[]>(initial.tags);
-export const [visibilityFilter, setVisibilityFilter] = createSignal<Visibility | null>(initial.visibility);
-export const [untaggedFilter, setUntaggedFilter] = createSignal(initial.untagged);
+export const [visibilityFilter, setVisibilityFilter] =
+  createSignal<Visibility | null>(initial.visibility);
+export const [untaggedFilter, setUntaggedFilter] = createSignal(
+  initial.untagged,
+);
 
 // Values for the API's repeatable `filter` parameter.
 export function activeFilters(): string[] {
   const filters: string[] = [];
   const visibility = visibilityFilter();
   if (visibility) filters.push(visibility);
-  if (untaggedFilter()) filters.push('untagged');
+  if (untaggedFilter()) filters.push("untagged");
   return filters;
 }
 
@@ -35,10 +49,14 @@ export const [statsTags, setStatsTags] = createSignal<string[]>([]);
 // Modal state
 export const [modalFile, setModalFile] = createSignal<FileData | null>(null);
 export const [isModalOpen, setIsModalOpen] = createSignal(false);
-export const [pendingModalFile, setPendingModalFile] = createSignal<string | null>(initial.file);
+export const [pendingModalFile, setPendingModalFile] = createSignal<
+  string | null
+>(initial.file);
 // Which end of the next loaded page to open in the modal, used when
 // stepping through files across a page boundary.
-export const [pendingModalEdge, setPendingModalEdge] = createSignal<'first' | 'last' | null>(null);
+export const [pendingModalEdge, setPendingModalEdge] = createSignal<
+  "first" | "last" | null
+>(null);
 
 export function openModal(file: FileData) {
   setModalFile(file);
@@ -61,7 +79,12 @@ export interface FileMenuState {
 }
 export const [fileMenu, setFileMenu] = createSignal<FileMenuState | null>(null);
 
-export function openFileMenu(file: FileData, x: number, y: number, returnFocus?: HTMLElement | null) {
+export function openFileMenu(
+  file: FileData,
+  x: number,
+  y: number,
+  returnFocus?: HTMLElement | null,
+) {
   setFileMenu({ file, x, y, returnFocus });
 }
 
@@ -79,19 +102,26 @@ export interface ConfirmRequest {
   danger?: boolean;
   resolve: (confirmed: boolean) => void;
 }
-export const [confirmRequest, setConfirmRequest] = createSignal<ConfirmRequest | null>(null);
+export const [confirmRequest, setConfirmRequest] =
+  createSignal<ConfirmRequest | null>(null);
 
-export function confirmDialog(options: Omit<ConfirmRequest, 'resolve'>): Promise<boolean> {
+export function cancelConfirmation() {
+  const request = confirmRequest();
+  setConfirmRequest(null);
+  request?.resolve(false);
+}
+
+export function confirmDialog(
+  options: Omit<ConfirmRequest, "resolve">,
+): Promise<boolean> {
   confirmRequest()?.resolve(false);
   return new Promise((resolve) => setConfirmRequest({ ...options, resolve }));
 }
 
-export { showToast } from './toast';
+export { showToast } from "./toast";
 
 export function updateFileInList(fileName: string, updates: Partial<FileData>) {
-  setFiles((prev) =>
-    prev.map((f) => (f.FileName === fileName ? { ...f, ...updates } : f))
-  );
+  setFileState("files", (file) => file.FileName === fileName, updates);
 
   const current = modalFile();
   if (current?.FileName === fileName) {

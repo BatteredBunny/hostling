@@ -1,5 +1,6 @@
-import { For, Show, batch, onMount } from 'solid-js';
-import './FileGrid.css';
+import { SectionPanel } from "./SectionPanel";
+import { For, Show, batch, onMount } from "solid-js";
+import "./FileGrid.css";
 import {
   files,
   setFiles,
@@ -24,12 +25,18 @@ import {
   setModalFile,
   openModal,
   markReplaceNextUrlSync,
-} from '../store';
-import { fetchFiles, FILES_PER_PAGE } from '../api';
-import { FileEntry } from './FileEntry';
-import { Icon } from './Icon';
-import { FileFilters } from './FileFilters';
-import { FileStats } from './FileStats';
+} from "../store";
+import { FILES_PER_PAGE } from "../utils";
+import { listFiles } from "../generated";
+import { apiData } from "../client";
+import type { ListFilesResponse } from "../generated";
+import { FileEntry } from "./FileEntry";
+import {
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+} from "lucide-solid";
+import { FileFilters } from "./FileFilters";
+import { FileStats } from "./FileStats";
 
 export function FileGrid() {
   onMount(() => {
@@ -63,40 +70,39 @@ export function FileGrid() {
 
   return (
     <>
-      <div class="setting-group-header">
-        <div class="files-top-row">
-          <h2>Files</h2>
-          <FileStats />
-        </div>
-      </div>
-
-      <div class="setting-group-body">
+      <SectionPanel title="Files" headerActions={<FileStats />}>
         <FileFilters />
-        <div class="file-grid" classList={{ loading: isLoading() && files().length > 0 }}>
+        <div
+          class="file-grid"
+          classList={{ loading: isLoading() && files().length > 0 }}
+        >
           <Show when={loadingText()}>
             <p id="file-grid-loading-text">{loadingText()}</p>
           </Show>
 
-          <For each={files()}>
-            {(file) => <FileEntry file={file} />}
-          </For>
+          <For each={files()}>{(file) => <FileEntry file={file} />}</For>
         </div>
 
         <Show when={isLoading() && files().length > 0}>
-          <div id="file-grid-loading-overlay" class="visible">
-            <div class="spinner" />
+          <div
+            id="file-grid-loading-overlay"
+            class="visible"
+            role="status"
+            aria-label="Loading files"
+          >
+            <div class="spinner" aria-hidden="true" />
           </div>
         </Show>
 
         <Show when={totalPages() > 1}>
-          <div id="pagination-controls" style={{ display: 'flex' }}>
+          <div id="pagination-controls" style={{ display: "flex" }}>
             <button
               id="prev-page-btn"
               class="pagination-button"
               onClick={handlePrev}
               disabled={currentPage() === 0}
             >
-              <Icon name="chevron-left" />
+              <ChevronLeftIcon class="lucide-icon" aria-hidden="true" />
               <span>Previous</span>
             </button>
             <span id="page-info">{pageInfo()}</span>
@@ -107,16 +113,22 @@ export function FileGrid() {
               disabled={currentPage() + 1 >= totalPages()}
             >
               <span>Next</span>
-              <Icon name="chevron-right" />
+              <ChevronRightIcon class="lucide-icon" aria-hidden="true" />
             </button>
           </div>
         </Show>
-      </div>
+      </SectionPanel>
     </>
   );
 }
 
 let inflight: AbortController | null = null;
+
+export function cancelFileLoad() {
+  inflight?.abort();
+  inflight = null;
+  setIsLoading(false);
+}
 
 export async function loadFiles(skip: number) {
   // Abort any in-flight request so rapid filter/sort changes don't race:
@@ -128,26 +140,51 @@ export async function loadFiles(skip: number) {
   setIsLoading(true);
 
   if (files().length === 0) {
-    setLoadingText('Loading...');
+    setLoadingText("Loading...");
   }
 
   try {
     let effectiveSkip = skip;
-    let data: Awaited<ReturnType<typeof fetchFiles>> | undefined;
+    let data: ListFilesResponse | undefined;
 
     for (let attempt = 0; attempt < 3; attempt++) {
-      data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), tagFilters(), activeFilters(), controller.signal);
+      data = await apiData(
+        listFiles({
+          query: {
+            skip: effectiveSkip,
+            sort: sortField(),
+            desc: sortDesc(),
+            tag: tagFilters(),
+            filter: activeFilters(),
+          },
+          signal: controller.signal,
+        }),
+      );
 
       // Tags only exist while some file has them, so an empty result for a
       // single tag alone most likely means it was removed recently. With more
       // tags or other filters, an empty result can be legitimate.
-      if (data.files.length === 0 && tagFilters().length === 1 && activeFilters().length === 0) {
+      if (
+        (data.files?.length ?? 0) === 0 &&
+        tagFilters().length === 1 &&
+        activeFilters().length === 0
+      ) {
         if (controller.signal.aborted) return;
         batch(() => {
           markReplaceNextUrlSync();
           setTagFilters([]);
         });
-        data = await fetchFiles(effectiveSkip, sortField(), sortDesc(), [], activeFilters(), controller.signal);
+        data = await apiData(
+          listFiles({
+            query: {
+              skip: effectiveSkip,
+              sort: sortField(),
+              desc: sortDesc(),
+              filter: activeFilters(),
+            },
+            signal: controller.signal,
+          }),
+        );
       }
 
       const count = data.count || 0;
@@ -164,11 +201,13 @@ export async function loadFiles(skip: number) {
 
     if (!data) return;
 
-    setFiles(data.files || []);
+    setFiles(
+      (data.files ?? []).map((file) => ({ ...file, Tags: file.Tags ?? [] })),
+    );
 
     const pending = pendingModalFile();
     if (pending && data.files) {
-      const match = data.files.find((f) => f.FileName === pending);
+      const match = files().find((f) => f.FileName === pending);
       if (match) {
         openModal(match);
         setPendingModalFile(null);
@@ -179,20 +218,20 @@ export async function loadFiles(skip: number) {
 
     const edge = pendingModalEdge();
     if (edge && data.files && data.files.length > 0) {
-      setModalFile(edge === 'first' ? data.files[0] : data.files[data.files.length - 1]);
+      setModalFile(edge === "first" ? files()[0] : files()[files().length - 1]);
     }
     setPendingModalEdge(null);
 
     if (data.files && data.files.length > 0) {
-      setLoadingText('');
+      setLoadingText("");
     } else if (tagFilters().length > 0 || activeFilters().length > 0) {
-      setLoadingText('No files match these filters.');
+      setLoadingText("No files match these filters.");
     } else {
-      setLoadingText('No files uploaded yet.');
+      setLoadingText("No files uploaded yet.");
     }
   } catch (err) {
-    if ((err as Error)?.name === 'AbortError') return;
-    setLoadingText('Failed to load files.');
+    if ((err as Error)?.name === "AbortError") return;
+    setLoadingText("Failed to load files.");
   } finally {
     if (inflight === controller) {
       inflight = null;
@@ -224,7 +263,7 @@ export function showAdjacentFile(delta: -1 | 1) {
   }
 
   const newPage = currentPage() + delta;
-  setPendingModalEdge(delta === 1 ? 'first' : 'last');
+  setPendingModalEdge(delta === 1 ? "first" : "last");
   setCurrentPage(newPage);
   loadFiles(newPage * FILES_PER_PAGE);
 }

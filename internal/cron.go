@@ -39,21 +39,25 @@ func (app *Application) StartJobScheduler() {
 }
 
 func (app *Application) CleanUpJob(ctx context.Context) {
-	if err := app.db.DeleteExpiredSessionTokens(); err != nil {
+	if ctx.Err() != nil {
+		return
+	}
+	database := app.db.WithContext(ctx)
+	if err := database.DeleteExpiredSessionTokens(); err != nil {
 		log.Err(err).Msg("Failed to delete expired session tokens")
 	}
 	if ctx.Err() != nil {
 		return
 	}
 
-	if err := app.db.DeleteExpiredInviteCodes(); err != nil {
+	if err := database.DeleteExpiredInviteCodes(); err != nil {
 		log.Err(err).Msg("Failed to delete expired invite codes")
 	}
 	if ctx.Err() != nil {
 		return
 	}
 
-	if count, err := app.db.CleanupOrphanedTags(); err != nil {
+	if count, err := database.CleanupOrphanedTags(); err != nil {
 		log.Err(err).Msg("Failed to clean up orphaned tags")
 	} else if count > 0 {
 		log.Info().Msgf("Cleaned up %d orphaned tags", count)
@@ -67,7 +71,7 @@ func (app *Application) CleanUpJob(ctx context.Context) {
 			return
 		}
 
-		files, err := app.db.FindExpiredFiles()
+		files, err := database.FindExpiredFiles()
 		if err != nil {
 			log.Err(err).Msg("Failed to find expired files")
 
@@ -91,7 +95,7 @@ func (app *Application) CleanUpJob(ctx context.Context) {
 				continue
 			}
 
-			if err := app.db.DeleteFileEntry(file.FileName, file.UploaderID); err != nil {
+			if err := database.DeleteFileEntry(file.FileName, file.UploaderID); err != nil {
 				log.Err(err).Str("file", file.FileName).Msg("Failed to delete file entry from database")
 
 				continue

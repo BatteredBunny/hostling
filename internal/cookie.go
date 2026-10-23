@@ -137,7 +137,11 @@ func (app *Application) validateAuthCookie(
 		return
 	}
 
-	if account, err = app.db.GetAccountBySessionToken(sessionToken); errors.Is(err, gorm.ErrRecordNotFound) {
+	if account, err = app.db.WithContext(c.Request.Context()).
+		GetAccountBySessionToken(sessionToken); errors.Is(
+		err,
+		gorm.ErrRecordNotFound,
+	) {
 		err = ErrInvalidAuthCookie
 		app.clearAuthCookie(c)
 

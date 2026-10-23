@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/danielgtaylor/huma/v2"
 	"net/http"
 	"net/url"
 	"path"
@@ -12,11 +13,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	embed "github.com/BatteredBunny/hostling"
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
@@ -42,71 +43,48 @@ func (app *Application) getConfiguredProviders() []string {
 	return append([]string(nil), app.configuredProviders...)
 }
 
-func (app *Application) indexPage(c *gin.Context) {
-	templateInput := gin.H{
-		"Host":        c.Request.Host,
-		"CurrentPage": "home",
-		"Branding":    app.config.Branding,
-		"Tagline":     app.config.Tagline,
-	}
-
-	account, loggedIn, ok := app.validateOrAbort(c)
-	if !ok {
-		return
-	}
-
-	if loggedIn {
-		// For top bar
-		templateInput["LoggedIn"] = true
-		templateInput["AccountID"] = account.ID
-
-		isAdmin := account.AccountType == "ADMIN"
-		templateInput["IsAdmin"] = isAdmin
-
-		if isAdmin {
-			templateInput["HasAdminWarning"] = app.hasAdminWarning()
-		}
-	}
-
-	c.HTML(http.StatusOK, "index.gohtml", templateInput)
-}
+func (app *Application) indexPage(c *gin.Context) { app.staticPage(c, "index") }
 
 type AccountStats struct {
-	db.Accounts
+	ID             uint      `json:"ID"`
+	CreatedAt      time.Time `json:"CreatedAt"`
+	GithubUsername string    `json:"GithubUsername"`
+	OIDCUsername   string    `json:"OIDCUsername"`
+	AccountType    string    `json:"AccountType"`
 
-	SpaceUsed         uint
-	InvitedBy         string
-	FilesUploaded     int64
-	You               bool
-	SessionsCount     int64
-	UploadTokensCount int64
-	LastActivity      time.Time // Last session or upload token usage
+	SpaceUsed         uint      `json:"SpaceUsed"`
+	InvitedBy         string    `json:"InvitedBy"`
+	FilesUploaded     int64     `json:"FilesUploaded"`
+	You               bool      `json:"You"`
+	SessionsCount     int64     `json:"SessionsCount"`
+	UploadTokensCount int64     `json:"UploadTokensCount"`
+	LastActivity      time.Time `json:"LastActivity"` // Last session or upload token usage
 }
 
-func (app *Application) adminPage(c *gin.Context) {
-	account, ok := app.requireAuth(c)
+func (app *Application) adminOverviewAPI(
+	_ context.Context,
+	request *EmptyInput,
+) (*JSONOutput[AdminOverviewOutput], error) {
+	c := request.Gin
+
+	account, ok := getAccount(c)
 	if !ok {
-		return
+		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 	}
 
 	if account.AccountType != "ADMIN" {
-		c.Redirect(http.StatusTemporaryRedirect, "/")
-
-		return
+		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 	}
 
-	accounts, err := app.db.GetAccounts()
+	database := app.db.WithContext(c.Request.Context())
+	accounts, err := database.GetAccounts()
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	statsMap, err := app.db.AllAccountStats()
+	statsMap, err := database.AllAccountStats()
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
 	accountsByID := make(map[uint]db.Accounts, len(accounts))
@@ -118,7 +96,11 @@ func (app *Application) adminPage(c *gin.Context) {
 	for _, a := range accounts {
 		agg := statsMap[a.ID]
 		stat := AccountStats{
-			Accounts:          a,
+			ID:                a.ID,
+			CreatedAt:         a.CreatedAt,
+			GithubUsername:    a.GithubUsername,
+			OIDCUsername:      a.OIDCUsername,
+			AccountType:       a.AccountType,
 			You:               a.ID == account.ID,
 			FilesUploaded:     agg.FilesUploaded,
 			SpaceUsed:         agg.SpaceUsed,
@@ -143,77 +125,46 @@ func (app *Application) adminPage(c *gin.Context) {
 	}
 
 	configured := app.getConfiguredProviders()
-	c.HTML(http.StatusOK, "admin.gohtml", gin.H{
-		"CurrentPage":           "admin",
-		"Branding":              app.config.Branding,
-		"Tagline":               app.config.Tagline,
-		"LoggedIn":              true,
-		"AccountID":             account.ID,
-		"IsAdmin":               true,
-		"HasAdminWarning":       app.hasAdminWarning(),
-		"Accounts":              stats,
-		"MaxUploadSize":         uint(app.config.MaxUploadSize),
-		"Version":               Version,
-		"NoProvidersConfigured": len(configured) == 0,
-		"FailedProviders":       app.getFailedProviders(),
-		"FileStorageMethod":     string(app.config.FileStorageMethod),
-		"LoginProviders":        configured,
-	})
+
+	return jsonOutput(AdminOverviewOutput{
+		Accounts:              stats,
+		MaxUploadSize:         app.config.MaxUploadSize,
+		Version:               Version,
+		NoProvidersConfigured: len(configured) == 0,
+		FailedProviders:       app.getFailedProviders(),
+		FileStorageMethod:     string(app.config.FileStorageMethod),
+		LoginProviders:        configured,
+	}), nil
 }
 
 func (app *Application) galleryPage(c *gin.Context) {
-	account, ok := app.requireAuth(c)
+	_, ok := app.requireAuth(c)
 	if !ok {
 		return
 	}
-
-	isAdmin := account.AccountType == "ADMIN"
-	templateInput := gin.H{
-		"CurrentPage": "gallery",
-		"Branding":    app.config.Branding,
-		"Tagline":     app.config.Tagline,
-		"LoggedIn":    true,
-		"AccountID":   account.ID,
-		"IsAdmin":     isAdmin,
-	}
-
-	if isAdmin {
-		templateInput["HasAdminWarning"] = app.hasAdminWarning()
-	}
-
-	c.HTML(http.StatusOK, "gallery.gohtml", templateInput)
+	app.staticPage(c, "gallery")
 }
 
-func (app *Application) settingsPage(c *gin.Context) {
-	account, ok := app.requireAuth(c)
+func (app *Application) settingsAPI(_ context.Context, request *EmptyInput) (*JSONOutput[SettingsOutput], error) {
+	c := request.Gin
+
+	account, ok := getAccount(c)
 	if !ok {
-		return
+		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 	}
 
-	isAdmin := account.AccountType == "ADMIN"
-	templateInput := gin.H{
-		"CurrentPage": "settings",
-		"Branding":    app.config.Branding,
-		"Tagline":     app.config.Tagline,
-		"LoggedIn":    true,
-		"AccountID":   account.ID,
-		"IsAdmin":     isAdmin,
-	}
+	data := app.settingsData(account)
 
-	if isAdmin {
-		templateInput["HasAdminWarning"] = app.hasAdminWarning()
-	}
+	return jsonOutput(data), nil
+}
 
-	var providers []ProviderInfo
+func (app *Application) settingsData(account db.Accounts) SettingsOutput {
+	providers := make([]ProviderInfo, 0)
 	unlinkedAccount := true
 
 	configured := app.getConfiguredProviders()
 	for _, providerName := range configured {
-		info := ProviderInfo{
-			Name:        providerName,
-			Icon:        ProviderToIcon(providerName),
-			LinkingText: ProviderToLinkingText(providerName),
-		}
+		info := ProviderInfo{Name: providerName}
 
 		switch providerName {
 		case "github":
@@ -234,70 +185,19 @@ func (app *Application) settingsPage(c *gin.Context) {
 		providers = append(providers, info)
 	}
 
-	templateInput["Providers"] = providers
-	templateInput["NoProvidersConfigured"] = len(configured) == 0
-	templateInput["UnlinkedAccount"] = unlinkedAccount
-
-	c.HTML(http.StatusOK, "settings.gohtml", templateInput)
+	return SettingsOutput{
+		Providers:             providers,
+		NoProvidersConfigured: len(configured) == 0,
+		UnlinkedAccount:       unlinkedAccount,
+	}
 }
 
 func (app *Application) tokensPage(c *gin.Context) {
-	account, ok := app.requireAuth(c)
+	_, ok := app.requireAuth(c)
 	if !ok {
 		return
 	}
-
-	isAdmin := account.AccountType == "ADMIN"
-	templateInput := gin.H{
-		"CurrentPage": "tokens",
-		"Branding":    app.config.Branding,
-		"Tagline":     app.config.Tagline,
-		"LoggedIn":    true,
-		"AccountID":   account.ID,
-		"IsAdmin":     isAdmin,
-	}
-
-	if isAdmin {
-		templateInput["HasAdminWarning"] = app.hasAdminWarning()
-	}
-
-	c.HTML(http.StatusOK, "tokens.gohtml", templateInput)
-}
-
-type LoginProvider struct {
-	Name string
-	Icon string // lucide-icon name, should probably be replaced with simpleicons.org when supporting more login platforms
-}
-
-type ProviderInfo struct {
-	Name        string
-	Icon        string // lucide-icon name, should probably be replaced with simpleicons.org when supporting more login platforms
-	LinkingText string // e.g., "Link with GitHub"
-	IsLinked    bool   // whether the account is linked to this provider
-	Username    string // Used for displaying linked username
-	ProfileURL  string // Profile URL if the provider supports it, e.g for github you can open your profile
-}
-
-func ProviderToIcon(provider string) string {
-	switch provider {
-	case "github":
-		return "github"
-	case "openid-connect":
-		return "key-round"
-	default:
-		return "key-square"
-	}
-}
-
-func ProviderToLinkingText(provider string) string {
-	switch provider {
-	case "github":
-		return "Link with GitHub"
-	case "openid-connect":
-		return "Link with OpenID Connect"
-	default:
-		return "Link with " + provider
-	}
+	app.staticPage(c, "tokens")
 }
 
 func (app *Application) loginPage(c *gin.Context) {
@@ -305,27 +205,12 @@ func (app *Application) loginPage(c *gin.Context) {
 	if !ok {
 		return
 	}
-
-	configured := app.getConfiguredProviders()
-	var providers []LoginProvider
-	for _, name := range configured {
-		providers = append(providers, LoginProvider{
-			Name: name,
-			Icon: ProviderToIcon(name),
-		})
-	}
-
 	if loggedIn {
 		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
-	} else {
-		c.HTML(http.StatusOK, "login.gohtml", gin.H{
-			"Providers":             providers,
-			"NoProvidersConfigured": len(configured) == 0,
-			"CurrentPage":           "login",
-			"Branding":              app.config.Branding,
-			"Tagline":               app.config.Tagline,
-		})
+
+		return
 	}
+	app.staticPage(c, "login")
 }
 
 func (app *Application) registerPage(c *gin.Context) {
@@ -333,16 +218,12 @@ func (app *Application) registerPage(c *gin.Context) {
 	if !ok {
 		return
 	}
-
 	if loggedIn {
 		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
-	} else {
-		c.HTML(http.StatusOK, "register.gohtml", gin.H{
-			"CurrentPage": "register",
-			"Branding":    app.config.Branding,
-			"Tagline":     app.config.Tagline,
-		})
+
+		return
 	}
+	app.staticPage(c, "register")
 }
 
 func (app *Application) indexFiles(c *gin.Context) {
@@ -371,7 +252,8 @@ func (app *Application) indexFiles(c *gin.Context) {
 	}
 
 	// Looks in database for uploaded file
-	fileRecord, err := app.db.GetFileByName(path.Base(cleaned))
+	database := app.db.WithContext(c.Request.Context())
+	fileRecord, err := database.GetFileByName(path.Base(cleaned))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.Redirect(http.StatusTemporaryRedirect, "/")
 
@@ -396,7 +278,11 @@ func (app *Application) indexFiles(c *gin.Context) {
 
 	// Skip view bumps on Range/HEAD probes — media players issue many.
 	if c.Request.Method == http.MethodGet && c.Request.Header.Get("Range") == "" {
-		if err := app.db.BumpFileViews(fileRecord.ID, c.ClientIP(), deriveKey(app.appSecret, "view-hash")); err != nil {
+		if err := database.BumpFileViews(
+			fileRecord.ID,
+			c.ClientIP(),
+			deriveKey(app.appSecret, "view-hash"),
+		); err != nil {
 			log.Err(err).Msg("Failed to bump file views")
 		}
 	}
@@ -404,7 +290,10 @@ func (app *Application) indexFiles(c *gin.Context) {
 	setUploadServeHeaders(c)
 	c.Header(
 		"Content-Disposition",
-		formatContentDisposition(uploadDisposition(fileRecord.MimeType), fileRecord.OriginalFileName),
+		formatContentDisposition(
+			uploadDisposition(fileRecord.MimeType),
+			fileRecord.OriginalFileName,
+		),
 	)
 
 	switch app.config.FileStorageMethod {
@@ -438,17 +327,32 @@ func (app *Application) handles3File(fileName string, fileRecord db.Files, c *gi
 		}
 
 		c.Header("Content-Type", fileRecord.MimeType)
-		http.ServeContent(c.Writer, c.Request, fileRecord.OriginalFileName, objectInfo.LastModified, object)
+		http.ServeContent(
+			c.Writer,
+			c.Request,
+			fileRecord.OriginalFileName,
+			objectInfo.LastModified,
+			object,
+		)
 	} else {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), s3Timeout)
 		defer cancel()
 		reqParams := url.Values{
 			"response-content-disposition": []string{
-				formatContentDisposition(uploadDisposition(fileRecord.MimeType), fileRecord.OriginalFileName),
+				formatContentDisposition(
+					uploadDisposition(fileRecord.MimeType),
+					fileRecord.OriginalFileName,
+				),
 			},
 			"response-content-type": []string{fileRecord.MimeType},
 		}
-		presignedURL, err := app.s3client.PresignedGetObject(ctx, app.config.S3.Bucket, fileName, time.Hour, reqParams)
+		presignedURL, err := app.s3client.PresignedGetObject(
+			ctx,
+			app.config.S3.Bucket,
+			fileName,
+			time.Hour,
+			reqParams,
+		)
 		if err != nil {
 			log.Err(err).Msg("Failed to generate presigned URL")
 			c.AbortWithStatus(http.StatusInternalServerError)
@@ -470,30 +374,38 @@ type InviteCodeAPIOutput struct {
 	ExpiryDate time.Time `json:"expiry_date"`
 }
 
-func (app *Application) uploadTokensAPI(c *gin.Context) {
+func (app *Application) uploadTokensAPI(
+	_ context.Context,
+	request *EmptyInput,
+) (*JSONOutput[[]db.UiUploadToken], error) {
+	c := request.Gin
+
 	account, _ := getAccount(c)
-	tokens, err := app.db.GetUploadTokens(account.ID)
+	tokens, err := app.db.WithContext(c.Request.Context()).GetUploadTokens(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to list upload tokens")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 	if tokens == nil {
 		tokens = []db.UiUploadToken{}
 	}
-	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, tokens)
+
+	return jsonOutput(tokens), nil
 }
 
-func (app *Application) inviteCodesAPI(c *gin.Context) {
+func (app *Application) inviteCodesAPI(
+	_ context.Context,
+	request *EmptyInput,
+) (*JSONOutput[[]InviteCodeAPIOutput], error) {
+	c := request.Gin
+
 	account, _ := getAccount(c)
-	invites, err := app.db.InviteCodesByAccount(account.ID)
+	invites, err := app.db.WithContext(c.Request.Context()).InviteCodesByAccount(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to list invite codes")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 	output := make([]InviteCodeAPIOutput, 0, len(invites))
 	for _, invite := range invites {
@@ -501,114 +413,108 @@ func (app *Application) inviteCodesAPI(c *gin.Context) {
 			Code: invite.Code, Uses: invite.Uses, ExpiryDate: invite.ExpiryDate,
 		})
 	}
-	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, output)
+
+	return jsonOutput(output), nil
 }
 
-func (app *Application) newUploadTokenAPI(c *gin.Context) {
+func (app *Application) newUploadTokenAPI(
+	_ context.Context,
+	request *FormInput[NewUploadTokenForm],
+) (*JSONOutput[db.CreatedUploadToken], error) {
+	c := request.Gin
+	input := request.RawBody.Data()
+
 	account, _ := getAccount(c)
-	nickname := strings.TrimSpace(c.PostForm("nickname"))
+	nickname := strings.TrimSpace(string(input.Nickname))
 
 	if nickname == "" {
-		c.String(http.StatusBadRequest, "Token name is required")
-		c.Abort()
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, "Token name is required")
 	}
 
-	if len(nickname) > maxUploadTokenNickname {
-		c.String(http.StatusBadRequest, "Token name too long")
-		c.Abort()
-
-		return
+	if utf8.RuneCountInString(nickname) > maxUploadTokenNickname {
+		return nil, huma.NewError(http.StatusBadRequest, "Token name too long")
 	}
 
-	count, err := app.db.GetUploadTokensCount(account.ID)
-	if err != nil {
-		log.Err(err).Msg("Failed to count upload tokens")
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
+	uploadToken, err := app.db.WithContext(c.Request.Context()).
+		CreateUploadTokenWithinLimit(account.ID, nickname, maxUploadTokensPerAccount)
+	if errors.Is(err, db.ErrUploadTokenLimit) {
+		return nil, huma.NewError(http.StatusBadRequest, "Upload token limit reached")
 	}
-	if count >= maxUploadTokensPerAccount {
-		c.String(http.StatusBadRequest, "Upload token limit reached")
-		c.Abort()
-
-		return
-	}
-
-	uploadToken, err := app.db.CreateUploadToken(account.ID, nickname)
 	if err != nil {
 		log.Err(err).Msg("Failed to create upload token")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusCreated, uploadToken)
+	return &JSONOutput[db.CreatedUploadToken]{Body: uploadToken, CacheControl: "no-store"}, nil
 }
 
-func (app *Application) deleteUploadTokenAPI(c *gin.Context) {
+func (app *Application) deleteUploadTokenAPI(
+	_ context.Context,
+	request *FormInput[DeleteUploadTokenForm],
+) (*TextOutput, error) {
+	c := request.Gin
+	input := request.RawBody.Data()
+
 	account, _ := getAccount(c)
 
-	id, err := strconv.ParseUint(c.PostForm("id"), 10, 32)
-	if err != nil || id == 0 {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+	id := input.ID
+	if id == 0 {
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
-	if err = app.db.DeleteUploadToken(account.ID, uint(id)); err != nil {
+	if err := app.db.WithContext(c.Request.Context()).DeleteUploadToken(account.ID, id); err != nil {
 		log.Err(err).Msg("Failed to delete upload token")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, "Upload token deleted successfully")
+	return textOutput("Upload token deleted successfully"), nil
 }
 
-func (app *Application) deleteInviteCodeAPI(c *gin.Context) {
+func (app *Application) deleteInviteCodeAPI(
+	_ context.Context,
+	request *FormInput[DeleteInviteCodeForm],
+) (*TextOutput, error) {
+	c := request.Gin
+	input := request.RawBody.Data()
+
 	account, _ := getAccount(c)
-	inviteCode := c.PostForm("invite_code")
+	inviteCode := input.Code
 	if inviteCode == "" {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
-	if err := app.db.DeleteInviteCode(inviteCode, account.ID); err != nil {
+	if err := app.db.WithContext(c.Request.Context()).DeleteInviteCode(inviteCode, account.ID); err != nil {
 		log.Err(err).Msg("Failed to delete invite code")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, "Invite code deleted successfully")
+	return textOutput("Invite code deleted successfully"), nil
 }
 
-func (app *Application) deleteFilesAPI(c *gin.Context) {
+func (app *Application) deleteFilesAPI(_ context.Context, request *EmptyInput) (*TextOutput, error) {
+	c := request.Gin
+
 	account, _ := getAccount(c)
 
 	err := app.deleteFilesFromAccount(c.Request.Context(), account.ID)
 	if errors.Is(err, ErrPartialDeleteFailed) {
-		c.String(http.StatusInternalServerError, "Some files could not be deleted")
-
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, "Some files could not be deleted")
 	}
 	if err != nil {
 		log.Err(err).Msg("Failed to delete files from account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, "Files deleted")
+	return textOutput("Files deleted"), nil
 }
 
 func (app *Application) deleteFilesFromAccount(ctx context.Context, accountID uint) (err error) {
-	files, err := app.db.GetAllFilesFromAccount(accountID)
+	database := app.db.WithContext(ctx)
+	files, err := database.GetAllFilesFromAccount(accountID)
 	if err != nil {
 		return
 	}
@@ -616,12 +522,14 @@ func (app *Application) deleteFilesFromAccount(ctx context.Context, accountID ui
 	var failed int
 	for _, file := range files {
 		if err = app.deleteFile(ctx, file.FileName); err != nil {
-			log.Err(err).Str("file", file.FileName).Msg("Failed to delete file from storage; keeping DB row for retry")
+			log.Err(err).
+				Str("file", file.FileName).
+				Msg("Failed to delete file from storage; keeping DB row for retry")
 			failed++
 
 			continue
 		}
-		if err = app.db.DeleteFileEntry(file.FileName, accountID); err != nil {
+		if err = database.DeleteFileEntry(file.FileName, accountID); err != nil {
 			log.Err(err).Str("file", file.FileName).Msg("Failed to delete file entry from database")
 			failed++
 
@@ -642,41 +550,42 @@ type FileStatsOutput struct {
 	Tags      []string `json:"tags"`
 }
 
-func (app *Application) fileStatsAPI(c *gin.Context) {
+func (app *Application) fileStatsAPI(_ context.Context, request *EmptyInput) (*JSONOutput[FileStatsOutput], error) {
+	c := request.Gin
+
 	account, _ := getAccount(c)
 
 	var output FileStatsOutput
 
-	totalFiles, totalStorage, err := app.db.GetFileStats(account.ID)
+	database := app.db.WithContext(c.Request.Context())
+	totalFiles, totalStorage, err := database.GetFileStats(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get file stats")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
 	output.Count = totalFiles
 	output.SizeTotal = totalStorage
 
-	output.Tags, err = app.db.GetAccountTags(account.ID)
+	output.Tags, err = database.GetAccountTags(account.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to get account tags")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.JSON(http.StatusOK, output)
+	return jsonOutput(output), nil
 }
 
 // FileFilterInput is the tag/filter selection shared by the file listing and
 // the filter tags API.
 type FileFilterInput struct {
 	// Repeatable; files must have every given tag.
-	Tag []string `form:"tag"`
+	Tag []string `form:"tag" query:"tag,explode"`
 	// Repeatable: "untagged" for files without tags, "public" for public files, "private" for private files.
 	// Multiple filters combine, e.g. filter=untagged&filter=private.
-	Filter []string `form:"filter"`
+	Filter []string `form:"filter" query:"filter,explode"`
 }
 
 // normalize validates the selection and lowercases tags, since they're stored lowercased.
@@ -713,9 +622,9 @@ func (input *FileFilterInput) normalize() bool {
 type FilesApiInput struct {
 	FileFilterInput
 
-	Skip uint   `form:"skip,default=0"`          // Used for pagination
-	Sort string `form:"sort,default=created_at"` // "created_at", "views", "file_size"
-	Desc bool   `form:"desc,default=true"`       // true for descending, false for ascending
+	Skip uint   `form:"skip,default=0"          query:"skip" default:"0"`                                            // Used for pagination
+	Sort string `form:"sort,default=created_at" query:"sort" default:"created_at" enum:"created_at,views,file_size"` // "created_at", "views", "file_size"
+	Desc bool   `form:"desc,default=true"       query:"desc" default:"true"`                                         // true for descending, false for ascending
 }
 
 type FilesApiOutput struct {
@@ -723,26 +632,18 @@ type FilesApiOutput struct {
 	Count int64      `json:"count"`
 }
 
-func (app *Application) filesAPI(c *gin.Context) {
+func (app *Application) filesAPI(_ context.Context, request *FilesInput) (*JSONOutput[FilesApiOutput], error) {
+	c := request.Gin
+	input := &request.FilesApiInput
+
 	account, _ := getAccount(c)
 
-	var input FilesApiInput
-	if err := c.MustBindWith(&input, binding.Form); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
-
-		return
-	}
-
 	if input.Skip > maxPaginationSkip {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
 	if !input.normalize() {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
 	allowedSorts := []string{
@@ -751,15 +652,13 @@ func (app *Application) filesAPI(c *gin.Context) {
 		"file_size",
 	}
 	if !slices.Contains(allowedSorts, input.Sort) {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
 	// Api returns 8 files at a time
 	var limit uint = 8
 
-	files, count, err := app.db.GetFilesPaginatedFromAccount(
+	files, count, err := app.db.WithContext(c.Request.Context()).GetFilesPaginatedFromAccount(
 		account.ID,
 		input.Skip,
 		limit,
@@ -770,12 +669,11 @@ func (app *Application) filesAPI(c *gin.Context) {
 	)
 	if err != nil {
 		log.Err(err).Msg("Failed to get files from account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.JSON(http.StatusOK, FilesApiOutput{Files: files, Count: count})
+	return jsonOutput(FilesApiOutput{Files: files, Count: count}), nil
 }
 
 type FilterTagsApiOutput struct {
@@ -784,32 +682,41 @@ type FilterTagsApiOutput struct {
 
 // filterTagsAPI lists the tags on files matching the given tags and filters,
 // so a client can offer only tags that still narrow the selection down.
-func (app *Application) filterTagsAPI(c *gin.Context) {
+func (app *Application) filterTagsAPI(
+	_ context.Context,
+	request *FilterTagsInput,
+) (*JSONOutput[FilterTagsApiOutput], error) {
+	c := request.Gin
+	input := &request.FileFilterInput
+
 	account, _ := getAccount(c)
 
-	var input FileFilterInput
-	if err := c.MustBindWith(&input, binding.Form); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
-
-		return
-	}
-
 	if !input.normalize() {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
-	tags, err := app.db.GetFilteredTags(account.ID, input.Tag, input.Filter)
+	tags, err := app.db.WithContext(c.Request.Context()).GetFilteredTags(account.ID, input.Tag, input.Filter)
 	if err != nil {
 		log.Err(err).Msg("Failed to get filter tags")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 	if tags == nil {
 		tags = []string{}
 	}
 
-	c.JSON(http.StatusOK, FilterTagsApiOutput{Tags: tags})
+	return jsonOutput(FilterTagsApiOutput{Tags: tags}), nil
+}
+
+func (app *Application) adminPage(c *gin.Context) {
+	account, ok := app.requireAuth(c)
+	if !ok {
+		return
+	}
+	if account.AccountType != "ADMIN" {
+		c.Redirect(http.StatusTemporaryRedirect, "/")
+
+		return
+	}
+	app.staticPage(c, "admin")
 }

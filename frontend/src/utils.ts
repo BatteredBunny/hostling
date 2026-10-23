@@ -1,77 +1,77 @@
+export const FILES_PER_PAGE = 8;
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "medium",
+  hourCycle: "h23",
+});
+const relativeTimeFormatter = new Intl.RelativeTimeFormat("en", {
+  numeric: "always",
+});
+// Month and year durations are approximate for relative display.
+const relativeTimeUnits: readonly [Intl.RelativeTimeFormatUnit, number][] = [
+  ["year", 365 * 24 * 60 * 60],
+  ["month", 30 * 24 * 60 * 60],
+  ["week", 7 * 24 * 60 * 60],
+  ["day", 24 * 60 * 60],
+  ["hour", 60 * 60],
+  ["minute", 60],
+  ["second", 1],
+];
+
 export function formatTimeDate(date: string): string {
-  if (!date) return '';
-  const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const seconds = String(d.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  if (!date) return "";
+  const timestamp = Date.parse(date);
+  return Number.isFinite(timestamp) ? dateTimeFormatter.format(timestamp) : "";
 }
 
 export function relativeTime(date: string): string {
-  if (!date) return '';
-  const d = new Date(date);
-  const now = new Date();
-  const diff = d.getTime() - now.getTime();
-  const absDiff = Math.abs(diff);
-
-  const seconds = Math.floor(absDiff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-  const years = Math.floor(days / 365);
-
-  let result: string;
-  if (years > 0) {
-    result = `${years} year${years > 1 ? 's' : ''}`;
-  } else if (months > 0) {
-    result = `${months} month${months > 1 ? 's' : ''}`;
-  } else if (weeks > 0) {
-    result = `${weeks} week${weeks > 1 ? 's' : ''}`;
-  } else if (days > 0) {
-    result = `${days} day${days > 1 ? 's' : ''}`;
-  } else if (hours > 0) {
-    result = `${hours} hour${hours > 1 ? 's' : ''}`;
-  } else if (minutes > 0) {
-    result = `${minutes} minute${minutes > 1 ? 's' : ''}`;
-  } else {
-    result = `${seconds} second${seconds > 1 ? 's' : ''}`;
+  if (!date) return "";
+  const timestamp = Date.parse(date);
+  if (!Number.isFinite(timestamp)) return "";
+  const seconds = (timestamp - Date.now()) / 1000;
+  for (const [unit, duration] of relativeTimeUnits) {
+    if (Math.abs(seconds) >= duration || unit === "second") {
+      const value = Math.trunc(seconds / duration);
+      return relativeTimeFormatter.format(
+        seconds <= 0 && value === 0 ? -0 : value,
+        unit,
+      );
+    }
   }
-
-  if (diff > 0) {
-    return `in ${result}`;
-  } else {
-    return `${result} ago`;
-  }
+  return "";
 }
 
 export function humanizeBytes(bytes: number): string {
-  if (!bytes || bytes <= 0) return '0 B';
+  if (!bytes || bytes <= 0) return "0 B";
 
   const k = 1000;
-  const sizes = ['B', 'kB', 'MB', 'GB', 'TB', 'PB'];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+  const sizes = ["B", "kB", "MB", "GB", "TB", "PB"];
+  const i = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(k)),
+    sizes.length - 1,
+  );
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
 export function mimeIsImage(mimeType: string): boolean {
-  return mimeType?.startsWith('image/') ?? false;
+  return mimeType?.startsWith("image/") ?? false;
 }
 
 export function mimeIsVideo(mimeType: string): boolean {
-  return mimeType?.startsWith('video/') ?? false;
+  return mimeType?.startsWith("video/") ?? false;
 }
 
 export function mimeIsAudio(mimeType: string): boolean {
-  return mimeType?.startsWith('audio/') ?? false;
+  return mimeType?.startsWith("audio/") ?? false;
 }
 
-export function hashStringToHSL(str: string): { h: number; s: number; l: number } {
+export function hashStringToHSL(str: string): {
+  h: number;
+  s: number;
+  l: number;
+} {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -93,4 +93,30 @@ export function hasExpiry(expiryDate: string): boolean {
 
 export function fileUrl(fileName: string): string {
   return `/${encodeURIComponent(fileName)}`;
+}
+
+export async function copyText(
+  text: string,
+  container: HTMLElement = document.querySelector<HTMLElement>(
+    "dialog:modal",
+  ) ?? document.body,
+) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const previousFocus = document.activeElement;
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    container.appendChild(textarea);
+    try {
+      textarea.select();
+      if (!document.execCommand("copy")) throw new Error("Copy failed");
+    } finally {
+      textarea.remove();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected)
+        previousFocus.focus();
+    }
+  }
 }

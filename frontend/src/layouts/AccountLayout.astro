@@ -1,0 +1,59 @@
+---
+import { Navigation } from "../components/Navigation";
+import { ClientRouter } from "astro:transitions";
+import { Font } from "astro:assets";
+import mascot from "../assets/mascot.png";
+import "../styles/common.css";
+interface Props {
+  title: string;
+  currentPage: string;
+}
+const { title, currentPage } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" transition:animate="none">
+  <head>
+    <Font
+      cssVariable="--font-nordwand-mono"
+      preload={[{ weight: 400, style: "normal" }]}
+    />
+    <ClientRouter fallback="swap" />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#B881FB" />
+    <meta name="darkreader-lock" />
+    <meta name="twitter:image" content={mascot.src} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image" content={mascot.src} />
+    <link rel="icon" href="/public/favicon.ico" />
+    <slot name="head" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <Navigation
+      currentPage={currentPage}
+      client:load
+      transition:persist="navigation"
+    />
+    <main>
+      <div class="container">
+        {currentPage !== "home" && <h1>{title}</h1>}
+        <div
+          class="account-sections"
+          id={
+            currentPage === "gallery" ? "file-library" : `${currentPage}-page`
+          }
+        >
+          <slot />
+        </div>
+      </div>
+    </main>
+    <noscript>
+      <p class="javascript-notice">Enable JavaScript to use this site.</p>
+    </noscript>
+  </body>
+</html>

@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 const SessionTokenDuration = 7 * 24 * time.Hour
@@ -34,8 +35,9 @@ func (db *Database) DeleteSession(sessionToken string) (err error) {
 		return err
 	}
 
-	return db.Where("token_hash = ?", hash).
-		Delete(&SessionTokens{}).Error
+	_, err = gorm.G[SessionTokens](db.DB).Where("token_hash = ?", hash).Delete(db.Statement.Context)
+
+	return
 }
 
 func (db *Database) DeleteSessionForAccount(sessionToken string, accountID uint) (err error) {
@@ -44,22 +46,24 @@ func (db *Database) DeleteSessionForAccount(sessionToken string, accountID uint)
 		return err
 	}
 
-	return db.Where("token_hash = ? AND account_id = ?", hash, accountID).
-		Delete(&SessionTokens{}).Error
+	_, err = gorm.G[SessionTokens](db.DB).
+		Where("token_hash = ? AND account_id = ?", hash, accountID).
+		Delete(db.Statement.Context)
+
+	return
 }
 
 func (db *Database) DeleteSessionsFromAccount(accountID uint) (err error) {
-	return db.Where("account_id = ?", accountID).
-		Delete(&SessionTokens{}).Error
-}
-
-func (db *Database) GetSessionsCount(accountID uint) (count int64, err error) {
-	err = db.Model(&SessionTokens{}).
-		Where("account_id = ?", accountID).
-		Where("expiry_date > ?", time.Now()).
-		Count(&count).Error
+	_, err = gorm.G[SessionTokens](db.DB).Where("account_id = ?", accountID).Delete(db.Statement.Context)
 
 	return
+}
+
+func (db *Database) GetSessionsCount(accountID uint) (int64, error) {
+	return gorm.G[SessionTokens](db.DB).
+		Where("account_id = ?", accountID).
+		Where("expiry_date > ?", time.Now()).
+		Count(db.Statement.Context, "*")
 }
 
 // HashSessionToken canonicalizes legacy UUID cookies before hashing. Session
@@ -100,12 +104,13 @@ func (db *Database) CreateSessionToken(accountID uint) (sessionToken string, err
 		ExpiryDate: now.Add(SessionTokenDuration),
 		LastUsed:   now,
 	}
-	err = db.Create(&session).Error
+	err = gorm.G[SessionTokens](db.DB).Create(db.Statement.Context, &session)
 
 	return
 }
 
 func (db *Database) DeleteExpiredSessionTokens() (err error) {
-	return db.Where("expiry_date < ?", time.Now()).
-		Delete(&SessionTokens{}).Error
+	_, err = gorm.G[SessionTokens](db.DB).Where("expiry_date < ?", time.Now()).Delete(db.Statement.Context)
+
+	return
 }

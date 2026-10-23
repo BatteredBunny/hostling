@@ -4,13 +4,14 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 type Tag struct {
-	Name string `gorm:"primaryKey"`
+	Name string `gorm:"primaryKey" json:"Name"`
 }
 
 const (
@@ -25,7 +26,7 @@ var (
 )
 
 func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {
-	if len(tagName) > TagMaxLength {
+	if utf8.RuneCountInString(tagName) > TagMaxLength {
 		err = ErrTagTooLong
 
 		return

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/danielgtaylor/huma/v2"
 	"net/http"
 	"os"
 	"slices"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"github.com/gorilla/sessions"
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/gothic"
@@ -216,8 +216,6 @@ func (app *Application) setupAuth(api *gin.RouterGroup) {
 	auth.GET("/login/:provider/callback", app.loginCallback)
 	auth.GET("/login/:provider", app.loginApi)
 
-	auth.POST("/register", app.registerApi)
-
 	auth.POST("/link/:provider", app.linkApi)
 	auth.POST("/unlink/:provider", app.unlinkApi)
 }
@@ -249,7 +247,7 @@ func (app *Application) unlinkApi(c *gin.Context) {
 
 			return
 		}
-		unlinkErr = app.db.UnlinkGithub(account.ID)
+		unlinkErr = app.db.WithContext(c.Request.Context()).UnlinkGithub(account.ID)
 	case "openid-connect":
 		if account.OIDCID == "" {
 			c.Redirect(http.StatusSeeOther, "/settings")
@@ -261,7 +259,7 @@ func (app *Application) unlinkApi(c *gin.Context) {
 
 			return
 		}
-		unlinkErr = app.db.UnlinkOIDC(account.ID)
+		unlinkErr = app.db.WithContext(c.Request.Context()).UnlinkOIDC(account.ID)
 	default:
 		c.AbortWithStatus(http.StatusBadRequest)
 
@@ -332,6 +330,7 @@ func linkedIdentityCount(account db.Accounts) (n int) {
 }
 
 func (app *Application) linkProvider(
+	ctx context.Context,
 	provider string,
 	account db.Accounts,
 	user goth.User,
@@ -341,12 +340,12 @@ func (app *Application) linkProvider(
 		if account.GithubID != 0 {
 			return
 		}
-		err = app.db.LinkGithub(account.ID, user.NickName, user.UserID)
+		err = app.db.WithContext(ctx).LinkGithub(account.ID, user.NickName, user.UserID)
 	case "openid-connect":
 		if account.OIDCID != "" {
 			return
 		}
-		err = app.db.LinkOIDC(account.ID, oidcUsername(user), user.UserID)
+		err = app.db.WithContext(ctx).LinkOIDC(account.ID, oidcUsername(user), user.UserID)
 	default:
 		err = ErrUnknownProvider
 
@@ -361,20 +360,25 @@ func (app *Application) linkProvider(
 }
 
 // find account for provider & refresh username
-func (app *Application) findAccountForProvider(provider string, user goth.User) (account db.Accounts, err error) {
+func (app *Application) findAccountForProvider(
+	ctx context.Context,
+	provider string,
+	user goth.User,
+) (account db.Accounts, err error) {
+	database := app.db.WithContext(ctx)
 	switch provider {
 	case "github":
-		if account, err = app.db.FindAccountByGithubID(user.UserID); err != nil {
+		if account, err = database.FindAccountByGithubID(user.UserID); err != nil {
 			return
 		}
-		if updateErr := app.db.UpdateGithubUsername(account.ID, user.NickName); updateErr != nil {
+		if updateErr := database.UpdateGithubUsername(account.ID, user.NickName); updateErr != nil {
 			log.Warn().Err(updateErr).Msg("Failed to update github username")
 		}
 	case "openid-connect":
-		if account, err = app.db.FindAccountByOIDCID(user.UserID); err != nil {
+		if account, err = database.FindAccountByOIDCID(user.UserID); err != nil {
 			return
 		}
-		if updateErr := app.db.UpdateOIDCUsername(account.ID, oidcUsername(user)); updateErr != nil {
+		if updateErr := database.UpdateOIDCUsername(account.ID, oidcUsername(user)); updateErr != nil {
 			log.Warn().Err(updateErr).Msg("Failed to update OIDC username")
 		}
 	default:
@@ -403,7 +407,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 		app.clearLinkingCookie(c)
 	}
 
-	account, err := app.findAccountForProvider(provider, user)
+	account, err := app.findAccountForProvider(c.Request.Context(), provider, user)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		c.Redirect(http.StatusSeeOther, "/login")
 
@@ -415,7 +419,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 		return
 	}
 
-	sessionToken, err := app.db.CreateSessionToken(account.ID)
+	sessionToken, err := app.db.WithContext(c.Request.Context()).CreateSessionToken(account.ID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 
@@ -423,7 +427,7 @@ func (app *Application) loginCallback(c *gin.Context) {
 	}
 
 	if prev, parseErr := app.parseAuthCookie(c); parseErr == nil {
-		if delErr := app.db.DeleteSessionForAccount(prev, account.ID); delErr != nil {
+		if delErr := app.db.WithContext(c.Request.Context()).DeleteSessionForAccount(prev, account.ID); delErr != nil {
 			log.Warn().Err(delErr).Msg("Failed to delete prior session on re-login")
 		}
 	}
@@ -458,7 +462,7 @@ func (app *Application) handleLinkCallback(c *gin.Context, provider string, user
 		return
 	}
 
-	alreadyTaken, err := app.linkProvider(provider, account, user)
+	alreadyTaken, err := app.linkProvider(c.Request.Context(), provider, account, user)
 	if alreadyTaken {
 		c.String(http.StatusConflict, "This identity is already linked to another user")
 
@@ -535,33 +539,33 @@ func (app *Application) linkApi(c *gin.Context) {
 }
 
 type registerApiInput struct {
-	Code string `form:"code"`
+	Code string `form:"code" required:"true"`
 }
 
-func (app *Application) registerApi(c *gin.Context) {
-	var input registerApiInput
+func (app *Application) registerApi(
+	_ context.Context,
+	request *FormInput[registerApiInput],
+) (*RegistrationOutput, error) {
+	c := request.Gin
+	input := request.RawBody.Data()
+
 	var err error
 
-	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		c.String(http.StatusBadRequest, "Invalid request")
-
-		return
-	}
-
-	_, token, err := app.db.RegisterWithInviteCode(input.Code)
+	_, token, err := app.db.WithContext(c.Request.Context()).RegisterWithInviteCode(input.Code)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.String(http.StatusBadRequest, "Invalid code")
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, "Invalid code")
 	} else if err != nil {
 		log.Err(err).Msg("Failed to register with invite code")
-		c.String(http.StatusInternalServerError, "Failed to create account")
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, "Failed to create account")
 	}
 
 	app.setAuthCookie(token, c)
-	c.Redirect(http.StatusSeeOther, "/gallery")
+	if c.GetHeader("Accept") == "application/json" {
+		return &RegistrationOutput{Status: http.StatusCreated, Body: RedirectOutput{Redirect: "/gallery"}}, nil
+	}
+
+	return &RegistrationOutput{Status: http.StatusSeeOther, Location: "/gallery"}, nil
 }
 
 func oidcUsername(user goth.User) string {
@@ -594,7 +598,7 @@ func (app *Application) logoutHandler(c *gin.Context) {
 		return
 	}
 
-	if err = app.db.DeleteSession(sessionToken); err != nil {
+	if err = app.db.WithContext(c.Request.Context()).DeleteSession(sessionToken); err != nil {
 		log.Err(err).Msg("Failed to delete session from db")
 	}
 

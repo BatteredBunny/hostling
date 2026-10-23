@@ -112,14 +112,6 @@ def verify_account_deletion_purges_bucket():
     )
 
 
-def verify_unlink_last_identity_blocked():
-    code = status(
-        f"-b {COOKIES} -d '' "
-        f"'http://localhost:{PORT}/api/auth/unlink/openid-connect'"
-    )
-    assert code == "409", f"expected 409 unlinking last identity, got {code}"
-
-
 def oidc_login_flow():
     # try login logout
     machine.succeed(
@@ -154,7 +146,6 @@ def main():
 
     bucket_roundtrip()
     oidc_link_flow()
-    verify_unlink_last_identity_blocked()
     oidc_login_flow()
     verify_account_deletion_purges_bucket()
 

@@ -1,0 +1,13 @@
+---
+import { LoadingSections } from "../components/LoadingSections";
+import AccountLayout from "../layouts/AccountLayout.astro";
+import { FileLibrary } from "../components/FileLibrary";
+---
+
+<AccountLayout title="Gallery" currentPage="gallery">
+  <FileLibrary client:only="solid-js">
+    <div slot="fallback">
+      <LoadingSections sections={["Files"]} />
+    </div>
+  </FileLibrary>
+</AccountLayout>

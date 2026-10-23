@@ -1,6 +1,6 @@
-import { Show, onCleanup } from 'solid-js';
-import './FileEntry.css';
-import type { FileData } from '../types';
+import { Show, onCleanup } from "solid-js";
+import "./FileEntry.css";
+import type { FileData } from "../types";
 import {
   mimeIsImage,
   mimeIsVideo,
@@ -9,9 +9,18 @@ import {
   relativeTime,
   hasExpiry,
   fileUrl,
-} from '../utils';
-import { closeFileMenu, fileMenu, openFileMenu, openModal } from '../store';
-import { Icon } from './Icon';
+} from "../utils";
+import { closeFileMenu, fileMenu, openFileMenu, openModal } from "../store";
+import {
+  Ellipsis as EllipsisIcon,
+  Eye as EyeIcon,
+  File as FileIcon,
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
+  Music as MusicIcon,
+  Trash2 as Trash2Icon,
+} from "lucide-solid";
+import { Dynamic } from "solid-js/web";
 
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE = 10;
@@ -30,7 +39,7 @@ export function FileEntry(props: { file: FileData }) {
 
   const viewsText = () => {
     const count = file().ViewsCount || 0;
-    return count === 1 ? '1 view' : `${count} views`;
+    return count === 1 ? "1 view" : `${count} views`;
   };
 
   const isMenuOpen = () => fileMenu()?.file.FileName === file().FileName;
@@ -60,7 +69,7 @@ export function FileEntry(props: { file: FileData }) {
   // iOS Safari never fires contextmenu, so long-press is detected manually.
   const handleTouchStart = (e: TouchEvent) => {
     longPressFired = false;
-    if ((e.target as HTMLElement).closest('.file-entry-menu-button')) return;
+    if ((e.target as HTMLElement).closest(".file-entry-menu-button")) return;
     touching = true;
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
@@ -73,7 +82,8 @@ export function FileEntry(props: { file: FileData }) {
   const handleTouchMove = (e: TouchEvent) => {
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
-    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE) clearTimeout(longPressTimer);
+    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE)
+      clearTimeout(longPressTimer);
   };
   const handleTouchEnd = (e: TouchEvent) => {
     clearTimeout(longPressTimer);
@@ -85,11 +95,11 @@ export function FileEntry(props: { file: FileData }) {
   const openCurrent = () => openModal(file());
   // The whole card is clickable; keyboard users get the focusable preview below.
   const handleCardClick = (e: MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.file-entry-menu-button')) return;
+    if ((e.target as HTMLElement).closest(".file-entry-menu-button")) return;
     openCurrent();
   };
   const handlePreviewKey = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       openCurrent();
     }
@@ -100,7 +110,7 @@ export function FileEntry(props: { file: FileData }) {
     <div
       class="file-entry"
       onClick={handleCardClick}
-      classList={{ 'menu-open': isMenuOpen() }}
+      classList={{ "menu-open": isMenuOpen() }}
       onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -119,7 +129,7 @@ export function FileEntry(props: { file: FileData }) {
         aria-expanded={isMenuOpen()}
         onClick={handleMenuButton}
       >
-        <Icon name="ellipsis" />
+        <EllipsisIcon class="lucide-icon" aria-hidden="true" />
       </button>
 
       <div
@@ -147,7 +157,7 @@ export function FileEntry(props: { file: FileData }) {
           </Show>
           <Show when={mimeIsAudio(file().MimeType)}>
             <div class="preview-audio file-icon">
-              <Icon name="music" />
+              <MusicIcon class="lucide-icon" aria-hidden="true" />
             </div>
           </Show>
           <Show
@@ -158,21 +168,30 @@ export function FileEntry(props: { file: FileData }) {
             }
           >
             <div class="preview-generic file-icon">
-              <Icon name="file" />
+              <FileIcon class="lucide-icon" aria-hidden="true" />
             </div>
           </Show>
         </div>
-        <div class="file-name">{file().OriginalFileName || file().FileName}</div>
+        <div class="file-name">
+          {file().OriginalFileName || file().FileName}
+        </div>
       </div>
 
       <div class="file-info">
         <div class="views" title={viewsText()}>
-          <Icon name="eye" />
+          <EyeIcon class="lucide-icon" aria-hidden="true" />
           <span class="views-text">{file().ViewsCount || 0}</span>
         </div>
 
-        <div class="visibility-status" title={file().Public ? 'Public' : 'Private'}>
-          <Icon name={file().Public ? 'lock-open' : 'lock'} />
+        <div
+          class="visibility-status"
+          title={file().Public ? "Public" : "Private"}
+        >
+          <Dynamic
+            component={file().Public ? LockOpenIcon : LockIcon}
+            class="lucide-icon"
+            aria-hidden="true"
+          />
         </div>
 
         <Show when={hasExpiry(file().ExpiryDate)}>
@@ -180,8 +199,10 @@ export function FileEntry(props: { file: FileData }) {
             class="expires-info"
             title={`Expires ${relativeTime(file().ExpiryDate)} (${formatTimeDate(file().ExpiryDate)})`}
           >
-            <Icon name="trash-2" />
-            <span class="expiry-text">{relativeTime(file().ExpiryDate).replace(/^in /, '')}</span>
+            <Trash2Icon class="lucide-icon" aria-hidden="true" />
+            <span class="expiry-text">
+              {relativeTime(file().ExpiryDate).replace(/^in /, "")}
+            </span>
           </div>
         </Show>
       </div>

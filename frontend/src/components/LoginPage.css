@@ -1,0 +1,38 @@
+#login-page {
+  width: 100%;
+  max-width: 460px;
+  min-width: 0;
+
+  .login-panel {
+    display: block;
+  }
+
+  .login-description {
+    margin: 0 0 24px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .login-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .login-warning {
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .login-register {
+    margin: 20px 0 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+}

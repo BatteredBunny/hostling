@@ -28,11 +28,18 @@ let
       inherit version pnpm;
       src = ./frontend;
       fetcherVersion = 4;
-      hash = "sha256-z5dp0r53fgyvLiH1xm5iLY9NGTj0o5njxs1ZEA+ye78=";
+      hash = "sha256-7SU/76ZAnhULH33miS9LafGcKnQa1PSCOg/d37ArQWA=";
     };
 
     postBuild = ''
       pnpm run build
+    '';
+
+    doCheck = true;
+    checkPhase = ''
+      runHook preCheck
+      pnpm run lint
+      runHook postCheck
     '';
 
     installPhase = ''
@@ -46,10 +53,15 @@ buildGoLatestModule {
 
   src = ./.;
 
-  vendorHash = "sha256-7aptnKxFutlIJs+i23U1AAx0hnBgRiENhXWZel7XnOg=";
+  passthru = { inherit frontend; };
+
+  excludedPackages = [ "frontend" ];
+
+  vendorHash = "sha256-zHdH/l/CtstwvgCvwDuJClANyUtzZ55YiNcOx+sGUEc=";
 
   prePatch = ''
-    cp -r ${frontend} ./public/dist
+    mkdir -p ./public/dist
+    cp -r ${frontend}/. ./public/dist/
   '';
 
   ldflags = [

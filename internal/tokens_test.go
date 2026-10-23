@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -131,6 +132,31 @@ func TestUploadTokenLimit(t *testing.T) {
 	}
 }
 
+func TestUploadTokenUnicodeNameLength(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	for _, character := range []string{"x", "界", "😀"} {
+		name := strings.Repeat(character, maxUploadTokenNickname)
+		if status, body := admin.postForm(
+			"/api/account/upload_tokens",
+			url.Values{"nickname": {name}},
+		); status != http.StatusCreated {
+			t.Fatalf("64-character name: status %d: %s", status, body)
+		}
+		if status, body := admin.postForm(
+			"/api/account/upload_tokens",
+			url.Values{"nickname": {name + character}},
+		); status != http.StatusBadRequest {
+			t.Fatalf("65-character name: status %d: %s", status, body)
+		}
+	}
+	var tokens []db.UiUploadToken
+	admin.getJSON("/api/account/upload_tokens", &tokens)
+	if len(tokens) != 3 {
+		t.Fatalf("invalid names created tokens: %d", len(tokens))
+	}
+}
+
 func TestUploadTokenDeleteValidation(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.registerAdmin()
@@ -211,7 +237,7 @@ func TestUploadTokenRevokedBetweenAuthenticationAndFileCreation(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.registerAdmin()
 	secret := admin.newUploadToken("revoked")
-	if valid, err := ts.app.isValidUploadToken(secret); err != nil || !valid {
+	if valid, err := ts.app.isValidUploadToken(context.Background(), secret); err != nil || !valid {
 		t.Fatalf("initial authentication: %v %v", valid, err)
 	}
 	hash, _ := db.HashUploadToken(secret)

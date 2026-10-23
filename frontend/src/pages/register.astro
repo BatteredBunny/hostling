@@ -1,0 +1,8 @@
+---
+import AccountLayout from "../layouts/AccountLayout.astro";
+import { RegistrationPage } from "../components/RegistrationPage";
+---
+
+<AccountLayout title="Register" currentPage="register">
+  <RegistrationPage client:load />
+</AccountLayout>

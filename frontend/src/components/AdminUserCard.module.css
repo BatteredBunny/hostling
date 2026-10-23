@@ -1,0 +1,60 @@
+.userCard {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+  border: 1px solid var(--menu-border-color);
+  border-radius: 5px;
+  padding: 10px;
+  gap: 10px;
+  max-width: 700px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.left {
+  align-self: center;
+}
+.right {
+  display: flex;
+  gap: 5px;
+}
+.badge {
+  border: 1px solid var(--menu-border-color);
+  border-radius: 10px;
+  padding: 4px;
+}
+.middleRow {
+  display: flex;
+  flex-direction: column;
+}
+
+.entry {
+  display: flex;
+  border-top: 1px solid var(--menu-border-color);
+
+  > div {
+    flex: 1;
+    min-width: 0;
+    padding: 2px;
+    overflow-wrap: anywhere;
+  }
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-right: 1px solid var(--menu-border-color);
+}
+
+.bottomRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}

@@ -1,29 +1,7 @@
-export interface Tag {
-  Name: string;
-}
+import type { Files, Tag as ApiTag, ListFilesData } from "./generated";
 
-export interface FileData {
-  FileName: string;
-  OriginalFileName: string;
-  FileSize: number;
-  MimeType: string;
-  Public: boolean;
-  ViewsCount: number;
-  ExpiryDate: string;
-  CreatedAt: string;
-  Tags: Tag[];
-}
-
-export interface FilesResponse {
-  files: FileData[];
-  count: number;
-}
-
-export interface FileStatsResponse {
-  count: number;
-  size_total: number;
-  tags: string[];
-}
-
-export type SortField = 'created_at' | 'views' | 'file_size';
-export type SortOrder = 'asc' | 'desc';
+// Normalize nullable collection fields once when data enters the UI.
+export type FileData = Omit<Files, "Tags"> & { Tags: ApiTag[] };
+export type SortField = NonNullable<
+  NonNullable<ListFilesData["query"]>["sort"]
+>;

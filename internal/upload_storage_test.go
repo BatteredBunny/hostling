@@ -3,6 +3,7 @@ package internal
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"mime/multipart"
@@ -65,7 +66,7 @@ func TestLocalUploadReusesWholeMultipartFile(t *testing.T) {
 	if _, err := reader.Peek(100); err != nil {
 		t.Fatal(err)
 	}
-	written, err := writeLocalUploadFile(destination, reader, file, int64(len(contents)))
+	written, err := writeLocalUploadFile(context.Background(), destination, reader, file, int64(len(contents)))
 	if err != nil || written != int64(len(contents)) {
 		t.Fatalf("store: %d, %v", written, err)
 	}
@@ -103,7 +104,7 @@ func TestLocalUploadSharedMultipartFileCopiesOnlyFirstSection(t *testing.T) {
 	if _, err := reader.Peek(100); err != nil {
 		t.Fatal(err)
 	}
-	written, err := writeLocalUploadFile(destination, reader, file, int64(len(first)))
+	written, err := writeLocalUploadFile(context.Background(), destination, reader, file, int64(len(first)))
 	if err != nil || written != int64(len(first)) {
 		t.Fatalf("store: %d, %v", written, err)
 	}
@@ -121,7 +122,16 @@ func TestLocalUploadNeverOverwritesExistingFile(t *testing.T) {
 	if err := os.WriteFile(destination, original, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := writeLocalUploadFile(destination, file, file, int64(len(contents))); !errors.Is(err, os.ErrExist) {
+	if _, err := writeLocalUploadFile(
+		context.Background(),
+		destination,
+		file,
+		file,
+		int64(len(contents)),
+	); !errors.Is(
+		err,
+		os.ErrExist,
+	) {
 		t.Fatalf("expected exclusive creation failure, got %v", err)
 	}
 	got, err := os.ReadFile(destination)
@@ -135,12 +145,37 @@ func TestLocalUploadSizeMismatchFallsBackToBufferedCopy(t *testing.T) {
 	_, file := multipartStorageFixture(t, contents)
 	// A bounded section must not publish the whole underlying file.
 	destination := filepath.Join(t.TempDir(), "stored.bin")
-	written, err := writeLocalUploadFile(destination, io.LimitReader(file, 100), file, 100)
+	written, err := writeLocalUploadFile(context.Background(), destination, io.LimitReader(file, 100), file, 100)
 	if err != nil || written != 100 {
 		t.Fatalf("store: %d, %v", written, err)
 	}
 	got, err := os.ReadFile(destination)
 	if err != nil || !bytes.Equal(got, contents[:100]) {
 		t.Fatal("size mismatch bypassed the bounded reader")
+	}
+}
+
+type cancelAfterRead struct {
+	io.Reader
+	cancel context.CancelFunc
+}
+
+func (reader cancelAfterRead) Read(buffer []byte) (int, error) {
+	n, err := reader.Reader.Read(buffer)
+	reader.cancel()
+
+	return n, err
+}
+
+func TestCancelledLocalUploadRemovesPartialFile(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	body := cancelAfterRead{Reader: bytes.NewReader([]byte("partial upload")), cancel: cancel}
+	destination := filepath.Join(t.TempDir(), "cancelled.bin")
+	if _, err := writeLocalUploadFile(ctx, destination, body, nil, 14); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected cancellation, got %v", err)
+	}
+	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("partial file remains after cancellation: %v", err)
 	}
 }

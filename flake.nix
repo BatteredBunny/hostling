@@ -111,7 +111,6 @@
             buildInputs = with pkgs; [
               cloudflared # cloudflared tunnel --url localhost:8081
               go_latest
-              wire
               atlas-unfree # Unfree version of atlas
               sqlite
               pnpm_11

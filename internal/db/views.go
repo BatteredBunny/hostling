@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -24,10 +25,9 @@ func (db *Database) BumpFileViews(fileID uint, ip string, hmacKey []byte) (err e
 	mac.Write([]byte(ip))
 	ipHash := hex.EncodeToString(mac.Sum(nil))
 
-	return db.Model(&FileViews{}).
-		Clauses(clause.OnConflict{DoNothing: true}).
-		Create(&FileViews{
+	return gorm.G[FileViews](db.DB, clause.OnConflict{DoNothing: true}).
+		Create(db.Statement.Context, &FileViews{
 			IpHash:  ipHash,
 			FilesID: fileID,
-		}).Error
+		})
 }

@@ -2,8 +2,8 @@ package internal
 
 import (
 	"context"
-	"html/template"
 	"math"
+	"net/http"
 	"time"
 
 	embed "github.com/BatteredBunny/hostling"
@@ -60,89 +60,18 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 		}
 	}
 
-	app.Router.SetFuncMap(template.FuncMap{
-		"formatTimeDate": formatTimeDate,
-		"relativeTime":   relativeTime,
-		"humanizeBytes":  humanizeBytes,
-		"mimeIsImage":    mimeIsImage,
-		"mimeIsVideo":    mimeIsVideo,
-		"mimeIsAudio":    mimeIsAudio,
-	})
-
-	app.Router.SetHTMLTemplate(template.Must(template.
-		New("templates").
-		Funcs(app.Router.FuncMap).
-		ParseFS(embed.TemplateFiles, "templates/*.gohtml", "templates/components/*.gohtml"),
-	))
-
 	app.Router.Use(
 		app.bodySizeMiddleware(),
 	)
 
 	app.Router.StaticFS("/public/", embed.PublicFiles())
+	app.Router.StaticFS("/assets/", embed.BuildFiles())
 
 	api := app.Router.Group("/api")
 
 	app.setupAuth(api)
-
-	// Upload token should only have access to upload endpoint!
-	fileAPI := api.Group("/file")
-	fileAPI.Use(
-		app.ratelimitMiddleware(),
-		app.multipartFormMiddleware(0),
-		app.hasUploadOrSessionTokenMiddleware(),
-	)
-
-	fileAPI.POST("/upload", app.uploadFileAPI)
-	// ---
-
-	// Accounts for managing your user
-	accountAPI := api.Group("/account")
-	accountAPI.Use(
-		app.ratelimitMiddleware(),
-		app.apiMiddleware(),
-		app.verifySessionAuthentication(),
-	)
-
-	accountAPI.DELETE("/", app.accountDeleteAPI)
-
-	// Manage upload tokens
-	accountAPI.GET("/upload_tokens", app.uploadTokensAPI)
-	accountAPI.POST("/upload_tokens", app.newUploadTokenAPI)
-	accountAPI.DELETE("/upload_tokens", app.deleteUploadTokenAPI)
-
-	// List and delete invite codes, only admins can create them
-	accountAPI.GET("/invite_code", app.inviteCodesAPI)
-	accountAPI.DELETE("/invite_code", app.deleteInviteCodeAPI)
-
-	// Bulk file operations
-	accountAPI.DELETE("/files", app.deleteFilesAPI)
-	accountAPI.GET("/files", app.filesAPI)
-	accountAPI.GET("/files/stats", app.fileStatsAPI)
-	accountAPI.GET("/files/tags", app.filterTagsAPI)
-
-	// Modify individual files
-	// TODO: make them use ID instead of file name
-	accountAPI.DELETE("/file", app.deleteFileAPI)
-	accountAPI.POST("/file/public", app.toggleFilePublicAPI)
-	accountAPI.POST("/file/tag", app.addTagAPI)
-	accountAPI.DELETE("/file/tag", app.deleteTagAPI)
-	// ---
-
-	// Admin apis
-	adminAPI := api.Group("/admin")
-	adminAPI.Use(
-		app.ratelimitMiddleware(),
-		app.apiMiddleware(),
-		app.verifySessionAuthentication(),
-		app.isAdmin(),
-	)
-
-	adminAPI.DELETE("/user", app.adminDeleteAccount)
-	adminAPI.DELETE("/files", app.adminDeleteFiles)
-	adminAPI.DELETE("/sessions", app.adminDeleteSessions)
-	adminAPI.DELETE("/upload_tokens", app.adminDeleteUploadTokens)
-	adminAPI.POST("/give_invite_code", app.adminGiveInviteCode)
+	humaAPI := app.registerAPIs(app.Router)
+	api.GET("/openapi.json", func(c *gin.Context) { c.JSON(http.StatusOK, humaAPI.OpenAPI()) })
 
 	// Pages
 	app.Router.GET("/login", app.loginPage)

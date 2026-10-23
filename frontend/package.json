@@ -3,23 +3,33 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
-    "lint": "oxlint src && eslint src",
-    "lint:fix": "oxlint --fix src && eslint --fix src"
+    "dev": "astro dev",
+    "build": "pnpm generate:api && astro build",
+    "lint": "oxlint src --ignore-pattern \"src/generated/**\" && eslint src && astro check",
+    "lint:fix": "oxlint --fix src --ignore-pattern \"src/generated/**\" && eslint --fix src",
+    "format": "oxfmt --write 'src/**/*.{ts,tsx,css,astro}' '*.mjs' eslint.config.js .oxfmtrc.json",
+    "format:check": "oxfmt --check 'src/**/*.{ts,tsx,css,astro}' '*.mjs' eslint.config.js .oxfmtrc.json",
+    "generate:api": "openapi-ts",
+    "check": "astro check"
   },
   "dependencies": {
+    "@astrojs/solid-js": "^7.1.1",
+    "astro": "^7.4.2",
+    "lucide-solid": "^1.61.0",
     "solid-js": "^1.9.17"
   },
   "devDependencies": {
-    "@typescript/native": "npm:typescript@^7.0.2",
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/compiler-rs": "^0.5.2",
+    "@hey-api/openapi-ts": "0.99.0",
     "eslint": "^10.13.0",
+    "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-oxlint": "^1.89.0",
     "eslint-plugin-solid": "^0.18.1",
+    "oxfmt": "^0.74.0",
     "oxlint": "^1.89.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.0",
-    "vite": "^8.3.5",
-    "vite-plugin-solid": "^2.11.14"
+    "vite": "^8.3.5"
   }
 }

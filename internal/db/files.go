@@ -9,35 +9,34 @@ import (
 )
 
 type Files struct {
-	ID        uint `gorm:"primaryKey" json:"-"`
-	CreatedAt time.Time
+	ID        uint      `gorm:"primaryKey" json:"-"`
+	CreatedAt time.Time `                  json:"CreatedAt"`
 	UpdatedAt time.Time `                  json:"-"`
 
-	FileName string `gorm:"uniqueIndex"` // Newly generated file name
+	FileName string `gorm:"uniqueIndex" json:"FileName"` // Newly generated file name
 
-	OriginalFileName string // Original file name from upload
-	FileSize         uint
-	MimeType         string
+	OriginalFileName string `json:"OriginalFileName"` // Original file name from upload
+	FileSize         uint   `json:"FileSize"`
+	MimeType         string `json:"MimeType"`
 
-	Public bool // If false, only the uploader can see the file
+	Public bool `json:"Public"` // If false, only the uploader can see the file
 
 	Views      []FileViews `gorm:"foreignKey:FilesID;constraint:OnDelete:CASCADE" json:"-"`
-	ViewsCount uint        `gorm:"->;-:migration"` // Used for export, not a real column
+	ViewsCount uint        `gorm:"->;-:migration"                                 json:"ViewsCount"` // Used for export, not a real column
 
-	ExpiryDate time.Time `gorm:"default:null;index"` // Time when the file will be deleted
+	ExpiryDate time.Time `gorm:"default:null;index" json:"ExpiryDate"` // Time when the file will be deleted
 
 	UploaderID uint     `json:"-" gorm:"index"`
 	Uploader   Accounts `json:"-" gorm:"foreignKey:UploaderID;constraint:OnDelete:CASCADE"`
 
-	Tags []Tag `gorm:"many2many:file_tags;constraint:OnDelete:CASCADE"`
+	Tags []Tag `gorm:"many2many:file_tags;constraint:OnDelete:CASCADE" json:"Tags"`
 }
 
 // Reports whether the file exists and is owned by the account.
 func (db *Database) AccountOwnsFile(fileName string, accountID uint) (owned bool, err error) {
-	var count int64
-	err = db.Model(&Files{}).
+	count, err := gorm.G[Files](db.DB).
 		Where("file_name = ? AND uploader_id = ?", fileName, accountID).
-		Count(&count).Error
+		Count(db.Statement.Context, "*")
 	owned = count > 0
 
 	return
@@ -45,8 +44,12 @@ func (db *Database) AccountOwnsFile(fileName string, accountID uint) (owned bool
 
 // Deletes file entry from database
 func (db *Database) DeleteFileEntry(fileName string, accountID uint) error {
-	return db.Where("file_name = ? AND uploader_id = ?", fileName, accountID).
-		Delete(&Files{}).Error
+	_, err := gorm.G[Files](
+		db.DB,
+	).Where("file_name = ? AND uploader_id = ?", fileName, accountID).
+		Delete(db.Statement.Context)
+
+	return err
 }
 
 type CreateFileEntryInput struct {
@@ -120,17 +123,16 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 
 // Only deletes database entry, actual file has to be deleted as well
 func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
-	return db.Where("uploader_id = ?", accountID).
-		Delete(&Files{}).Error
-}
-
-func (db *Database) GetAllFilesFromAccount(accountID uint) (files []Files, err error) {
-	// Includes expired files not yet swept by cleanup, so deleting an account doesn't orphan their blobs
-	err = db.Model(&Files{}).
-		Where("uploader_id = ?", accountID).
-		Find(&files).Error
+	_, err = gorm.G[Files](db.DB).Where("uploader_id = ?", accountID).Delete(db.Statement.Context)
 
 	return
+}
+
+func (db *Database) GetAllFilesFromAccount(accountID uint) ([]Files, error) {
+	// Includes expired files not yet swept by cleanup, so deleting an account doesn't orphan their blobs
+	return gorm.G[Files](db.DB).
+		Where("uploader_id = ?", accountID).
+		Find(db.Statement.Context)
 }
 
 func (db *Database) GetFileStats(accountID uint) (totalFiles uint, totalStorage uint, err error) {
@@ -155,24 +157,20 @@ func (db *Database) GetFileStats(accountID uint) (totalFiles uint, totalStorage 
 	return
 }
 
-func (db *Database) GetFileByName(fileName string) (file Files, err error) {
-	err = db.Model(&Files{}).
+func (db *Database) GetFileByName(fileName string) (Files, error) {
+	return gorm.G[Files](db.DB).
 		Where("file_name = ?", fileName).
 		Where("(expiry_date is not null AND expiry_date > ?) OR expiry_date is null", time.Now()).
-		First(&file).Error
-
-	return
+		First(db.Statement.Context)
 }
 
 const expiredFilesBatchSize = 1000
 
-func (db *Database) FindExpiredFiles() (files []Files, err error) {
-	err = db.Model(&Files{}).
+func (db *Database) FindExpiredFiles() ([]Files, error) {
+	return gorm.G[Files](db.DB).
 		Where("expiry_date IS NOT NULL AND expiry_date < ?", time.Now()).
 		Limit(expiredFilesBatchSize).
-		Find(&files).Error
-
-	return
+		Find(db.Statement.Context)
 }
 
 const MaxPaginationLimit = 200

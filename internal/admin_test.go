@@ -18,7 +18,11 @@ func TestAdminSelfDeleteBlocked(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.registerAdmin()
 
-	if status, body := admin.formRequest(http.MethodDelete, "/api/admin/user", idValues(ts.adminID())); status != http.StatusBadRequest {
+	if status, body := admin.formRequest(
+		http.MethodDelete,
+		"/api/admin/user",
+		idValues(ts.adminID()),
+	); status != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d: %s", status, body)
 	}
 	if status, body := admin.get("/api/account/files"); status != http.StatusOK {
@@ -48,7 +52,8 @@ func TestInviteCodeDeletion(t *testing.T) {
 	code := admin.giveInviteCode(ts.adminID(), 1)
 	admin.expectStatus(http.StatusOK, http.MethodDelete, "/api/account/invite_code", url.Values{"invite_code": {code}})
 
-	if status, body := ts.newClient().postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusBadRequest {
+	if status, body := ts.newClient().
+		postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusBadRequest {
 		t.Errorf("expected 400 for deleted invite, got %d: %s", status, body)
 	}
 }
@@ -61,7 +66,8 @@ func TestInviteUseCounter(t *testing.T) {
 	ts.registerClient(code)
 	ts.registerClient(code)
 
-	if status, body := ts.newClient().postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusBadRequest {
+	if status, body := ts.newClient().
+		postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusBadRequest {
 		t.Errorf("expected 400 for exhausted invite, got %d: %s", status, body)
 	}
 }

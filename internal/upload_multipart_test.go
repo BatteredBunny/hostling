@@ -183,3 +183,33 @@ func TestUploadMultipartLimitRemovesPartialSpool(t *testing.T) {
 		t.Fatalf("partial spool leaked: %v %v", entries, err)
 	}
 }
+
+func TestUploadClosesMultipartFiles(t *testing.T) {
+	if _, err := os.Stat("/proc/self/fd"); err != nil {
+		t.Skip("requires procfs")
+	}
+	ts := newTestServer(t)
+	client := ts.registerAdmin()
+	count := func() int {
+		entries, err := os.ReadDir("/proc/self/fd")
+		if err != nil {
+			t.Fatal(err)
+		}
+		count := 0
+		for _, entry := range entries {
+			target, _ := os.Readlink("/proc/self/fd/" + entry.Name())
+			if strings.Contains(target, "multipart-") {
+				count++
+			}
+		}
+
+		return count
+	}
+	before := count()
+	for range 3 {
+		client.upload()
+	}
+	if after := count(); after != before {
+		t.Fatalf("multipart file descriptors leaked: before=%d after=%d", before, after)
+	}
+}

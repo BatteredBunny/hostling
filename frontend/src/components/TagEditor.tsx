@@ -1,10 +1,19 @@
-import { For, Show, createEffect, createMemo, createSignal, on } from 'solid-js';
-import './TagEditor.css';
-import { TAG_MAX_LENGTH, MAX_TAGS_PER_FILE } from '../api';
-import { Icon } from './Icon';
-import { TagColorDot } from './TagColorDot';
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+} from "solid-js";
+import "./TagEditor.css";
+import { TagNameSchema, UploadTagsSchema } from "../generated/schemas.gen";
+import { Plus as PlusIcon, Tag as TagIcon, X as XIcon } from "lucide-solid";
+import { TagColorDot } from "./TagColorDot";
 
 // Show the "n/max" counter only once a file gets close to the limit.
+const TAG_MAX_LENGTH = TagNameSchema.maxLength;
+const MAX_TAGS_PER_FILE = UploadTagsSchema.maxItems;
 const COUNTER_THRESHOLD = MAX_TAGS_PER_FILE - 5;
 
 interface TagEditorProps {
@@ -18,13 +27,13 @@ interface TagEditorProps {
   onRemove: (tag: string) => Promise<string | null>;
 }
 
-type Option = { kind: 'create' | 'existing'; tag: string };
+type Option = { kind: "create" | "existing"; tag: string };
 
 // Mirrors the server, which trims and lowercases tags.
 const normalizeTag = (value: string) => value.trim().toLowerCase();
 
 export function TagEditor(props: TagEditorProps) {
-  const [input, setInput] = createSignal('');
+  const [input, setInput] = createSignal("");
   const [open, setOpen] = createSignal(false);
   const [activeIndex, setActiveIndex] = createSignal(0);
   const [error, setError] = createSignal<string | null>(null);
@@ -35,12 +44,18 @@ export function TagEditor(props: TagEditorProps) {
   let inputEl: HTMLInputElement | undefined;
   let listEl: HTMLDivElement | undefined;
 
-  createEffect(on(() => props.resetKey, () => {
-    setInput('');
-    setOpen(false);
-    setError(null);
-    setPendingRemoval(null);
-  }, { defer: true }));
+  createEffect(
+    on(
+      () => props.resetKey,
+      () => {
+        setInput("");
+        setOpen(false);
+        setError(null);
+        setPendingRemoval(null);
+      },
+      { defer: true },
+    ),
+  );
 
   const atLimit = () => props.tags.length >= MAX_TAGS_PER_FILE;
 
@@ -51,18 +66,23 @@ export function TagEditor(props: TagEditorProps) {
     const available = props.allTags.filter((t) => !props.tags.includes(t));
 
     if (!query) {
-      return [...available].sort().map((tag) => ({ kind: 'existing', tag }));
+      return [...available].sort().map((tag) => ({ kind: "existing", tag }));
     }
 
     const result: Option[] = [];
     if (available.includes(query)) {
-      result.push({ kind: 'existing', tag: query });
+      result.push({ kind: "existing", tag: query });
     } else if (!props.tags.includes(query)) {
-      result.push({ kind: 'create', tag: query });
+      result.push({ kind: "create", tag: query });
     }
-    const prefix = available.filter((t) => t !== query && t.startsWith(query)).sort();
-    const contains = available.filter((t) => !t.startsWith(query) && t.includes(query)).sort();
-    for (const tag of [...prefix, ...contains]) result.push({ kind: 'existing', tag });
+    const prefix = available
+      .filter((t) => t !== query && t.startsWith(query))
+      .sort();
+    const contains = available
+      .filter((t) => !t.startsWith(query) && t.includes(query))
+      .sort();
+    for (const tag of [...prefix, ...contains])
+      result.push({ kind: "existing", tag });
     return result;
   });
 
@@ -73,13 +93,17 @@ export function TagEditor(props: TagEditorProps) {
   // Keep the keyboard-highlighted option scrolled into view.
   createEffect(() => {
     if (!showList()) return;
-    listEl?.children[activeIndex()]?.scrollIntoView({ block: 'nearest' });
+    listEl?.children[activeIndex()]?.scrollIntoView({ block: "nearest" });
   });
 
   const add = async (tag: string) => {
     if (busy() || !tag) return;
+    if (Array.from(tag).length > TAG_MAX_LENGTH) {
+      setError(`Tags can be at most ${TAG_MAX_LENGTH} characters.`);
+      return;
+    }
     if (props.tags.includes(tag)) {
-      setInput('');
+      setInput("");
       return;
     }
     setBusy(true);
@@ -89,7 +113,7 @@ export function TagEditor(props: TagEditorProps) {
       // The user may have moved to another file meanwhile.
       if (key !== props.resetKey) return;
       setError(err);
-      if (!err) setInput('');
+      if (!err) setInput("");
     } finally {
       setBusy(false);
       inputEl?.focus();
@@ -106,7 +130,7 @@ export function TagEditor(props: TagEditorProps) {
   const onKeyDown = (e: KeyboardEvent) => {
     const list = options();
 
-    if (e.key === 'Backspace' && input() === '' && props.tags.length > 0) {
+    if (e.key === "Backspace" && input() === "" && props.tags.length > 0) {
       e.preventDefault();
       const last = props.tags[props.tags.length - 1];
       if (pendingRemoval() === last) remove(last);
@@ -115,18 +139,19 @@ export function TagEditor(props: TagEditorProps) {
     }
     setPendingRemoval(null);
 
-    if (e.key === 'ArrowDown') {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       if (!open()) setOpen(true);
       else if (list.length) setActiveIndex((i) => (i + 1) % list.length);
-    } else if (e.key === 'ArrowUp') {
+    } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      if (list.length) setActiveIndex((i) => (i - 1 + list.length) % list.length);
-    } else if (e.key === 'Enter') {
+      if (list.length)
+        setActiveIndex((i) => (i - 1 + list.length) % list.length);
+    } else if (e.key === "Enter") {
       e.preventDefault();
       const option = showList() ? list[activeIndex()] : undefined;
       add(option?.tag ?? normalizeTag(input()));
-    } else if (e.key === 'Escape' && showList()) {
+    } else if (e.key === "Escape" && showList()) {
       // Native listener on the input, so this keeps the modal from closing.
       e.stopPropagation();
       setOpen(false);
@@ -140,12 +165,20 @@ export function TagEditor(props: TagEditorProps) {
       <div class="tag-editor-selected" aria-label="File tags">
         <For each={props.tags}>
           {(tag) => (
-            <div class="tag-editor-selected-row" classList={{ pending: pendingRemoval() === tag }}>
-              <Icon name="tag" />
+            <div
+              class="tag-editor-selected-row"
+              classList={{ pending: pendingRemoval() === tag }}
+            >
+              <TagIcon class="lucide-icon" aria-hidden="true" />
               <TagColorDot name={tag} />
               <span class="tag-editor-name">{tag}</span>
-              <button type="button" class="tag-editor-remove" aria-label={`Remove tag ${tag}`} onClick={() => remove(tag)}>
-                <Icon name="x" />
+              <button
+                type="button"
+                class="tag-editor-remove"
+                aria-label={`Remove tag ${tag}`}
+                onClick={() => remove(tag)}
+              >
+                <XIcon class="lucide-icon" aria-hidden="true" />
               </button>
             </div>
           )}
@@ -171,8 +204,13 @@ export function TagEditor(props: TagEditorProps) {
           aria-expanded={showList()}
           aria-controls="tag-editor-options"
           aria-autocomplete="list"
-          placeholder={atLimit() ? 'Tag limit reached' : props.tags.length ? 'Add tag…' : 'Add a tag…'}
-          maxLength={TAG_MAX_LENGTH}
+          placeholder={
+            atLimit()
+              ? "Tag limit reached"
+              : props.tags.length
+                ? "Add tag…"
+                : "Add a tag…"
+          }
           disabled={atLimit()}
           value={input()}
           onInput={(e) => {
@@ -190,12 +228,20 @@ export function TagEditor(props: TagEditorProps) {
       </div>
 
       <Show when={showList()}>
-        <div class="tag-editor-options" id="tag-editor-options" role="listbox" ref={listEl}>
+        <div
+          class="tag-editor-options"
+          id="tag-editor-options"
+          role="listbox"
+          ref={listEl}
+        >
           <For each={options()}>
             {(option, index) => (
               <div
                 class="tag-editor-option"
-                classList={{ active: index() === activeIndex(), create: option.kind === 'create' }}
+                classList={{
+                  active: index() === activeIndex(),
+                  create: option.kind === "create",
+                }}
                 role="option"
                 aria-selected={index() === activeIndex()}
                 // mousedown + preventDefault keeps focus in the input.
@@ -205,13 +251,16 @@ export function TagEditor(props: TagEditorProps) {
                 }}
                 onMouseEnter={() => setActiveIndex(index())}
               >
-                <Show when={option.kind === 'create'} fallback={<Icon name="tag" />}>
-                  <Icon name="plus" />
+                <Show
+                  when={option.kind === "create"}
+                  fallback={<TagIcon class="lucide-icon" aria-hidden="true" />}
+                >
+                  <PlusIcon class="lucide-icon" aria-hidden="true" />
                 </Show>
                 <TagColorDot name={option.tag} />
                 <span>
-                  <Show when={option.kind === 'create'}>Create </Show>
-                  <Show when={option.kind === 'create'} fallback={option.tag}>
+                  <Show when={option.kind === "create"}>Create </Show>
+                  <Show when={option.kind === "create"} fallback={option.tag}>
                     <strong>"{option.tag}"</strong>
                   </Show>
                 </span>
@@ -223,7 +272,9 @@ export function TagEditor(props: TagEditorProps) {
 
       <Show when={error() || counterVisible()}>
         <div class="tag-editor-footer">
-          <span class="tag-editor-error" role="alert">{error()}</span>
+          <span class="tag-editor-error" role="alert">
+            {error()}
+          </span>
           <Show when={counterVisible()}>
             <span class="tag-editor-counter" classList={{ full: atLimit() }}>
               {props.tags.length}/{MAX_TAGS_PER_FILE}

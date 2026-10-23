@@ -1,0 +1,8 @@
+---
+import AccountLayout from "../layouts/AccountLayout.astro";
+import { TokensPage } from "../components/TokensPage";
+---
+
+<AccountLayout title="Tokens" currentPage="tokens">
+  <TokensPage client:load />
+</AccountLayout>

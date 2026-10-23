@@ -1,0 +1,8 @@
+---
+import AccountLayout from "../layouts/AccountLayout.astro";
+import { LoginPage } from "../components/LoginPage";
+---
+
+<AccountLayout title="Login" currentPage="login">
+  <LoginPage client:load />
+</AccountLayout>

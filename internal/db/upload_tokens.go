@@ -10,7 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var ErrUploadTokenLimit = errors.New("upload token limit reached")
 
 type UploadTokens struct {
 	ID        uint `gorm:"primaryKey"`
@@ -27,16 +31,15 @@ type UploadTokens struct {
 }
 
 func (db *Database) DeleteUploadTokensFromAccount(accountID uint) (err error) {
-	return db.Where("account_id = ?", accountID).
-		Delete(&UploadTokens{}).Error
-}
-
-func (db *Database) GetUploadTokensCount(accountID uint) (count int64, err error) {
-	err = db.Model(&UploadTokens{}).
-		Where("account_id = ?", accountID).
-		Count(&count).Error
+	_, err = gorm.G[UploadTokens](db.DB).Where("account_id = ?", accountID).Delete(db.Statement.Context)
 
 	return
+}
+
+func (db *Database) GetUploadTokensCount(accountID uint) (int64, error) {
+	return gorm.G[UploadTokens](db.DB).
+		Where("account_id = ?", accountID).
+		Count(db.Statement.Context, "*")
 }
 
 type UiUploadToken struct {
@@ -85,7 +88,7 @@ func (db *Database) CreateUploadToken(accountID uint, nickname string) (created 
 		return
 	}
 	record := UploadTokens{AccountID: accountID, TokenHash: hash, Nickname: nickname}
-	if err = db.Create(&record).Error; err != nil {
+	if err = gorm.G[UploadTokens](db.DB).Create(db.Statement.Context, &record); err != nil {
 		return
 	}
 	created = CreatedUploadToken{
@@ -95,6 +98,37 @@ func (db *Database) CreateUploadToken(accountID uint, nickname string) (created 
 
 	return
 }
+
+// Serialize count-and-create for an account. PostgreSQL locks the account row;
+// SQLite rejects conflicting transaction writes rather than exceeding the cap.
+func (db *Database) CreateUploadTokenWithinLimit(
+	accountID uint,
+	nickname string,
+	limit int64,
+) (created CreatedUploadToken, err error) {
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if _, err := gorm.G[Accounts](tx, clause.Locking{Strength: "UPDATE"}).
+			Where("id = ?", accountID).
+			First(tx.Statement.Context); err != nil {
+			return err
+		}
+		database := Database{DB: tx}
+		count, err := database.GetUploadTokensCount(accountID)
+		if err != nil {
+			return err
+		}
+		if count >= limit {
+			return ErrUploadTokenLimit
+		}
+		created, err = database.CreateUploadToken(accountID, nickname)
+
+		return err
+	})
+
+	return
+}
 func (db *Database) DeleteUploadToken(accountID uint, id uint) error {
-	return db.Where("account_id = ? AND id = ?", accountID, id).Delete(&UploadTokens{}).Error
+	_, err := gorm.G[UploadTokens](db.DB).Where("account_id = ? AND id = ?", accountID, id).Delete(db.Statement.Context)
+
+	return err
 }

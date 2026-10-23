@@ -12,3 +12,4 @@ tmp
 frontend/node_modules/
 public/dist/
 hostling
+frontend/.astro/

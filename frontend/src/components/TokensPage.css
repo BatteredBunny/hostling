@@ -1,343 +1,376 @@
 #tokens-page {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
 
-    setting-group {
-        display: block;
-        min-width: 0;
-    }
+  section {
+    display: block;
+    min-width: 0;
+  }
 }
 
 #upload-tokens {
-    .tokens-description {
-        margin-top: 0;
+  .tokens-description {
+    margin-top: 0;
+  }
+
+  #create-upload-token {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    align-items: center;
+    gap: 6px 12px;
+    margin-top: 20px;
+
+    .create-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      grid-column: 2;
+      grid-row: 2;
+      width: 42px;
+      height: 42px;
+      padding: 0;
+
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+  .token-name-field {
+    display: contents;
+
+    label {
+      grid-column: 1;
+      font-size: 14px;
+      font-weight: 600;
     }
 
-    #create-upload-token {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 42px;
-        align-items: center;
-        gap: 6px 12px;
-        margin-top: 20px;
-
-        .create-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            grid-column: 2;
-            grid-row: 2;
-            width: 42px;
-            height: 42px;
-            padding: 0;
-
-            svg {
-                width: 16px;
-                height: 16px;
-            }
-        }
+    input {
+      grid-column: 1;
+      grid-row: 2;
+      min-width: 0;
+      min-height: 42px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
-    .token-name-field {
-        display: contents;
+    #token-name-hint {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      opacity: 0.6;
+    }
+  }
 
-        label {
-            grid-column: 1;
-            font-size: 14px;
-            font-weight: 600;
-        }
+  #tokens-error {
+    color: var(--error-color);
+    overflow-wrap: anywhere;
+  }
 
-        input {
-            grid-column: 1;
-            grid-row: 2;
-            min-width: 0;
-            min-height: 42px;
-            width: 100%;
-            box-sizing: border-box;
-        }
+  .tokens-list-heading {
+    margin-top: 24px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 
-        #token-name-hint {
-            grid-column: 1 / -1;
-            font-size: 13px;
-            opacity: 0.6;
-        }
+    h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+  }
+
+  .tokens-hint,
+  #tokens-empty {
+    font-size: 14px;
+    opacity: 0.6;
+  }
+
+  .upload-tokens-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .upload-token-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--menu-border-color);
+    border-radius: 10px;
+    background-color: var(--menu-bg-color-translucent);
+    min-width: 0;
+  }
+
+  .token-info {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .token-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .token-last-used {
+    font-size: 13px;
+    opacity: 0.6;
+  }
+
+  .token-secret-row,
+  .token-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .token-secret-row {
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .token-secret {
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+
+  .token-actions {
+    flex-shrink: 0;
+  }
+
+  .token-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--menu-border-color);
+    border-radius: 8px;
+    background: none;
+    color: var(--text-color);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+
+    svg {
+      width: 17px;
+      height: 17px;
     }
 
-    #tokens-error {
-        color: var(--error-color);
-        overflow-wrap: anywhere;
+    &:hover,
+    &[aria-pressed="true"] {
+      background-color: var(--alternative-bg-color);
+      border-color: var(--text-color);
     }
 
-    .tokens-list-heading {
-        margin-top: 24px;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-
-        h3 {
-            margin: 0;
-            font-size: 16px;
-        }
+    &:focus-visible {
+      outline: 2px solid var(--link-color);
+      outline-offset: 2px;
     }
 
-    .tokens-hint,
-    #tokens-empty {
-        font-size: 14px;
-        opacity: 0.6;
+    &:disabled {
+      opacity: 0.4;
+      cursor: wait;
     }
+  }
 
-    .upload-tokens-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
+  .token-delete:hover {
+    color: var(--error-color);
+    border-color: var(--error-color);
+  }
 
-    .upload-token-entry {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 14px;
-        border: 1px solid var(--menu-border-color);
-        border-radius: 10px;
-        background-color: var(--menu-bg-color-translucent);
-        min-width: 0;
-    }
-
-    .token-info {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 6px 16px;
-        flex-direction: column;
-        min-width: 0;
-    }
-
-    .token-name {
-        margin: 0;
-        font-size: 15px;
-        font-weight: 600;
-        overflow-wrap: anywhere;
-    }
-
-    .token-last-used {
-        font-size: 13px;
-        opacity: 0.6;
-    }
-
-    .token-secret-row,
-    .token-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .token-secret-row {
-        justify-content: space-between;
-        gap: 12px;
-    }
-
-    .token-secret {
-        min-width: 0;
-        padding: 0;
-        border: none;
-        background: none;
-        font-size: 14px;
-        overflow-wrap: anywhere;
-        user-select: text;
-    }
-
-    .token-actions {
-        flex-shrink: 0;
-    }
-
-    .token-action {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 36px;
-        height: 36px;
-        padding: 0;
-        border: 1px solid var(--menu-border-color);
-        border-radius: 8px;
-        background: none;
-        color: var(--text-color);
-        cursor: pointer;
-        transition: background-color 0.15s ease, border-color 0.15s ease;
-
-        svg {
-            width: 17px;
-            height: 17px;
-        }
-
-        &:hover,
-        &[aria-pressed="true"] {
-            background-color: var(--alternative-bg-color);
-            border-color: var(--text-color);
-        }
-
-        &:focus-visible {
-            outline: 2px solid var(--link-color);
-            outline-offset: 2px;
-        }
-
-        &:disabled {
-            opacity: 0.4;
-            cursor: wait;
-        }
-    }
-
-    .token-delete:hover {
-        color: var(--error-color);
-        border-color: var(--error-color);
-    }
-
-    .token-copy.copied {
-        color: var(--link-color);
-    }
+  .token-copy.copied {
+    color: var(--link-color);
+  }
 }
 
 #invite-codes {
-    .codes {
+  container: invitations / inline-size;
+
+  .codes {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    .code {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+
+      max-width: 800px;
+
+      border-top: 1px solid var(--menu-border-color);
+      padding: 10px;
+
+      .code-text {
+        user-select: all;
         display: flex;
-        flex-direction: column;
-        gap: 5px;
+        align-self: center;
+        overflow-wrap: break-word;
+        word-break: break-all;
+        max-width: 100%;
 
-        .code {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            flex-wrap: wrap;
-
-            max-width: 800px;
-
-            border-top: 1px solid var(--menu-border-color);
-            padding: 10px;
-
-            .code-text {
-                user-select: all;
-                display: flex;
-                align-self: center;
-                overflow-wrap: break-word;
-                word-break: break-all;
-                max-width: 100%;
-
-                &:hover {
-                    border-color: var(--text-color);
-                }
-            }
-
-            .info {
-                display: flex;
-                flex-direction: row;
-                gap: 10px;
-                align-self: center;
-
-                padding-left: 10px;
-
-                .uses-left,
-                .invite-code-expires {
-                    display: flex;
-                    align-items: center;
-
-                    border-right: 1px solid var(--menu-border-color);
-                    padding-right: 10px;
-                }
-            }
+        &:hover {
+          border-color: var(--text-color);
         }
-    }
-}
+      }
 
-@media (max-width: 768px) {
-    #invite-codes .codes .code {
-        flex-direction: column !important;
-        gap: 10px;
-    }
-}
-#tokens-page button:disabled {
-    opacity: 0.5;
-    cursor: wait;
-}
-
-.created-token-modal {
-    width: min(540px, calc(100% - 32px));
-    max-height: calc(100dvh - 32px);
-    box-sizing: border-box;
-    padding: 0;
-    color: var(--text-color);
-    background: var(--menu-bg-color);
-    border: 1px solid var(--menu-border-color);
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
-    overflow: auto;
-
-    &::backdrop {
-        background: rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(5px);
-    }
-
-    .created-token-titlebar {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--menu-border-color);
-
-        h2 { margin: 0; font-size: 18px; }
-    }
-
-    .created-token-contents {
-        padding: 24px;
-        p { margin: 0 0 16px; line-height: 1.5; font-size: 14px; }
-        .created-token-error { color: var(--error-color); margin: 16px 0 0; }
-    }
-
-    .created-token-code {
-        margin: 0;
-        padding: 16px;
-        border: 1px solid var(--menu-border-color);
-        border-radius: 8px;
-        background: var(--alternative-bg-color);
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        user-select: text;
-
-        code { padding: 0; border: 0; background: none; font-size: 14px; line-height: 1.6; }
-    }
-
-    .created-token-footer {
+      .info {
         display: flex;
-        justify-content: flex-end;
+        flex-direction: row;
         flex-wrap: wrap;
         gap: 10px;
-        padding: 16px 24px;
-        border-top: 1px solid var(--menu-border-color);
+        align-self: center;
 
-        button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            min-height: 40px;
-            padding: 8px 16px;
-            border: 1px solid var(--menu-border-color);
-            border-radius: 8px;
-            color: var(--text-color);
-            background: var(--alternative-bg-color);
-            font: inherit;
-            font-size: 14px;
-            cursor: pointer;
+        padding-left: 10px;
 
-            &:hover { border-color: var(--text-color); }
-            &:focus-visible { outline: 2px solid var(--link-color); outline-offset: 2px; }
-            svg { width: 16px; height: 16px; }
+        .uses-left,
+        .invite-code-expires {
+          display: flex;
+          align-items: center;
+
+          border-right: 1px solid var(--menu-border-color);
+          padding-right: 10px;
         }
-
-        .created-token-copy { color: var(--link-color); }
+      }
     }
+  }
+}
+
+@container invitations (max-width: 42rem) {
+  #invite-codes .codes .code {
+    flex-direction: column;
+    gap: 10px;
+
+    .info {
+      padding-left: 0;
+    }
+  }
+}
+#tokens-page button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+dialog.created-token-modal {
+  width: min(540px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  box-sizing: border-box;
+  padding: 0;
+  color: var(--text-color);
+  background: var(--menu-bg-color);
+  border: 1px solid var(--menu-border-color);
+  border-radius: 16px;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: auto;
+
+  .created-token-titlebar {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--menu-border-color);
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+  }
+
+  .created-token-contents {
+    padding: 24px;
+    p {
+      margin: 0 0 16px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+    .created-token-error {
+      color: var(--error-color);
+      margin: 16px 0 0;
+    }
+  }
+
+  .created-token-code {
+    margin: 0;
+    padding: 16px;
+    border: 1px solid var(--menu-border-color);
+    border-radius: 8px;
+    background: var(--alternative-bg-color);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: text;
+
+    code {
+      padding: 0;
+      border: 0;
+      background: none;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+  }
+
+  .created-token-footer {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--menu-border-color);
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 16px;
+      border: 1px solid var(--menu-border-color);
+      border-radius: 8px;
+      color: var(--text-color);
+      background: var(--alternative-bg-color);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+
+      &:hover {
+        border-color: var(--text-color);
+      }
+      &:focus-visible {
+        outline: 2px solid var(--link-color);
+        outline-offset: 2px;
+      }
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .created-token-copy {
+      color: var(--link-color);
+    }
+  }
 }
 
 body:has(.created-token-modal[open]) {
-    overflow: hidden;
+  overflow: hidden;
 }

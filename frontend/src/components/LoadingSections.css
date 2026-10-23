@@ -1,0 +1,11 @@
+.loading-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .loading-section-body {
+    min-block-size: 6rem;
+    color: var(--text-color);
+    opacity: 0.6;
+  }
+}

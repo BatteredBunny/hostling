@@ -132,11 +132,30 @@ func (app *Application) Run() {
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		log.Err(err).Msg("HTTP server shutdown error")
+		if closeErr := server.Close(); closeErr != nil {
+			log.Err(closeErr).Msg("Failed to close remaining connections")
+		}
 	}
 
 	app.Shutdown()
-	app.backgroundWg.Wait()
+	if err := app.waitBackground(ctx); err != nil {
+		log.Warn().Err(err).Msg("Background shutdown deadline reached")
+	}
 	log.Info().Msg("Shutdown complete")
+}
+
+func (app *Application) waitBackground(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		app.backgroundWg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (app *Application) verifySocketUsable() (err error) {

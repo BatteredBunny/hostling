@@ -1,182 +1,184 @@
 .tag-editor {
-    position: relative;
+  position: relative;
 
-    .tag-editor-selected {
-        display: flex;
-        flex-direction: column;
-        max-height: 220px;
-        overflow-y: auto;
-        margin-bottom: 8px;
+  .tag-editor-selected {
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    margin-bottom: 8px;
 
-        &:empty {
-            display: none;
-        }
+    &:empty {
+      display: none;
+    }
+  }
+
+  .tag-editor-selected-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 14px;
+
+    &.pending,
+    &:hover,
+    &:focus-within {
+      background-color: var(--alternative-bg-color);
     }
 
-    .tag-editor-selected-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 7px 8px;
-        border-radius: 6px;
-        color: var(--text-color);
-        font-size: 14px;
+    > svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      opacity: 0.6;
+    }
+  }
 
-        &.pending,
-        &:hover,
-        &:focus-within {
-            background-color: var(--alternative-bg-color);
-        }
+  .tag-editor-name {
+    flex: 1;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
 
-        > svg {
-            width: 14px;
-            height: 14px;
-            flex-shrink: 0;
-            opacity: 0.6;
-        }
+  .tag-editor-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-color);
+
+    svg {
+      width: 14px;
+      height: 14px;
+      opacity: 0.6;
     }
 
-    .tag-editor-name {
-        flex: 1;
-        overflow-wrap: anywhere;
-        min-width: 0;
+    &:hover,
+    &:focus-visible {
+      background-color: var(--alternative-bg-color);
+
+      svg {
+        opacity: 1;
+      }
+    }
+  }
+
+  /* Looks like the global input; the real input inside is borderless. */
+  .tag-editor-field {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid var(--menu-border-color);
+    background-color: var(--menu-bg-color-translucent);
+    cursor: text;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: var(--text-color);
+      background-color: var(--background-color);
     }
 
-    .tag-editor-remove {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        flex-shrink: 0;
+    &:focus-within {
+      border-color: var(--link-color);
+      background-color: var(--background-color);
+      box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.1);
+    }
+
+    &.disabled {
+      cursor: default;
+    }
+
+    input {
+      flex: 1;
+      min-width: 90px;
+      padding: 4px 6px;
+      border: none;
+      background: none;
+      box-shadow: none;
+      font-size: 14px;
+
+      &:hover,
+      &:focus {
         border: none;
-        border-radius: 6px;
         background: none;
-        color: var(--text-color);
+        box-shadow: none;
+      }
+    }
+  }
+
+  .tag-editor-options {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    max-height: 220px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 4px;
+    background-color: var(--menu-bg-color);
+    border: 1px solid var(--menu-border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+
+    .tag-editor-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 8px;
+      color: var(--text-color);
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+
+      svg {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        opacity: 0.6;
+      }
+
+      &.active {
+        background-color: var(--alternative-bg-color);
 
         svg {
-            width: 14px;
-            height: 14px;
-            opacity: 0.6;
+          opacity: 1;
         }
+      }
+    }
+  }
 
-        &:hover,
-        &:focus-visible {
-            background-color: var(--alternative-bg-color);
+  .tag-editor-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    font-size: 13px;
 
-            svg {
-                opacity: 1;
-            }
-        }
+    .tag-editor-error {
+      color: var(--error-color);
     }
 
-    /* Looks like the global input; the real input inside is borderless. */
-    .tag-editor-field {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px;
-        padding: 6px;
-        border-radius: 6px;
-        border: 1px solid var(--menu-border-color);
-        background-color: var(--menu-bg-color-translucent);
-        cursor: text;
-        transition: all 0.2s ease;
+    .tag-editor-counter {
+      margin-left: auto;
+      opacity: 0.6;
 
-        &:hover {
-            border-color: var(--text-color);
-            background-color: var(--background-color);
-        }
-
-        &:focus-within {
-            border-color: var(--link-color);
-            background-color: var(--background-color);
-            box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.1);
-        }
-
-        &.disabled {
-            cursor: default;
-        }
-
-        input {
-            flex: 1;
-            min-width: 90px;
-            padding: 4px 6px;
-            border: none;
-            background: none;
-            box-shadow: none;
-            font-size: 14px;
-
-            &:hover,
-            &:focus {
-                border: none;
-                background: none;
-                box-shadow: none;
-            }
-        }
+      &.full {
+        color: var(--error-color);
+        opacity: 1;
+      }
     }
-
-    .tag-editor-options {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        z-index: 10;
-        max-height: 220px;
-        overflow-y: auto;
-        padding: 4px;
-        background-color: var(--menu-bg-color);
-        border: 1px solid var(--menu-border-color);
-        border-radius: 8px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-
-        .tag-editor-option {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 7px 8px;
-            color: var(--text-color);
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-
-            svg {
-                width: 14px;
-                height: 14px;
-                flex-shrink: 0;
-                opacity: 0.6;
-            }
-
-            &.active {
-                background-color: var(--alternative-bg-color);
-
-                svg {
-                    opacity: 1;
-                }
-            }
-        }
-    }
-
-    .tag-editor-footer {
-        display: flex;
-        justify-content: space-between;
-        gap: 8px;
-        margin-top: 6px;
-        font-size: 13px;
-
-        .tag-editor-error {
-            color: var(--error-color);
-        }
-
-        .tag-editor-counter {
-            margin-left: auto;
-            opacity: 0.6;
-
-            &.full {
-                color: var(--error-color);
-                opacity: 1;
-            }
-        }
-    }
+  }
 }

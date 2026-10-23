@@ -1,162 +1,138 @@
 package internal
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
+	"github.com/danielgtaylor/huma/v2"
+
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
 // Admin api for deleting accounts and their data
 type adminDeleteAccountInput struct {
-	ID uint `form:"id" binding:"required"`
+	ID uint `form:"id" minimum:"1" required:"true"`
 }
 
 var ErrCantDeleteSelf = fmt.Errorf("you can't delete yourself")
 
-func (app *Application) adminDeleteAccount(c *gin.Context) {
-	var input adminDeleteAccountInput
-	if err := c.MustBindWith(&input, binding.FormPost); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
-
-		return
-	}
+func (app *Application) adminDeleteAccount(
+	_ context.Context,
+	request *FormInput[adminDeleteAccountInput],
+) (*TextOutput, error) {
+	c := request.Gin
+	input := request.RawBody.Data()
 
 	account, _ := getAccount(c)
 	if account.ID == input.ID {
-		_ = c.AbortWithError(http.StatusBadRequest, ErrCantDeleteSelf)
-
-		return
+		return nil, huma.NewError(http.StatusBadRequest, ErrCantDeleteSelf.Error())
 	}
 
 	if err := app.deleteAccount(c.Request.Context(), input.ID); err != nil {
 		log.Err(err).Msg("Failed to delete account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, fmt.Sprintf("Account %d deleted", input.ID))
+	return textOutput(fmt.Sprintf("Account %d deleted", input.ID)), nil
 }
 
 type adminDeleteAccountFilesInput struct {
-	ID uint `form:"id" binding:"required"`
+	ID uint `form:"id" minimum:"1" required:"true"`
 }
 
-func (app *Application) adminDeleteFiles(c *gin.Context) {
-	var (
-		input adminDeleteAccountFilesInput
-		err   error
-	)
+func (app *Application) adminDeleteFiles(
+	_ context.Context,
+	request *FormInput[adminDeleteAccountFilesInput],
+) (*TextOutput, error) {
+	c := request.Gin
+	input := request.RawBody.Data()
 
-	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
-
-		return
-	}
+	var err error
 
 	if err = app.deleteFilesFromAccount(c.Request.Context(), input.ID); err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete files from account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, "Files deleted")
+	return textOutput("Files deleted"), nil
 }
 
 type adminDeleteAccountSessionsInput struct {
-	ID uint `form:"id" binding:"required"`
+	ID uint `form:"id" minimum:"1" required:"true"`
 }
 
-func (app *Application) adminDeleteSessions(c *gin.Context) {
-	var (
-		input adminDeleteAccountSessionsInput
-		err   error
-	)
+func (app *Application) adminDeleteSessions(
+	ctx context.Context,
+	request *FormInput[adminDeleteAccountSessionsInput],
+) (*TextOutput, error) {
+	input := request.RawBody.Data()
 
-	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
+	var err error
 
-		return
-	}
-
-	if err = app.db.DeleteSessionsFromAccount(input.ID); err != nil {
+	if err = app.db.WithContext(ctx).DeleteSessionsFromAccount(input.ID); err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete sessions from account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, "Sessions deleted")
+	return textOutput("Sessions deleted"), nil
 }
 
 type adminDeleteAccountUploadTokensInput struct {
-	ID uint `form:"id" binding:"required"`
+	ID uint `form:"id" minimum:"1" required:"true"`
 }
 
-func (app *Application) adminDeleteUploadTokens(c *gin.Context) {
-	var (
-		input adminDeleteAccountUploadTokensInput
-		err   error
-	)
+func (app *Application) adminDeleteUploadTokens(
+	ctx context.Context,
+	request *FormInput[adminDeleteAccountUploadTokensInput],
+) (*TextOutput, error) {
+	input := request.RawBody.Data()
 
-	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
+	var err error
 
-		return
-	}
-
-	if err = app.db.DeleteUploadTokensFromAccount(input.ID); err != nil {
+	if err = app.db.WithContext(ctx).DeleteUploadTokensFromAccount(input.ID); err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete upload tokens from account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, "Upload tokens deleted")
+	return textOutput("Upload tokens deleted"), nil
 }
 
 type adminGiveInviteCodeInput struct {
-	ID   uint `form:"id"             binding:"required"`
-	Uses uint `form:"uses,default=5"` // How many uses the invite code has
+	ID   uint `form:"id"   minimum:"1" required:"true"`
+	Uses uint `form:"uses"             required:"false" default:"5"` // How many uses the invite code has
 }
 
 // TODO: allow giving admin account invites
-func (app *Application) adminGiveInviteCode(c *gin.Context) {
-	var (
-		input adminGiveInviteCodeInput
-		err   error
-	)
+func (app *Application) adminGiveInviteCode(
+	ctx context.Context,
+	request *FormInput[adminGiveInviteCodeInput],
+) (*TextOutput, error) {
+	input := request.RawBody.Data()
 
-	if err = c.MustBindWith(&input, binding.FormPost); err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
+	var err error
 
-		return
-	}
-
-	if _, err = app.db.GetAccountByID(input.ID); errors.Is(err, gorm.ErrRecordNotFound) {
-		c.String(http.StatusNotFound, "Account not found")
-
-		return
+	database := app.db.WithContext(ctx)
+	if _, err = database.GetAccountByID(input.ID); errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, huma.NewError(http.StatusNotFound, "Account not found")
 	} else if err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to look up account")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	inviteCode, err := app.db.CreateInviteCode(input.Uses, "USER", input.ID)
+	inviteCode, err := database.CreateInviteCode(input.Uses, "USER", input.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to create invite code")
-		c.AbortWithStatus(http.StatusInternalServerError)
 
-		return
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	c.String(http.StatusOK, inviteCode.Code)
+	return textOutput(inviteCode.Code), nil
 }

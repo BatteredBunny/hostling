@@ -1,6 +1,7 @@
 import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { Icon } from './Icon';
+import { Input } from './Input';
 import { HostlingToast } from './HostlingToast';
 import { showToast, toast } from '../toast';
 import {
@@ -90,9 +91,8 @@ export function TokensPage() {
           </Show>
           <Show when={loaded()}>
             <form id="create-upload-token" onSubmit={create}>
-              <div class="token-name-field">
-                <label for="token-name">Token name</label>
-                <input
+              <Input
+                  fieldClass="token-name-field" label="Token name"
                   ref={nameInput} id="token-name" name="nickname" type="text" required maxLength={64}
                   placeholder="e.g. Screenshot uploader" autocomplete="off"
                   value={name()}
@@ -100,8 +100,7 @@ export function TokensPage() {
                     event.currentTarget.setCustomValidity('');
                     setName(event.currentTarget.value);
                   }}
-                />
-              </div>
+              />
               <button class="create-button" type="submit" disabled={creating() || !!createdToken()} aria-label={creating() ? 'Creating upload token' : 'Create upload token'} title="Create upload token">
                 <Icon name={creating() ? 'loader-circle' : 'plus'} />
               </button>

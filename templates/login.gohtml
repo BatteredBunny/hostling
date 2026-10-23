@@ -15,22 +15,31 @@
         <div class="container">
             <h1>Login</h1>
 
-            {{ if .NoProvidersConfigured }}
-            <div class="warning-modal">
-                <p><strong>Server Configuration Error:</strong> No authentication providers are configured. Please contact the server administrator to set up hostling correctly.</p>
+            <div id="login-page">
+                <setting-group class="login-panel">
+                    <div class="setting-group-header"><h2>Welcome back</h2></div>
+                    <div class="setting-group-body">
+                        {{ if .NoProvidersConfigured }}
+                        <div class="warning-modal">
+                            <p><strong>Server configuration error:</strong> No authentication providers are configured. Please contact the server administrator to set up {{ .Branding }} correctly.</p>
+                        </div>
+                        {{ else }}
+                        <p class="login-description">Choose a linked account to log in.</p>
+                        <div class="login-providers">
+                            {{ range .Providers }}
+                            <a class="social-login" href="/api/auth/login/{{ .Name }}">
+                                <svg class="lucide-icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
+                                </svg>
+                                <span>Log in with {{ if eq .Name "github" }}GitHub{{ else if eq .Name "openid-connect" }}OpenID Connect{{ else }}{{ .Name }}{{ end }}</span>
+                            </a>
+                            {{ end }}
+                        </div>
+                        {{ end }}
+                        <p class="login-register">Have an invitation code? <a href="/register">Create an account</a></p>
+                    </div>
+                </setting-group>
             </div>
-            {{ end }}
-
-            {{ range .Providers }}
-                <p class="provider">
-                    <a class="social-login" href="/api/auth/login/{{ .Name }}">
-                        <svg class="lucide-icon login-provider-icon" viewBox="0 0 24 24">
-                            <use href="/public/assets/lucide-sprite.svg#{{ .Icon }}" />
-                        </svg>
-                        <span>Login with {{ .Name }}</span>
-                    </a>
-                </p>
-            {{ end }}
         </div>
     </main>
 </body>

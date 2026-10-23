@@ -1,0 +1,60 @@
+.hostling-input-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+
+    > label {
+        color: var(--text-color);
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .hostling-input {
+        width: 100%;
+        min-width: 0;
+        min-height: 42px;
+        box-sizing: border-box;
+        padding: 10px 14px;
+        border: 1px solid var(--menu-border-color);
+        border-radius: 8px;
+        background-color: var(--menu-bg-color-translucent);
+        color: var(--text-color);
+        font: inherit;
+        font-size: 14px;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+
+        &:hover {
+            border-color: var(--text-color);
+        }
+
+        &:focus-visible {
+            outline: none;
+            border-color: var(--link-color);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--link-color) 12%, transparent);
+        }
+
+        &[aria-invalid="true"] {
+            border-color: var(--error-color);
+        }
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    }
+
+    .hostling-input-hint,
+    .hostling-input-error {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .hostling-input-hint {
+        opacity: 0.6;
+    }
+
+    .hostling-input-error {
+        color: var(--error-color);
+    }
+}

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
   };
 
   outputs =
@@ -86,18 +86,18 @@
           # TODO: upstream?
           atlas-unfree =
             let
-              version = "v1.2.2";
+              version = "v1.3.0";
             in
             pkgs.stdenvNoCC.mkDerivation {
               pname = "atlas";
               inherit version;
               src = pkgs.fetchurl {
                 url =
-                  if pkgs.stdenv.isLinux && pkgs.stdenv.isx86_64 then
+                  if pkgs.stdenv.hostPlatform.isLinux && pkgs.stdenv.hostPlatform.isx86_64 then
                     "https://release.ariga.io/atlas/atlas-linux-amd64-${version}"
                   else
                     throw "Unsupported system for Atlas: ${system}";
-                hash = "sha256-253c/sqJyxGD42KqucJmu7jdxPrxekc5t521+H/Qwts=";
+                hash = "sha256-z8dz5bToRbwB1oA5DBdGSJOKf4i/MOWiyDroUhfCFYc=";
               };
               dontUnpack = true;
               installPhase = ''
@@ -110,7 +110,7 @@
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
               cloudflared # cloudflared tunnel --url localhost:8081
-              go
+              go_latest
               wire
               atlas-unfree # Unfree version of atlas
               sqlite

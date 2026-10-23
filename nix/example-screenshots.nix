@@ -55,9 +55,9 @@ testers.nixosTest {
       )
 
       os.makedirs("screenshots", exist_ok=True)
-      machine.copy_from_vm("/tmp/upload.png", "screenshots")
-      machine.copy_from_vm("/tmp/gallery.png", "screenshots")
-      machine.copy_from_vm("/tmp/modal.png", "screenshots")
-      machine.copy_from_vm("/tmp/admin.png", "screenshots")
+      machine.copy_from_machine("/tmp/upload.png", "screenshots")
+      machine.copy_from_machine("/tmp/gallery.png", "screenshots")
+      machine.copy_from_machine("/tmp/modal.png", "screenshots")
+      machine.copy_from_machine("/tmp/admin.png", "screenshots")
     '';
 }

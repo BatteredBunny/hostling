@@ -1,5 +1,5 @@
 {
-  buildGoModule,
+  buildGoLatestModule,
   fetchPnpmDeps,
   pnpmConfigHook,
   pnpm_11,
@@ -28,7 +28,7 @@ let
       inherit version pnpm;
       src = ./frontend;
       fetcherVersion = 4;
-      hash = "sha256-C2VFOfoX2O44BX3otOvKHnQ0luoDbIbd84lKsN7Z2WI=";
+      hash = "sha256-z5dp0r53fgyvLiH1xm5iLY9NGTj0o5njxs1ZEA+ye78=";
     };
 
     postBuild = ''
@@ -40,13 +40,13 @@ let
     '';
   };
 in
-buildGoModule {
+buildGoLatestModule {
   pname = "hostling";
   inherit version;
 
   src = ./.;
 
-  vendorHash = "sha256-NIe0Cmo4j3A5B/N0jxRdyusu3iqRUJ0+PFjiP8j7D3k=";
+  vendorHash = "sha256-3GN38qubpr8IVCSj+0kwoaTTnzGwUvvPrwOHsT6LHtA=";
 
   prePatch = ''
     cp -r ${frontend} ./public/dist

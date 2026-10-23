@@ -34,9 +34,9 @@ func (db *Database) GetUploadTokensCount(accountID uint) (count int64, err error
 }
 
 type UiUploadToken struct {
-	Token    uuid.UUID
-	Nickname string
-	LastUsed *time.Time
+	Token    uuid.UUID  `json:"token"`
+	Nickname string     `json:"name"`
+	LastUsed *time.Time `json:"last_used"`
 }
 
 func (db *Database) GetUploadTokens(accountID uint) (uploadTokens []UiUploadToken, err error) {

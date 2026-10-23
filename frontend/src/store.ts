@@ -86,15 +86,7 @@ export function confirmDialog(options: Omit<ConfirmRequest, 'resolve'>): Promise
   return new Promise((resolve) => setConfirmRequest({ ...options, resolve }));
 }
 
-// Toast state
-export const [toastMessage, setToastMessage] = createSignal<string | null>(null);
-let toastTimeoutId: ReturnType<typeof setTimeout> | undefined;
-
-export function showToast(message: string) {
-  if (toastTimeoutId) clearTimeout(toastTimeoutId);
-  setToastMessage(message);
-  toastTimeoutId = setTimeout(() => setToastMessage(null), 2000);
-}
+export { showToast } from './toast';
 
 export function updateFileInList(fileName: string, updates: Partial<FileData>) {
   setFiles((prev) =>

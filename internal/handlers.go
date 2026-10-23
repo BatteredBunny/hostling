@@ -262,23 +262,6 @@ func (app *Application) tokensPage(c *gin.Context) {
 		templateInput["HasAdminWarning"] = app.hasAdminWarning()
 	}
 
-	inviteCodes, err := app.db.InviteCodesByAccount(account.ID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
-	}
-	templateInput["InviteCodes"] = inviteCodes
-
-	uploadTokens, err := app.db.GetUploadTokens(account.ID)
-	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
-	}
-
-	templateInput["UploadTokens"] = uploadTokens
-
 	c.HTML(http.StatusOK, "tokens.gohtml", templateInput)
 }
 
@@ -482,12 +465,60 @@ const (
 	maxUploadTokenNickname    = 64
 )
 
-func (app *Application) newUploadTokenApi(c *gin.Context) {
+type InviteCodeAPIOutput struct {
+	Code       string    `json:"code"`
+	Uses       uint      `json:"uses"`
+	ExpiryDate time.Time `json:"expiry_date"`
+}
+
+func (app *Application) uploadTokensAPI(c *gin.Context) {
 	account, _ := getAccount(c)
-	nickname := c.PostForm("nickname")
+	tokens, err := app.db.GetUploadTokens(account.ID)
+	if err != nil {
+		log.Err(err).Msg("Failed to list upload tokens")
+		c.AbortWithStatus(http.StatusInternalServerError)
+
+		return
+	}
+	if tokens == nil {
+		tokens = []db.UiUploadToken{}
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, tokens)
+}
+
+func (app *Application) inviteCodesAPI(c *gin.Context) {
+	account, _ := getAccount(c)
+	invites, err := app.db.InviteCodesByAccount(account.ID)
+	if err != nil {
+		log.Err(err).Msg("Failed to list invite codes")
+		c.AbortWithStatus(http.StatusInternalServerError)
+
+		return
+	}
+	output := make([]InviteCodeAPIOutput, 0, len(invites))
+	for _, invite := range invites {
+		output = append(output, InviteCodeAPIOutput{
+			Code: invite.Code, Uses: invite.Uses, ExpiryDate: invite.ExpiryDate,
+		})
+	}
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusOK, output)
+}
+
+func (app *Application) newUploadTokenAPI(c *gin.Context) {
+	account, _ := getAccount(c)
+	nickname := strings.TrimSpace(c.PostForm("nickname"))
+
+	if nickname == "" {
+		c.String(http.StatusBadRequest, "Token name is required")
+		c.Abort()
+
+		return
+	}
 
 	if len(nickname) > maxUploadTokenNickname {
-		c.String(http.StatusBadRequest, "Nickname too long")
+		c.String(http.StatusBadRequest, "Token name too long")
 		c.Abort()
 
 		return
@@ -515,7 +546,8 @@ func (app *Application) newUploadTokenApi(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, uploadToken.String())
+	c.Header("Cache-Control", "no-store")
+	c.JSON(http.StatusCreated, db.UiUploadToken{Token: uploadToken, Nickname: nickname})
 }
 
 func (app *Application) deleteUploadTokenAPI(c *gin.Context) {

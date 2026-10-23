@@ -39,14 +39,17 @@ func newTestServer(t *testing.T, opts ...func(*Config)) *testServer {
 
 	dir := t.TempDir()
 	c := Config{
-		DatabaseType:          "sqlite",
-		DatabaseConnectionUrl: filepath.Join(dir, "hostling.db") + "?_sync=OFF&_journal=MEMORY", // no fsync, test DBs are throwaway
-		DataFolder:            dir,
-		FileStorageMethod:     fileStorageLocal,
-		MaxUploadSize:         testMaxUploadSize,
-		RateLimit:             1000,
-		PublicUrl:             "http://localhost",
-		Branding:              "Hostling",
+		DatabaseType: "sqlite",
+		DatabaseConnectionUrl: filepath.Join(
+			dir,
+			"hostling.db",
+		) + "?_sync=OFF&_journal=MEMORY", // no fsync, test DBs are throwaway
+		DataFolder:        dir,
+		FileStorageMethod: fileStorageLocal,
+		MaxUploadSize:     testMaxUploadSize,
+		RateLimit:         1000,
+		PublicUrl:         "http://localhost",
+		Branding:          "Hostling",
 	}
 	for _, opt := range opts {
 		opt(&c)
@@ -102,7 +105,10 @@ func (ts *testServer) newClient() *testClient {
 func (ts *testServer) registerClient(code string) *testClient {
 	ts.t.Helper()
 	client := ts.newClient()
-	if status, body := client.postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusSeeOther {
+	if status, body := client.postForm(
+		"/api/auth/register",
+		url.Values{"code": {code}},
+	); status != http.StatusSeeOther {
 		ts.t.Fatalf("register: expected 303, got %d: %s", status, body)
 	}
 
@@ -221,7 +227,10 @@ func (tc *testClient) multipartRequest(method, path string, fileContent []byte, 
 func (tc *testClient) uploadStatus(fields ...formField) (int, string) {
 	tc.t.Helper()
 
-	return tc.postMultipart("/api/file/upload", []byte(testDummyContent), append([]formField{{"plain", "true"}}, fields...)...)
+	return tc.postMultipart(
+		"/api/file/upload",
+		[]byte(testDummyContent),
+		append([]formField{{"plain", "true"}}, fields...)...)
 }
 
 // Uploads the dummy file and returns its name, fails the test on non-200
@@ -345,12 +354,22 @@ func (tc *testClient) fileRecord(name string) db.Files {
 
 func (tc *testClient) addTag(file, tag string) {
 	tc.t.Helper()
-	tc.expectStatus(http.StatusOK, http.MethodPost, "/api/account/file/tag", url.Values{"file_name": {file}, "tag": {tag}})
+	tc.expectStatus(
+		http.StatusOK,
+		http.MethodPost,
+		"/api/account/file/tag",
+		url.Values{"file_name": {file}, "tag": {tag}},
+	)
 }
 
 func (tc *testClient) removeTag(file, tag string) {
 	tc.t.Helper()
-	tc.expectStatus(http.StatusOK, http.MethodDelete, "/api/account/file/tag", url.Values{"file_name": {file}, "tag": {tag}})
+	tc.expectStatus(
+		http.StatusOK,
+		http.MethodDelete,
+		"/api/account/file/tag",
+		url.Values{"file_name": {file}, "tag": {tag}},
+	)
 }
 
 func (tc *testClient) togglePublic(file string) {
@@ -367,7 +386,18 @@ func (tc *testClient) deleteFile(file string) {
 func (tc *testClient) newUploadToken(nickname string) string {
 	tc.t.Helper()
 
-	return tc.expectStatus(http.StatusOK, http.MethodPost, "/api/account/upload_token", url.Values{"nickname": {nickname}})
+	body := tc.expectStatus(
+		http.StatusCreated,
+		http.MethodPost,
+		"/api/account/upload_tokens",
+		url.Values{"nickname": {nickname}},
+	)
+	var token db.UiUploadToken
+	if err := json.Unmarshal([]byte(body), &token); err != nil {
+		tc.t.Fatal(err)
+	}
+
+	return token.Token.String()
 }
 
 // Admin gives an invite code to the account, returns the code

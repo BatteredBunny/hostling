@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -85,7 +86,11 @@ func TestUploadRejectsOversizedFile(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.registerAdmin()
 
-	status, body := admin.postMultipart("/api/file/upload", bytes.Repeat([]byte("a"), 2*testMaxUploadSize), formField{"plain", "true"})
+	status, body := admin.postMultipart(
+		"/api/file/upload",
+		bytes.Repeat([]byte("a"), 2*testMaxUploadSize),
+		formField{"plain", "true"},
+	)
 	if status != http.StatusRequestEntityTooLarge {
 		t.Errorf("expected 413, got %d: %s", status, body)
 	}
@@ -95,7 +100,8 @@ func TestUploadRejectsMalformedUploadToken(t *testing.T) {
 	ts := newTestServer(t)
 	ts.registerAdmin()
 
-	if status, body := ts.newClient().uploadStatus(formField{"upload_token", "not-a-uuid"}); status != http.StatusUnauthorized {
+	if status, body := ts.newClient().
+		uploadStatus(formField{"upload_token", "not-a-uuid"}); status != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d: %s", status, body)
 	}
 }
@@ -104,12 +110,22 @@ func TestUploadTokenNicknameLength(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.registerAdmin()
 
-	status, token := admin.postForm("/api/account/upload_token", url.Values{"nickname": {strings.Repeat("x", maxUploadTokenNickname)}})
-	if status != http.StatusOK || len(token) != 36 {
-		t.Errorf("max length nickname: expected 200 with UUID, got %d: %q", status, token)
+	status, token := admin.postForm(
+		"/api/account/upload_tokens",
+		url.Values{"nickname": {strings.Repeat("x", maxUploadTokenNickname)}},
+	)
+	var created db.UiUploadToken
+	if err := json.Unmarshal([]byte(token), &created); err != nil {
+		t.Fatal(err)
+	}
+	if status != http.StatusCreated || len(created.Token.String()) != 36 {
+		t.Errorf("max length nickname: expected 201 with UUID, got %d: %q", status, token)
 	}
 
-	status, body := admin.postForm("/api/account/upload_token", url.Values{"nickname": {strings.Repeat("x", maxUploadTokenNickname+1)}})
+	status, body := admin.postForm(
+		"/api/account/upload_tokens",
+		url.Values{"nickname": {strings.Repeat("x", maxUploadTokenNickname+1)}},
+	)
 	if status != http.StatusBadRequest {
 		t.Errorf("too long nickname: expected 400, got %d: %s", status, body)
 	}

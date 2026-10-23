@@ -3,7 +3,7 @@ import { FileGrid, loadFiles } from './FileGrid';
 import { FileModal } from './FileModal';
 import { FileMenu } from './FileMenu';
 import { ConfirmDialog } from './ConfirmDialog';
-import { Toast } from './Toast';
+import { HostlingToast } from './HostlingToast';
 import {
   currentPage,
   setCurrentPage,
@@ -95,7 +95,7 @@ export function FileLibrary() {
       <Show when={confirmRequest()} keyed>
         {(request) => <ConfirmDialog request={request} />}
       </Show>
-      <Toast />
+      <HostlingToast />
     </>
   );
 }

@@ -100,7 +100,10 @@ func TestServedUploadHeaders(t *testing.T) {
 			if got := h.Get("X-Content-Type-Options"); got != "nosniff" {
 				t.Errorf("X-Content-Type-Options: expected nosniff, got %q", got)
 			}
-			if got := h.Get("Content-Security-Policy"); !strings.HasPrefix(got, "sandbox;") || !strings.Contains(got, "default-src 'none'") {
+			if got := h.Get(
+				"Content-Security-Policy",
+			); !strings.HasPrefix(got, "sandbox;") ||
+				!strings.Contains(got, "default-src 'none'") {
 				t.Errorf("Content-Security-Policy: expected sandbox with default-src 'none', got %q", got)
 			}
 			if got := h.Get("Referrer-Policy"); got != "no-referrer" {
@@ -214,7 +217,11 @@ func TestViewCounterIgnoresSpoofedForwardedFor(t *testing.T) {
 	file := admin.upload()
 
 	for _, ip := range []string{"203.0.113.1", "203.0.113.2", "203.0.113.3"} {
-		if status, _ := anon.request(http.MethodGet, "/"+file, map[string]string{"X-Forwarded-For": ip}); status != http.StatusOK {
+		if status, _ := anon.request(
+			http.MethodGet,
+			"/"+file,
+			map[string]string{"X-Forwarded-For": ip},
+		); status != http.StatusOK {
 			t.Fatalf("expected 200, got %d", status)
 		}
 	}
@@ -230,7 +237,10 @@ func TestAuthCookieAttributes(t *testing.T) {
 			ts := newTestServer(t, func(c *Config) { c.CookieSecure = secure })
 			client := ts.newClient()
 
-			if status, body := client.postForm("/api/auth/register", url.Values{"code": {testInitialToken}}); status != http.StatusSeeOther {
+			if status, body := client.postForm(
+				"/api/auth/register",
+				url.Values{"code": {testInitialToken}},
+			); status != http.StatusSeeOther {
 				t.Fatalf("register: expected 303, got %d: %s", status, body)
 			}
 
@@ -306,7 +316,7 @@ func TestUploadTokenOnlyGrantsUpload(t *testing.T) {
 	}{
 		{http.MethodGet, "/api/account/files?upload_token=" + token, nil},
 		{http.MethodDelete, "/api/account/files", url.Values{"upload_token": {token}}},
-		{http.MethodPost, "/api/account/upload_token", url.Values{"upload_token": {token}, "nickname": {"x"}}},
+		{http.MethodPost, "/api/account/upload_tokens", url.Values{"upload_token": {token}, "nickname": {"x"}}},
 		{http.MethodDelete, "/api/account/", url.Values{"upload_token": {token}}},
 		{http.MethodPost, "/api/admin/give_invite_code", giveInvite},
 	}
@@ -335,13 +345,14 @@ func TestCannotRevokeOtherUsersCredentials(t *testing.T) {
 	token := admin.newUploadToken("admin-token")
 	invite := admin.giveInviteCode(ts.adminID(), 1)
 
-	other.formRequest(http.MethodDelete, "/api/account/upload_token", url.Values{"upload_token": {token}})
+	other.formRequest(http.MethodDelete, "/api/account/upload_tokens", url.Values{"upload_token": {token}})
 	other.formRequest(http.MethodDelete, "/api/account/invite_code", url.Values{"invite_code": {invite}})
 
 	if status, body := ts.newClient().uploadStatus(formField{"upload_token", token}); status != http.StatusOK {
 		t.Errorf("admin's upload token should still work, got %d: %s", status, body)
 	}
-	if status, body := ts.newClient().postForm("/api/auth/register", url.Values{"code": {invite}}); status != http.StatusSeeOther {
+	if status, body := ts.newClient().
+		postForm("/api/auth/register", url.Values{"code": {invite}}); status != http.StatusSeeOther {
 		t.Errorf("admin's invite code should still work, got %d: %s", status, body)
 	}
 }
@@ -357,7 +368,8 @@ func TestExpiredInviteCodeRejected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if status, body := ts.newClient().postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusBadRequest {
+	if status, body := ts.newClient().
+		postForm("/api/auth/register", url.Values{"code": {code}}); status != http.StatusBadRequest {
 		t.Errorf("expected 400 for expired invite, got %d: %s", status, body)
 	}
 }

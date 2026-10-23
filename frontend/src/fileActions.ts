@@ -33,7 +33,7 @@ export async function copyFileLink(file: FileData): Promise<boolean> {
     const copied = document.execCommand('copy');
     textarea.remove();
     if (!copied) {
-      showToast('Failed to copy link');
+      showToast('Failed to copy link', 'error');
       return false;
     }
   }

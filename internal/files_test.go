@@ -154,7 +154,12 @@ func TestUploadTokenLifecycle(t *testing.T) {
 		t.Errorf("expected token upload to land in the account, got %d files", got)
 	}
 
-	admin.expectStatus(http.StatusOK, http.MethodDelete, "/api/account/upload_token", url.Values{"upload_token": {token}})
+	admin.expectStatus(
+		http.StatusOK,
+		http.MethodDelete,
+		"/api/account/upload_tokens",
+		url.Values{"upload_token": {token}},
+	)
 
 	if status, body := anon.uploadStatus(formField{"upload_token", token}); status != http.StatusUnauthorized {
 		t.Errorf("expected 401 after token deletion, got %d: %s", status, body)

@@ -6,16 +6,11 @@ export default defineConfig({
   build: {
     outDir: '../public/dist',
     emptyOutDir: true,
-    lib: {
-      entry: './src/index.tsx',
-      name: 'FileLibrary',
-      fileName: 'fileLibrary',
-      formats: ['es'],
-    },
     rollupOptions: {
+      input: { fileLibrary: './src/index.tsx', tokens: './src/tokens.tsx' },
       output: {
-        entryFileNames: 'fileLibrary.js',
-        assetFileNames: 'fileLibrary.[ext]',
+        entryFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
       },
     },
   },

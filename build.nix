@@ -57,7 +57,7 @@ buildGoLatestModule {
 
   excludedPackages = [ "frontend" ];
 
-  vendorHash = "sha256-zHdH/l/CtstwvgCvwDuJClANyUtzZ55YiNcOx+sGUEc=";
+  vendorHash = "sha256-L1E4vUMytZTzQ0Xz9U0Gzb9J6w2m1dEMVvHQARxPdqY=";
 
   prePatch = ''
     mkdir -p ./public/dist

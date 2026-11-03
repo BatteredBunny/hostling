@@ -6,7 +6,7 @@ require (
 	ariga.io/atlas v1.3.0
 	ariga.io/atlas-provider-gorm v0.6.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/danielgtaylor/huma/v2 v2.39.1
+	github.com/danielgtaylor/huma/v2 v2.40.0
 	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0

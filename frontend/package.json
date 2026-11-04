@@ -13,7 +13,7 @@
     "check": "astro check"
   },
   "dependencies": {
-    "@astrojs/solid-js": "^7.1.1",
+    "@astrojs/solid-js": "^7.1.2",
     "astro": "^7.4.2",
     "lucide-solid": "^1.63.0",
     "solid-js": "^1.9.17"

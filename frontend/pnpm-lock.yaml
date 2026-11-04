@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@astrojs/solid-js':
-        specifier: ^7.1.1
-        version: 7.1.1(jiti@2.7.0)(solid-js@1.9.17)(yaml@2.9.1)
+        specifier: ^7.1.2
+        version: 7.1.2(jiti@2.7.0)(solid-js@1.9.17)(yaml@2.9.1)
       astro:
         specifier: ^7.4.2
         version: 7.4.2(jiti@2.7.0)(yaml@2.9.1)
@@ -163,8 +163,8 @@ packages:
     resolution: {integrity: sha512-sXlAXJX6t4QfuLg+CuCDzpg7NoxWcyb4paFprgtFppLeisCBmh935h+tJ5CWXfsXEoW2IDy/ihbRMtiu28Chjw==}
     engines: {node: '>=22.23.4'}
 
-  '@astrojs/solid-js@7.1.1':
-    resolution: {integrity: sha512-I8joJYxyTPQyAU+IjDU+5ZBsq1wbWbjsIQ/CQdBn2ZXYXnxmU1C/4roACLurDZR+EGJmsHfmMHL3dyIHinE0Cw==}
+  '@astrojs/solid-js@7.1.2':
+    resolution: {integrity: sha512-AXSXsB3t3EISa41A8QLsUhjqDtlKLXUHAirmCY1VKm1SIYJjj6gWvpAKjXhsxZSHxrxwmDH/7LR6+wM/5S7nkg==}
     engines: {node: '>=22.23.4'}
     peerDependencies:
       solid-devtools: ^0.34.5
@@ -2868,7 +2868,7 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
-  '@astrojs/solid-js@7.1.1(jiti@2.7.0)(solid-js@1.9.17)(yaml@2.9.1)':
+  '@astrojs/solid-js@7.1.2(jiti@2.7.0)(solid-js@1.9.17)(yaml@2.9.1)':
     dependencies:
       solid-js: 1.9.17
       vite: 8.3.5(jiti@2.7.0)(yaml@2.9.1)

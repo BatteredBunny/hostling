@@ -1,63 +1,48 @@
 {
   self,
-  testers,
   pkgs,
+  lib,
 }:
 let
-  port = 8080;
-  token = "screenshot-token";
-  mascotFile = ../frontend/src/assets/mascot.png;
-  pythonEnv = pkgs.python3.withPackages (ps: [
-    ps.selenium
-  ]);
+  hostling = self.packages.${pkgs.stdenv.hostPlatform.system}.hostling;
 in
-testers.nixosTest {
+pkgs.stdenv.mkDerivation {
   name = "hostling-screenshots";
+  src = ../frontend;
 
-  nodes.machine =
-    { ... }:
-    {
-      imports = [ self.nixosModules.default ];
+  nativeBuildInputs = with pkgs; [
+    nodejs
+    pnpm_11
+    pnpmConfigHook
+    chromium
+  ];
 
-      services.hostling = {
-        enable = true;
-        settings = {
-          database_type = "sqlite";
-          database_connection_url = "hostling.db";
-          port = port;
-        };
-      };
+  pnpmDeps = hostling.frontend.pnpmDeps;
 
-      systemd.services.hostling.environment.INITIAL_REGISTER_TOKEN = token;
+  env = {
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH = lib.getExe pkgs.chromium;
+    XDG_CONFIG_HOME = "/tmp/hostling-screenshots/config";
+    XDG_CACHE_HOME = "/tmp/hostling-screenshots/cache";
+  };
 
-      environment.systemPackages = with pkgs; [
-        curl
-        chromium
-        chromedriver
-        pythonEnv
-      ];
-    };
+  buildPhase = ''
+    runHook preBuild
 
-  testScript =
-    { ... }:
-    ''
-      import os
+    mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME"
+    cp -r ${hostling.frontendDemo} dist-demo
+    chmod -R u+w dist-demo
+    pnpm exec playwright test
 
-      start_all()
-      machine.wait_for_unit("hostling.service")
-      machine.wait_for_open_port(${toString port})
+    runHook postBuild
+  '';
 
-      machine.succeed(
-          "PORT='${toString port}' "
-          "TOKEN='${token}' "
-          "MASCOT='${mascotFile}' "
-          "${pythonEnv}/bin/python3 ${./hostling-capture.py}"
-      )
+  installPhase = ''
+    runHook preInstall
 
-      os.makedirs("screenshots", exist_ok=True)
-      machine.copy_from_machine("/tmp/upload.png", "screenshots")
-      machine.copy_from_machine("/tmp/gallery.png", "screenshots")
-      machine.copy_from_machine("/tmp/modal.png", "screenshots")
-      machine.copy_from_machine("/tmp/admin.png", "screenshots")
-    '';
+    mkdir -p "$out/screenshots"
+    cp screenshots/*.png "$out/screenshots/"
+
+    runHook postInstall
+  '';
 }

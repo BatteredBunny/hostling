@@ -92,6 +92,8 @@ export function hasExpiry(expiryDate: string): boolean {
 }
 
 export function fileUrl(fileName: string): string {
+  if (import.meta.env.PUBLIC_DEMO)
+    return new URL("./assets/mascot.png", import.meta.url).href;
   return `/${encodeURIComponent(fileName)}`;
 }
 

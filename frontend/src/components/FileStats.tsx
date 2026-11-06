@@ -17,7 +17,7 @@ export function FileStats() {
   });
 
   return (
-    <span id="files-stats">
+    <span id="files-stats" role="status" aria-label="File statistics">
       {statsCount() === 1 ? "1 file" : `${statsCount()} files`} ·{" "}
       {humanizeBytes(statsSizeTotal())}
     </span>

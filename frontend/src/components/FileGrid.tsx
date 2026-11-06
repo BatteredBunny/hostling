@@ -72,16 +72,19 @@ export function FileGrid() {
     <>
       <SectionPanel title="Files" headerActions={<FileStats />}>
         <FileFilters />
-        <div
+        <Show when={loadingText()}>
+          <p id="file-grid-loading-text" role="status">
+            {loadingText()}
+          </p>
+        </Show>
+        <ul
+          aria-label="Files"
+          aria-busy={isLoading()}
           class="file-grid"
           classList={{ loading: isLoading() && files().length > 0 }}
         >
-          <Show when={loadingText()}>
-            <p id="file-grid-loading-text">{loadingText()}</p>
-          </Show>
-
           <For each={files()}>{(file) => <FileEntry file={file} />}</For>
-        </div>
+        </ul>
 
         <Show when={isLoading() && files().length > 0}>
           <div
@@ -95,7 +98,11 @@ export function FileGrid() {
         </Show>
 
         <Show when={totalPages() > 1}>
-          <div id="pagination-controls" style={{ display: "flex" }}>
+          <nav
+            id="pagination-controls"
+            aria-label="File pagination"
+            style={{ display: "flex" }}
+          >
             <button
               id="prev-page-btn"
               class="pagination-button"
@@ -105,7 +112,9 @@ export function FileGrid() {
               <ChevronLeftIcon class="lucide-icon" aria-hidden="true" />
               <span>Previous</span>
             </button>
-            <span id="page-info">{pageInfo()}</span>
+            <span id="page-info" role="status" aria-label="Pagination">
+              {pageInfo()}
+            </span>
             <button
               id="next-page-btn"
               class="pagination-button"
@@ -115,7 +124,7 @@ export function FileGrid() {
               <span>Next</span>
               <ChevronRightIcon class="lucide-icon" aria-hidden="true" />
             </button>
-          </div>
+          </nav>
         </Show>
       </SectionPanel>
     </>

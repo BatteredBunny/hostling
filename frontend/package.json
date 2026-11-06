@@ -10,7 +10,11 @@
     "format": "oxfmt --write 'src/**/*.{ts,tsx,css,astro}' '*.mjs' eslint.config.js .oxfmtrc.json",
     "format:check": "oxfmt --check 'src/**/*.{ts,tsx,css,astro}' '*.mjs' eslint.config.js .oxfmtrc.json",
     "generate:api": "openapi-ts",
-    "check": "astro check"
+    "check": "astro check",
+    "dev:demo": "HOSTLING_DEMO=1 astro dev",
+    "build:demo": "HOSTLING_DEMO=1 astro build",
+    "preview:demo": "HOSTLING_DEMO=1 astro preview --host 127.0.0.1 --port 4321",
+    "screenshots": "pnpm build:demo && playwright test"
   },
   "dependencies": {
     "@astrojs/solid-js": "^7.1.2",
@@ -22,6 +26,7 @@
     "@astrojs/check": "^0.9.12",
     "@astrojs/compiler-rs": "^0.5.2",
     "@hey-api/openapi-ts": "0.99.0",
+    "@playwright/test": "1.65.0",
     "eslint": "^10.14.0",
     "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-oxlint": "^1.90.0",

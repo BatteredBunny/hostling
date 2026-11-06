@@ -28,7 +28,7 @@ let
       inherit version pnpm;
       src = ./frontend;
       fetcherVersion = 4;
-      hash = "sha256-uEDtbJ2gWCT22WBRrWQ/k75LdhMi5Zm3Nxyj6OXcu0M=";
+      hash = "sha256-FMnSdYeoCJcXGI25wHr2f1g+DWPASK07ySVFJDsuEB0=";
     };
 
     postBuild = ''
@@ -53,7 +53,14 @@ buildGoLatestModule {
 
   src = ./.;
 
-  passthru = { inherit frontend; };
+  passthru = {
+    inherit frontend;
+    frontendDemo = frontend.overrideAttrs {
+      pname = "hostling-frontend-demo";
+      postBuild = "pnpm run build:demo";
+      installPhase = "cp -r dist-demo $out";
+    };
+  };
 
   excludedPackages = [ "frontend" ];
 

@@ -107,7 +107,7 @@ export function FileEntry(props: { file: FileData }) {
   const previewAlt = () => file().OriginalFileName || file().FileName;
 
   return (
-    <div
+    <li
       class="file-entry"
       onClick={handleCardClick}
       classList={{ "menu-open": isMenuOpen() }}
@@ -124,7 +124,7 @@ export function FileEntry(props: { file: FileData }) {
         type="button"
         ref={menuButton}
         class="file-entry-menu-button"
-        aria-label="File actions"
+        aria-label={`Actions for ${previewAlt()}`}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen()}
         onClick={handleMenuButton}
@@ -135,6 +135,7 @@ export function FileEntry(props: { file: FileData }) {
       <div
         class="file-preview"
         role="button"
+        aria-label={`Preview ${previewAlt()}`}
         tabindex="0"
         onKeyDown={handlePreviewKey}
       >
@@ -206,6 +207,6 @@ export function FileEntry(props: { file: FileData }) {
           </div>
         </Show>
       </div>
-    </div>
+    </li>
   );
 }

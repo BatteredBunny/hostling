@@ -13,3 +13,8 @@ frontend/node_modules/
 public/dist/
 hostling
 frontend/.astro/
+
+frontend/dist-demo/
+frontend/test-results/
+frontend/playwright-report/
+frontend/screenshots/

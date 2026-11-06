@@ -109,7 +109,9 @@ export function UploadPage() {
         uploadFile({
           body,
           signal: uploadController.signal,
-          fetch: uploadTransport(body, setProgress),
+          fetch: import.meta.env.PUBLIC_DEMO
+            ? (await import("../demo/transport")).demoFetch
+            : uploadTransport(body, setProgress),
         }),
       );
       const fileName = name.trim().replace(/^\//, "");
@@ -141,7 +143,7 @@ export function UploadPage() {
             {contextError()} <button onClick={retry}>Retry</button>
           </p>
         </Show>
-        <form class="upload-form" onSubmit={submit}>
+        <form aria-label="Upload file" class="upload-form" onSubmit={submit}>
           <Show when={!context()?.logged_in}>
             <Input
               label="Upload token"
@@ -158,6 +160,7 @@ export function UploadPage() {
             <input
               ref={input}
               type="file"
+              aria-label="File to upload"
               id="file"
               class="file-input"
               disabled={busy()}

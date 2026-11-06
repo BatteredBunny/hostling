@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "Building screenshots..."
-out=$(nix build .#example-screenshots --print-out-paths)
+out=$(nix build .#screenshot --print-out-paths)
 
 declare -A urls
 for img in upload gallery modal admin; do

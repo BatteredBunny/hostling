@@ -16,20 +16,20 @@ jobs:
 
       - name: Build screenshots
         run: |
-          out=$(nix build .#example-screenshots --print-out-paths)
+          out=$(nix build .#screenshot --print-out-paths)
           mkdir -p /tmp/screenshots
           cp "$out"/screenshots/*.png /tmp/screenshots/
 
-      - name: Upload screenshots to Litterbox
+      - name: Upload screenshots to Uguu
         id: upload
         run: |
           upload() {
             local file="$1"
             for attempt in 1 2 3; do
-              url=$(curl --max-time 120 -F "reqtype=fileupload" -F "time=72h" \
-                -F "fileToUpload=@${file}" \
-                https://litterbox.catbox.moe/resources/internals/api.php 2>/dev/null)
-              if [[ "$url" == https://litter.catbox.moe/* ]]; then
+              if response=$(curl --fail-with-body --silent --show-error \
+                --connect-timeout 15 --max-time 120 \
+                -F "files[]=@${file}" https://uguu.se/upload) &&
+                url=$(jq -er '.files[0].url | select(type == "string" and test("^https://[A-Za-z0-9.-]+/[^[:space:]]+$"))' <<< "$response"); then
                 echo "$url"
                 return 0
               fi
@@ -72,4 +72,4 @@ jobs:
             |:-:|:-:|
             | ![modal](${{ steps.upload.outputs.modal }}) | ![admin](${{ steps.upload.outputs.admin }}) |
 
-            <sub>Images expire after 72 hours. Re-run the workflow to regenerate.</sub>
+            <sub>Images expire after 3 hours. Re-run the workflow to regenerate.</sub>

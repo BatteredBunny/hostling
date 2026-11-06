@@ -16,7 +16,9 @@ export interface UrlParams {
 }
 
 export function parseUrlParams(): UrlParams {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(
+    typeof window === "undefined" ? "" : window.location.search,
+  );
 
   const pageStr = params.get("page");
   let page = 0;

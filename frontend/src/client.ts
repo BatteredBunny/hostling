@@ -1,5 +1,10 @@
 import { client } from "./generated/client.gen";
 
+if (import.meta.env.PUBLIC_DEMO) {
+  const { demoFetch } = await import("./demo/transport");
+  client.setConfig({ fetch: demoFetch });
+}
+
 client.setConfig({
   baseUrl: "",
   credentials: "same-origin",

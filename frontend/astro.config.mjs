@@ -1,6 +1,8 @@
 import { defineConfig, fontProviders } from "astro/config";
 import solid from "@astrojs/solid-js";
 
+const demo = process.env.HOSTLING_DEMO === "1";
+
 export default defineConfig({
   output: "static",
   prefetch: { prefetchAll: true, defaultStrategy: "hover" },
@@ -46,17 +48,20 @@ export default defineConfig({
       },
     },
   ],
-  outDir: "../public/dist",
-  build: { assets: "_astro", assetsPrefix: "/assets" },
+  outDir: demo ? "./dist-demo" : "../public/dist",
+  build: { assets: "_astro", assetsPrefix: demo ? undefined : "/assets" },
   vite: {
+    define: { "import.meta.env.PUBLIC_DEMO": JSON.stringify(demo) },
     // Development proxy only
     server: {
-      proxy: Object.fromEntries(
-        ["/api", "/logout"].map((path) => [
-          path,
-          process.env.HOSTLING_BACKEND_URL || "http://localhost:8081",
-        ]),
-      ),
+      proxy: demo
+        ? {}
+        : Object.fromEntries(
+            ["/api", "/logout"].map((path) => [
+              path,
+              process.env.HOSTLING_BACKEND_URL || "http://localhost:8081",
+            ]),
+          ),
     },
   },
 });

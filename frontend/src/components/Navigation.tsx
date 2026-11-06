@@ -130,7 +130,12 @@ export function Navigation(props: { currentPage: string }) {
           </For>
           <div class={styles.divider} />
           <form method="post" action="/logout" class={styles.logoutForm}>
-            <button class={styles.option} type="submit" title="logout">
+            <button
+              class={styles.option}
+              type="submit"
+              title="logout"
+              disabled={import.meta.env.PUBLIC_DEMO}
+            >
               <LogOutIcon class="lucide-icon" aria-hidden="true" />
               <span>Logout</span>
             </button>

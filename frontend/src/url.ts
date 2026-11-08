@@ -76,6 +76,10 @@ export function updateUrl(
   options: { replace?: boolean } = {},
 ) {
   const params = new URLSearchParams();
+  if (import.meta.env.PUBLIC_DEMO) {
+    const scenario = new URLSearchParams(window.location.search).get("demo");
+    if (scenario) params.set("demo", scenario);
+  }
 
   if (state.page > 0) {
     params.set("page", String(state.page + 1)); // internal 0-based → URL 1-based

@@ -75,6 +75,7 @@
             inherit self;
           };
           example-screenshots = pkgs.callPackage ./nix/example-screenshots.nix { inherit self; };
+          screenshot = self.packages.${system}.example-screenshots;
         }
       );
 

@@ -16,5 +16,5 @@ frontend/.astro/
 
 frontend/dist-demo/
 frontend/test-results/
-frontend/playwright-report/
+frontend/screenshot-report/
 frontend/screenshots/

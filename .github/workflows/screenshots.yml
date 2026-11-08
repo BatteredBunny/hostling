@@ -2,35 +2,58 @@ name: "PR Screenshots"
 on:
   pull_request:
     branches: [ main ]
+concurrency:
+  group: screenshots-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 jobs:
   screenshots:
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # 31.11.3
       - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
 
-      - name: Build screenshots
+      - name: Capture base screenshots and compare the PR against them
+        id: compare
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          out=$(nix build .#screenshot --print-out-paths)
-          mkdir -p /tmp/screenshots
-          cp "$out"/screenshots/*.png /tmp/screenshots/
+          echo "current_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          baseline=$(git merge-base "$BASE_SHA" HEAD)
+          echo "baseline_sha=$baseline" >> "$GITHUB_OUTPUT"
+          previous=$(nix build "git+file://$PWD?rev=$baseline#example-screenshots" --no-link --print-out-paths)
+          # The PR's capture suite runs against the base capture, in the same sandbox.
+          changes=$(nix build --impure --no-link --print-out-paths --expr "
+            (builtins.getFlake \"git+file://$PWD?rev=$(git rev-parse HEAD)\")
+              .packages.\${builtins.currentSystem}.example-screenshots.override {
+                screenshotBaseline = builtins.storePath \"$previous\";
+              }")
+          echo "changes=$changes/changes" >> "$GITHUB_OUTPUT"
 
-      - name: Upload screenshots to Uguu
+      - name: Upload visual changes to Uguu
         id: upload
+        env:
+          SCREENSHOT_DIFF_DIR: ${{ steps.compare.outputs.changes }}
+          SCREENSHOT_COMMENT: ${{ runner.temp }}/screenshot-comment.md
+          BEFORE_COMMIT: ${{ steps.compare.outputs.baseline_sha }}
+          AFTER_COMMIT: ${{ steps.compare.outputs.current_sha }}
         run: |
           upload() {
-            local file="$1"
+            local path="$1" file="$SCREENSHOT_DIFF_DIR/$1"
             for attempt in 1 2 3; do
               if response=$(curl --fail-with-body --silent --show-error \
                 --connect-timeout 15 --max-time 120 \
                 -F "files[]=@${file}" https://uguu.se/upload) &&
                 url=$(jq -er '.files[0].url | select(type == "string" and test("^https://[A-Za-z0-9.-]+/[^[:space:]]+$"))' <<< "$response"); then
-                echo "$url"
+                printf '%s\t%s\n' "$path" "$url"
                 return 0
               fi
               echo "Attempt $attempt failed for $(basename "$file"), retrying..." >&2
@@ -40,12 +63,28 @@ jobs:
             return 1
           }
 
-          for img in upload gallery modal admin; do
-            url=$(upload "/tmp/screenshots/${img}.png")
-            echo "${img}=${url}" >> "$GITHUB_OUTPUT"
-          done
+          export -f upload
+          export SCREENSHOT_DIFF_DIR
+
+          urls="$RUNNER_TEMP/screenshot-urls.tsv"
+          jq -r '.shots[] | .before, .after, .diff | strings' "$SCREENSHOT_DIFF_DIR/changes.json" |
+            xargs -r -d '\n' -P 4 -n 1 bash -c 'upload "$1"' _ > "$urls"
+          python3 scripts/screenshot-comment.py "$SCREENSHOT_DIFF_DIR" \
+            "$BEFORE_COMMIT" "$AFTER_COMMIT" "$urls" > "$SCREENSHOT_COMMENT"
+
+      - name: Report unavailable comparison
+        id: failure_comment
+        if: ${{ failure() && steps.checkout.outcome == 'success' }}
+        env:
+          SCREENSHOT_COMMENT: ${{ runner.temp }}/screenshot-comment.md
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          printf '## Screenshots\n\nComparison unavailable for `%s`.\n\nCapture, comparison, or image upload failed. [View workflow run](%s).\n' \
+            "$PR_HEAD_SHA" "$RUN_URL" > "$SCREENSHOT_COMMENT"
 
       - name: Find existing comment
+        if: ${{ !cancelled() && (steps.upload.outcome == 'success' || steps.failure_comment.outcome == 'success') }}
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad # v4.0.0
         id: find
         with:
@@ -54,22 +93,10 @@ jobs:
           body-includes: "## Screenshots"
 
       - name: Post or update PR comment
+        if: ${{ !cancelled() && steps.find.outcome == 'success' }}
         uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9 # v5.0.0
         with:
           comment-id: ${{ steps.find.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
-          body: |
-            ## Screenshots
-
-            Built from ${{ github.event.pull_request.head.sha }}
-
-            | Main page | Library view |
-            |:-:|:-:|
-            | ![upload](${{ steps.upload.outputs.upload }}) | ![gallery](${{ steps.upload.outputs.gallery }}) |
-
-            | File modal | Admin panel |
-            |:-:|:-:|
-            | ![modal](${{ steps.upload.outputs.modal }}) | ![admin](${{ steps.upload.outputs.admin }}) |
-
-            <sub>Images expire after 3 hours. Re-run the workflow to regenerate.</sub>
+          body-path: ${{ runner.temp }}/screenshot-comment.md

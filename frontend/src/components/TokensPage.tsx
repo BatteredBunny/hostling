@@ -232,7 +232,10 @@ function TokenEntry(props: {
   };
 
   return (
-    <article class="upload-token-entry">
+    <article
+      class="upload-token-entry"
+      aria-label={props.token.name || "Unnamed token"}
+    >
       <div class="token-info">
         <h4 class="token-name">{props.token.name || "Unnamed token"}</h4>
         <span class="token-last-used">

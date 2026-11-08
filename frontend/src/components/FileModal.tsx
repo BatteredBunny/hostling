@@ -292,6 +292,7 @@ export function FileModal(props: { file: FileData }) {
             <Show when={mimeIsVideo(file().MimeType)}>
               <video
                 id="file-preview-video"
+                aria-label={`Video preview: ${file().OriginalFileName || file().FileName}`}
                 src={mediaSource()}
                 controls
                 preload="metadata"
@@ -300,6 +301,7 @@ export function FileModal(props: { file: FileData }) {
             <Show when={mimeIsAudio(file().MimeType)}>
               <audio
                 id="file-preview-audio"
+                aria-label={`Audio preview: ${file().OriginalFileName || file().FileName}`}
                 src={mediaSource()}
                 controls
                 preload="metadata"
@@ -312,7 +314,11 @@ export function FileModal(props: { file: FileData }) {
                 !mimeIsAudio(file().MimeType)
               }
             >
-              <a id="file-preview-generic" href={fileUrl(file().FileName)}>
+              <a
+                id="file-preview-generic"
+                aria-label={`Download ${file().OriginalFileName || file().FileName}`}
+                href={fileUrl(file().FileName)}
+              >
                 <div class="file-icon">
                   <FileIcon class="lucide-icon" aria-hidden="true" />
                 </div>

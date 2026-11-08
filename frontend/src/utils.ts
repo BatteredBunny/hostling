@@ -1,3 +1,7 @@
+const demoMedia = import.meta.env.PUBLIC_DEMO
+  ? await import("./demo/media")
+  : undefined;
+
 export const FILES_PER_PAGE = 8;
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -92,8 +96,7 @@ export function hasExpiry(expiryDate: string): boolean {
 }
 
 export function fileUrl(fileName: string): string {
-  if (import.meta.env.PUBLIC_DEMO)
-    return new URL("./assets/mascot.png", import.meta.url).href;
+  if (demoMedia) return demoMedia.demoFileUrl(fileName);
   return `/${encodeURIComponent(fileName)}`;
 }
 

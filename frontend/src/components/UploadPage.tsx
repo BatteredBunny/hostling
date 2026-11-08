@@ -110,7 +110,9 @@ export function UploadPage() {
           body,
           signal: uploadController.signal,
           fetch: import.meta.env.PUBLIC_DEMO
-            ? (await import("../demo/transport")).demoFetch
+            ? (await import("../demo/transport")).demoUploadTransport(
+                setProgress,
+              )
             : uploadTransport(body, setProgress),
         }),
       );
@@ -118,7 +120,10 @@ export function UploadPage() {
       setResult(
         context()?.logged_in
           ? `/gallery?file=${encodeURIComponent(fileName)}`
-          : `/${encodeURIComponent(fileName)}`,
+          : import.meta.env.PUBLIC_DEMO
+            ? // The static demo has no file routes; link the in-memory upload.
+              (await import("../demo/media")).demoFileUrl(fileName)
+            : `/${encodeURIComponent(fileName)}`,
       );
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Upload failed.");

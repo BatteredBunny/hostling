@@ -45,7 +45,7 @@ testers.nixosTest {
 
       services.garage = {
         enable = true;
-        package = pkgs.garage;
+        package = pkgs.garage_2;
         settings = {
           replication_factor = 1;
           rpc_bind_addr = "127.0.0.1:${toString rpcPort}";
@@ -89,7 +89,7 @@ testers.nixosTest {
         after = [ "garage.service" ];
         requires = [ "garage.service" ];
         wantedBy = [ "multi-user.target" ];
-        path = [ pkgs.garage ];
+        path = with pkgs; [ garage_2 ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;

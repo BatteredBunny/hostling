@@ -1,5 +1,14 @@
 on:
   pull_request:
+    # Only changes to these can alter the fixed-output hashes.
+    paths:
+      - go.mod
+      - go.sum
+      - frontend/package.json
+      - frontend/pnpm-lock.yaml
+      - build.nix
+      - flake.nix
+      - flake.lock
 
 jobs:
   build:
@@ -11,7 +20,7 @@ jobs:
 
       - uses: DeterminateSystems/determinate-nix-action@92957199488000b908fdad19f63711000965d8f3 # v3.24.1
 
-      - run: nix build .
+      - run: nix build .#hostling.goModules .#hostling.frontend.pnpmDeps
 
       - name: Fix hash mismatches
         if: failure() && github.event_name == 'pull_request'

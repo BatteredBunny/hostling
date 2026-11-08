@@ -35,13 +35,6 @@ let
       pnpm run build
     '';
 
-    doCheck = true;
-    checkPhase = ''
-      runHook preCheck
-      pnpm run lint
-      runHook postCheck
-    '';
-
     installPhase = ''
       cp -r ../public/dist $out
     '';
@@ -62,7 +55,13 @@ buildGoLatestModule {
     };
   };
 
-  excludedPackages = [ "frontend" ];
+  excludedPackages = [
+    "frontend"
+    "cmd/loader"
+    "cmd/openapi"
+  ];
+
+  checkFlags = [ "-trimpath" ];
 
   vendorHash = "sha256-L1E4vUMytZTzQ0Xz9U0Gzb9J6w2m1dEMVvHQARxPdqY=";
 

@@ -19,7 +19,7 @@
   "dependencies": {
     "@astrojs/solid-js": "^7.1.2",
     "astro": "^7.4.5",
-    "lucide-solid": "^1.67.0",
+    "lucide-solid": "^1.69.0",
     "solid-js": "^1.9.18"
   },
   "devDependencies": {

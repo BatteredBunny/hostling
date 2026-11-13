@@ -31,7 +31,7 @@
     "eslint-plugin-astro": "^3.2.1",
     "eslint-plugin-oxlint": "^1.90.0",
     "eslint-plugin-solid": "^0.18.1",
-    "oxfmt": "^0.76.0",
+    "oxfmt": "^0.77.0",
     "oxlint": "^1.90.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.1",

@@ -10,6 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	AccountTypeUser  = "USER"
+	AccountTypeAdmin = "ADMIN"
+)
+
 type Accounts struct {
 	ID        uint `gorm:"primaryKey"` // Internal numeric account ID
 	CreatedAt time.Time
@@ -26,7 +31,7 @@ type Accounts struct {
 
 	InvitedBy uint // Account ID of the user who invited this account
 
-	AccountType string // Either "USER" or "ADMIN"
+	AccountType string // AccountTypeUser or AccountTypeAdmin
 }
 
 // Returns number of accounts in the database
@@ -276,42 +281,6 @@ func (db *Database) AllAccountStats() (stats map[uint]AccountStats, err error) {
 	return
 }
 
-// Returns the latest time a session token or an upload token was used
-func (db *Database) LastAccountActivity(accountID uint) (time.Time, error) {
-	var sessionLastUsed, uploadLastUsed sql.NullTime
-
-	err := db.Model(&SessionTokens{}).
-		Where("account_id = ?", accountID).
-		Select("last_used").
-		Order("last_used DESC").
-		First(&sessionLastUsed).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return time.Time{}, err
-	}
-
-	err = db.Model(&UploadTokens{}).
-		Where("account_id = ?", accountID).
-		Select("last_used").
-		Order("last_used DESC").
-		First(&uploadLastUsed).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return time.Time{}, err
-	}
-
-	switch {
-	case !sessionLastUsed.Valid && !uploadLastUsed.Valid:
-		return time.Time{}, nil
-	case !sessionLastUsed.Valid:
-		return uploadLastUsed.Time, nil
-	case !uploadLastUsed.Valid:
-		return sessionLastUsed.Time, nil
-	case uploadLastUsed.Time.After(sessionLastUsed.Time):
-		return uploadLastUsed.Time, nil
-	default:
-		return sessionLastUsed.Time, nil
-	}
-}
-
 // Only refresh last_used at most once per debounce window to avoid a
 // write on every authenticated request.
 const lastUsedDebounce = time.Minute
@@ -379,7 +348,7 @@ func (db *Database) GetAccountByID(accountID uint) (Accounts, error) {
 var ErrInvalidAccountType = errors.New("invalid account type specified")
 
 func (db *Database) CreateAccount(accountType string, invitedBy uint) (account Accounts, err error) {
-	if accountType == "ADMIN" || accountType == "USER" {
+	if accountType == AccountTypeAdmin || accountType == AccountTypeUser {
 		account = Accounts{
 			AccountType: accountType,
 			InvitedBy:   invitedBy,

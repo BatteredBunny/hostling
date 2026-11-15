@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/BatteredBunny/hostling/internal/db"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -51,9 +52,7 @@ func (app *Application) adminDeleteFiles(
 	c := request.Gin
 	input := request.RawBody.Data()
 
-	var err error
-
-	if err = app.deleteFilesFromAccount(c.Request.Context(), input.ID); err != nil {
+	if err := app.deleteFilesFromAccount(c.Request.Context(), input.ID); err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete files from account")
 
 		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
@@ -72,9 +71,7 @@ func (app *Application) adminDeleteSessions(
 ) (*TextOutput, error) {
 	input := request.RawBody.Data()
 
-	var err error
-
-	if err = app.db.WithContext(ctx).DeleteSessionsFromAccount(input.ID); err != nil {
+	if err := app.db.WithContext(ctx).DeleteSessionsFromAccount(input.ID); err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete sessions from account")
 
 		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
@@ -93,9 +90,7 @@ func (app *Application) adminDeleteUploadTokens(
 ) (*TextOutput, error) {
 	input := request.RawBody.Data()
 
-	var err error
-
-	if err = app.db.WithContext(ctx).DeleteUploadTokensFromAccount(input.ID); err != nil {
+	if err := app.db.WithContext(ctx).DeleteUploadTokensFromAccount(input.ID); err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to delete upload tokens from account")
 
 		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
@@ -116,10 +111,8 @@ func (app *Application) adminGiveInviteCode(
 ) (*TextOutput, error) {
 	input := request.RawBody.Data()
 
-	var err error
-
 	database := app.db.WithContext(ctx)
-	if _, err = database.GetAccountByID(input.ID); errors.Is(err, gorm.ErrRecordNotFound) {
+	if _, err := database.GetAccountByID(input.ID); errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, huma.NewError(http.StatusNotFound, "Account not found")
 	} else if err != nil {
 		log.Err(err).Uint("account_id", input.ID).Msg("Failed to look up account")
@@ -127,7 +120,7 @@ func (app *Application) adminGiveInviteCode(
 		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	inviteCode, err := database.CreateInviteCode(input.Uses, "USER", input.ID)
+	inviteCode, err := database.CreateInviteCode(input.Uses, db.AccountTypeUser, input.ID)
 	if err != nil {
 		log.Err(err).Msg("Failed to create invite code")
 

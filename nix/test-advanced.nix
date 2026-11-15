@@ -69,8 +69,6 @@ testers.nixosTest {
           database_type = "sqlite";
           database_connection_url = "hostling.db";
           inherit port;
-          rate_limit = 1000.0;
-          max_upload_size = 8192;
 
           s3 = {
             endpoint = "localhost:${toString s3Port}";
@@ -158,14 +156,57 @@ testers.nixosTest {
       };
     };
 
-  testScript =
-    { nodes, ... }:
-    ''
-      PORT = "${toString nodes.machine.services.hostling.settings.port}"
-      TOKEN = "${token}"
-      DEX_PORT = "${toString dexPort}"
-      DEX_EMAIL = "${dexUserEmail}"
-      DEX_PASSWORD = "${dexUserPassword}"
-      exec(open("${./test_script_advanced.py}").read())
-    '';
+  # Storage and OAuth behavior is covered by the Go integration tests (fake S3 and
+  # fake provider); this checks the wiring against a real Garage bucket and Dex.
+  testScript = ''
+    import html
+    import re
+
+    url = "http://localhost:${toString port}"
+    dex = "http://localhost:${toString dexPort}"
+    content = "bucket-roundtrip-payload"
+
+
+    def status(args):
+        return machine.succeed(f"curl -s -o /dev/null -w '%{{http_code}}' {args}").strip()
+
+
+    def dex_login(cookies, page):
+        m = re.search(r"""<form[^>]*action=["']([^"']+)["']""", page)
+        assert m, f"no login form in dex page:\n{page}"
+        action = html.unescape(m.group(1))
+        if action.startswith("/"):
+            action = dex + action
+        machine.succeed(
+            f"curl -fsSL -b {cookies} -c {cookies} "
+            f"--data-urlencode login=${dexUserEmail} --data-urlencode password=${dexUserPassword} '{action}'"
+        )
+
+
+    start_all()
+    machine.wait_for_unit("garage-init.service")
+    machine.wait_for_unit("dex.service")
+    machine.wait_for_unit("hostling.service")
+    machine.wait_for_open_port(${toString port})
+    machine.wait_for_open_port(${toString dexPort})
+
+    with subtest("register and round-trip a file through the Garage bucket"):
+        machine.succeed(f"curl -fsS -c /tmp/cookies -L --data-urlencode code=${token} {url}/api/auth/register > /dev/null")
+        machine.succeed(f"printf %s {content} > /tmp/dummy.txt")
+        uploaded = machine.succeed(
+            f"curl -fsS -b /tmp/cookies -F file=@/tmp/dummy.txt -F plain=true {url}/api/file/upload"
+        ).strip()
+        fetched = machine.succeed(f"curl -fsS {url}{uploaded}")
+        assert fetched == content, f"bucket round-trip mismatch: got {fetched!r}"
+
+    with subtest("link the account to Dex"):
+        page = machine.succeed(f"curl -fsSL -b /tmp/cookies -c /tmp/cookies -d @/dev/null {url}/api/auth/link/openid-connect")
+        dex_login("/tmp/cookies", page)
+
+    with subtest("log in with Dex from a fresh session"):
+        page = machine.succeed(f"curl -fsSL -b /tmp/fresh -c /tmp/fresh {url}/api/auth/login/openid-connect")
+        dex_login("/tmp/fresh", page)
+        code = status(f"-b /tmp/fresh {url}/api/account/files")
+        assert code == "200", f"expected 200 after OIDC login, got {code}"
+  '';
 }

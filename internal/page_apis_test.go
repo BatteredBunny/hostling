@@ -18,7 +18,7 @@ func TestPageAPIAccess(t *testing.T) {
 			t.Errorf("%s: anonymous status %d", path, status)
 		}
 	}
-	if status, _ := user.get("/api/admin/overview"); status != http.StatusUnauthorized {
+	if status, _ := user.get("/api/admin/overview"); status != http.StatusForbidden {
 		t.Fatalf("regular user accessed admin data: %d", status)
 	}
 	for _, client := range []*testClient{admin, user} {

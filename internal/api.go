@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -67,8 +66,6 @@ func (app *Application) deleteFileAPI(_ context.Context, request *FormInput[dele
 	c := request.Gin
 	input := request.RawBody.Data()
 
-	var err error
-
 	account, ok := getAccount(c)
 	if !ok {
 		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
@@ -113,8 +110,6 @@ func (app *Application) toggleFilePublicAPI(
 	c := request.Gin
 	input := request.RawBody.Data()
 
-	var err error
-
 	account, ok := getAccount(c)
 	if !ok {
 		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
@@ -131,9 +126,9 @@ func (app *Application) toggleFilePublicAPI(
 
 	if newPublicStatus {
 		return textOutput("File is now public"), nil
-	} else {
-		return textOutput("File is now private"), nil
 	}
+
+	return textOutput("File is now private"), nil
 }
 
 /*
@@ -152,14 +147,9 @@ func (app *Application) uploadFileAPI(_ context.Context, request *UploadInput) (
 
 	var expiryDate time.Time
 
-	plainRedirect := input.Plain
-
-	rawTags := input.Tag
-	tags_exists := len(rawTags) > 0
-
-	tags := make([]string, 0, len(rawTags))
-	for _, t := range rawTags {
-		t = strings.ToLower(strings.TrimSpace(t))
+	tags := make([]string, 0, len(input.Tag))
+	for _, t := range input.Tag {
+		t = db.NormalizeTag(t)
 		if t == "" {
 			continue
 		}
@@ -170,26 +160,24 @@ func (app *Application) uploadFileAPI(_ context.Context, request *UploadInput) (
 	}
 	slices.Sort(tags)
 	tags = slices.Compact(tags)
-	tags_exists = tags_exists && len(tags) > 0
 
 	if len(tags) > db.MaxTagsPerFile {
 		return nil, huma.NewError(http.StatusBadRequest, db.ErrTooManyTags.Error())
 	}
 
-	if date := input.ExpiryDate; date != "" {
-		parsed, parseErr := time.Parse("2006-01-02", date)
-		if parseErr != nil {
-			return nil, huma.NewError(http.StatusBadRequest, "Invalid expiry_date (want YYYY-MM-DD)")
-		}
-		expiryDate = parsed.Add(24*time.Hour - time.Second)
-	}
-
+	// expiry_timestamp takes priority; expiry_date is only parsed without it.
 	if timestamp := input.ExpiryTimestamp; timestamp != "" {
 		unixSecs, parseErr := strconv.ParseInt(timestamp, 10, 64)
 		if parseErr != nil {
 			return nil, huma.NewError(http.StatusBadRequest, "Invalid expiry_timestamp (want unix seconds)")
 		}
 		expiryDate = time.Unix(unixSecs, 0)
+	} else if date := input.ExpiryDate; date != "" {
+		parsed, parseErr := time.Parse("2006-01-02", date)
+		if parseErr != nil {
+			return nil, huma.NewError(http.StatusBadRequest, "Invalid expiry_date (want YYYY-MM-DD)")
+		}
+		expiryDate = parsed.Add(24*time.Hour - time.Second)
 	}
 
 	if !expiryDate.IsZero() {
@@ -256,10 +244,8 @@ func (app *Application) uploadFileAPI(_ context.Context, request *UploadInput) (
 		},
 	}
 
-	if tags_exists {
-		for _, tag := range tags {
-			entry.Files.Tags = append(entry.Files.Tags, db.Tag{Name: tag})
-		}
+	for _, tag := range tags {
+		entry.Files.Tags = append(entry.Files.Tags, db.Tag{Name: tag})
 	}
 
 	if sid, ok := getSessionToken(c); ok {
@@ -290,11 +276,11 @@ func (app *Application) uploadFileAPI(_ context.Context, request *UploadInput) (
 		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
-	if plainRedirect {
+	if input.Plain {
 		return textOutput("/" + fullFileName), nil
-	} else {
-		return &TextOutput{Status: http.StatusTemporaryRedirect, Location: "/" + fullFileName}, nil
 	}
+
+	return &TextOutput{Status: http.StatusTemporaryRedirect, Location: "/" + fullFileName}, nil
 }
 
 type TagInput struct {
@@ -306,21 +292,20 @@ func (app *Application) addTagAPI(_ context.Context, request *FormInput[TagInput
 	c := request.Gin
 	input := request.RawBody.Data()
 
-	var err error
-
-	if utf8.RuneCountInString(string(input.Tag)) > db.TagMaxLength {
-		return nil, huma.NewError(http.StatusBadRequest, db.ErrTagTooLong.Error())
-	}
-
 	account, ok := getAccount(c)
 	if !ok {
 		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 	}
 
-	err = app.db.WithContext(c.Request.Context()).AddTagToFile(input.FileName, string(input.Tag), account.ID)
+	// The DB layer trims/lowercases and validates the tag.
+	err := app.db.WithContext(c.Request.Context()).AddTagToFile(input.FileName, string(input.Tag), account.ID)
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		return nil, huma.NewError(http.StatusNotFound, "File not found or you don't own this file")
+	case errors.Is(err, db.ErrTagEmpty):
+		return nil, huma.NewError(http.StatusBadRequest, db.ErrTagEmpty.Error())
+	case errors.Is(err, db.ErrTagTooLong):
+		return nil, huma.NewError(http.StatusBadRequest, db.ErrTagTooLong.Error())
 	case errors.Is(err, db.ErrTagAlreadyOnFile):
 		return nil, huma.NewError(http.StatusBadRequest, db.ErrTagAlreadyOnFile.Error())
 	case errors.Is(err, db.ErrTooManyTags):
@@ -338,8 +323,6 @@ func (app *Application) deleteTagAPI(_ context.Context, request *FormInput[TagIn
 	c := request.Gin
 	input := request.RawBody.Data()
 
-	var err error
-
 	account, ok := getAccount(c)
 	if !ok {
 		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
@@ -347,8 +330,12 @@ func (app *Application) deleteTagAPI(_ context.Context, request *FormInput[TagIn
 
 	database := app.db.WithContext(c.Request.Context())
 	hasTag, err := database.FileHasTag(input.FileName, string(input.Tag), account.ID)
-	if err != nil {
-		return nil, huma.NewError(http.StatusInternalServerError, err.Error())
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, huma.NewError(http.StatusNotFound, "File not found")
+	} else if err != nil {
+		log.Err(err).Msg("Failed to check file tag")
+
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 	}
 
 	if !hasTag {

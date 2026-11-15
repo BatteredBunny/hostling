@@ -37,8 +37,8 @@ func TestAdminEndpointsRejectNonAdmins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
-			if status, body := user.formRequest(tt.method, tt.path, tt.values); status != http.StatusUnauthorized {
-				t.Errorf("expected 401, got %d: %s", status, body)
+			if status, body := user.formRequest(tt.method, tt.path, tt.values); status != http.StatusForbidden {
+				t.Errorf("expected 403, got %d: %s", status, body)
 			}
 		})
 	}
@@ -411,5 +411,40 @@ func TestSingleUseInviteCodeRace(t *testing.T) {
 	}
 	if after-before != 1 {
 		t.Errorf("expected exactly 1 new account, got %d", after-before)
+	}
+}
+
+func TestCrossOriginStateChangesRejected(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+	code := admin.giveInviteCode(ts.adminID(), 1)
+
+	register := func(headers map[string]string) int {
+		req, err := http.NewRequest(
+			http.MethodPost,
+			admin.base+"/api/auth/register",
+			strings.NewReader(url.Values{"code": {code}}.Encode()),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		status, _ := ts.newClient().do(req)
+
+		return status
+	}
+
+	if status := register(map[string]string{"Sec-Fetch-Site": "cross-site"}); status != http.StatusForbidden {
+		t.Errorf("Sec-Fetch-Site cross-site: expected 403, got %d", status)
+	}
+	if status := register(map[string]string{"Origin": "https://evil.example"}); status != http.StatusForbidden {
+		t.Errorf("foreign Origin: expected 403, got %d", status)
+	}
+	// The invite must still be unused, so a same-origin browser request succeeds.
+	if status := register(map[string]string{"Sec-Fetch-Site": "same-origin"}); status != http.StatusSeeOther {
+		t.Errorf("same-origin: expected 303, got %d", status)
 	}
 }

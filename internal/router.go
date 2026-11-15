@@ -61,6 +61,7 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	}
 
 	app.Router.Use(
+		crossOriginMiddleware(c.PublicUrl),
 		app.bodySizeMiddleware(),
 	)
 

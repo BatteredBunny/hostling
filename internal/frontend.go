@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/danielgtaylor/huma/v2"
 	"net/http"
 
@@ -57,7 +58,7 @@ func (app *Application) frontendContextAPI(
 		return nil, huma.Error400BadRequest("Could not validate session")
 	}
 	providers := append([]string{}, app.getConfiguredProviders()...)
-	admin := loggedIn && account.AccountType == "ADMIN"
+	admin := loggedIn && account.AccountType == db.AccountTypeAdmin
 
 	return jsonOutput(FrontendContext{
 		Branding:        app.config.Branding,

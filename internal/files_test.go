@@ -206,3 +206,18 @@ func TestFileExpiry(t *testing.T) {
 		t.Errorf("unexpired file must survive cleanup")
 	}
 }
+
+func TestUploadDispositionForcesDownloadForXML(t *testing.T) {
+	for mime, want := range map[string]string{
+		"image/png":                     "inline",
+		"text/plain; charset=utf-8":     "inline",
+		"text/html; charset=utf-8":      "attachment",
+		"image/svg+xml":                 "attachment",
+		"application/rss+xml":           "attachment",
+		"Application/Atom+XML; foo=bar": "attachment",
+	} {
+		if got := uploadDisposition(mime); got != want {
+			t.Errorf("%s: expected %s, got %s", mime, want, got)
+		}
+	}
+}

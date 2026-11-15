@@ -72,8 +72,8 @@ func (app *Application) adminOverviewAPI(
 		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
 	}
 
-	if account.AccountType != "ADMIN" {
-		return nil, huma.NewError(http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+	if account.AccountType != db.AccountTypeAdmin {
+		return nil, huma.NewError(http.StatusForbidden, http.StatusText(http.StatusForbidden))
 	}
 
 	database := app.db.WithContext(c.Request.Context())
@@ -713,7 +713,7 @@ func (app *Application) adminPage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if account.AccountType != "ADMIN" {
+	if account.AccountType != db.AccountTypeAdmin {
 		c.Redirect(http.StatusTemporaryRedirect, "/")
 
 		return

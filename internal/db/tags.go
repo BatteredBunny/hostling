@@ -20,18 +20,25 @@ const (
 )
 
 var (
+	ErrTagEmpty         = errors.New("tag is empty")
 	ErrTagTooLong       = errors.New("tag too long")
 	ErrTooManyTags      = errors.New("too many tags")
 	ErrTagAlreadyOnFile = errors.New("file already has this tag")
 )
 
-func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {
-	if utf8.RuneCountInString(tagName) > TagMaxLength {
-		err = ErrTagTooLong
+// NormalizeTag is the canonical stored form of a tag: trimmed and lowercased.
+func NormalizeTag(tag string) string {
+	return strings.ToLower(strings.TrimSpace(tag))
+}
 
-		return
+func (db *Database) AddTagToFile(fileName string, tagName string, accountID uint) (err error) {
+	tagName = NormalizeTag(tagName)
+	if tagName == "" {
+		return ErrTagEmpty
 	}
-	tagName = strings.ToLower(tagName)
+	if utf8.RuneCountInString(tagName) > TagMaxLength {
+		return ErrTagTooLong
+	}
 
 	return db.Transaction(func(tx *gorm.DB) error {
 		var file Files
@@ -72,7 +79,7 @@ func (db *Database) FileHasTag(fileName string, tagName string, accountID uint) 
 		return
 	}
 
-	result := db.Model(&file).Where("tags.name = ?", strings.ToLower(tagName)).Association("Tags")
+	result := db.Model(&file).Where("tags.name = ?", NormalizeTag(tagName)).Association("Tags")
 	if err = result.Error; err != nil {
 		return
 	}
@@ -88,7 +95,7 @@ func (db *Database) RemoveTagFromFile(fileName string, tagName string, accountID
 		return
 	}
 
-	err = db.Model(&file).Association("Tags").Delete(&Tag{Name: strings.ToLower(tagName)})
+	err = db.Model(&file).Association("Tags").Delete(&Tag{Name: NormalizeTag(tagName)})
 
 	return
 }

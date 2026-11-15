@@ -121,13 +121,6 @@ func (db *Database) CreateFileEntry(input CreateFileEntryInput) error {
 	})
 }
 
-// Only deletes database entry, actual file has to be deleted as well
-func (db *Database) DeleteFilesFromAccount(accountID uint) (err error) {
-	_, err = gorm.G[Files](db.DB).Where("uploader_id = ?", accountID).Delete(db.Statement.Context)
-
-	return
-}
-
 func (db *Database) GetAllFilesFromAccount(accountID uint) ([]Files, error) {
 	// Includes expired files not yet swept by cleanup, so deleting an account doesn't orphan their blobs
 	return gorm.G[Files](db.DB).

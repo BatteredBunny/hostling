@@ -875,6 +875,10 @@ export type DeleteUserFilesErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -923,6 +927,10 @@ export type GiveInviteCodeErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -967,6 +975,10 @@ export type GetAdminOverviewErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */
@@ -1015,6 +1027,10 @@ export type DeleteUserSessionsErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -1062,6 +1078,10 @@ export type DeleteUserUploadTokensErrors = {
      */
     401: ErrorModel;
     /**
+     * Forbidden
+     */
+    403: ErrorModel;
+    /**
      * Not Found
      */
     404: ErrorModel;
@@ -1108,6 +1128,10 @@ export type DeleteUserErrors = {
      * Unauthorized
      */
     401: ErrorModel;
+    /**
+     * Forbidden
+     */
+    403: ErrorModel;
     /**
      * Not Found
      */

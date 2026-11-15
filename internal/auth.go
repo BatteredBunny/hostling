@@ -549,8 +549,6 @@ func (app *Application) registerApi(
 	c := request.Gin
 	input := request.RawBody.Data()
 
-	var err error
-
 	_, token, err := app.db.WithContext(c.Request.Context()).RegisterWithInviteCode(input.Code)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, huma.NewError(http.StatusBadRequest, "Invalid code")

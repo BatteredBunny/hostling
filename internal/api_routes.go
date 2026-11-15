@@ -227,6 +227,14 @@ func apiOperation(id, method, path string, status int) huma.Operation {
 	}
 }
 
+// Admin operations additionally reject signed-in non-admins with 403.
+func adminOperation(id, method, path string, status int) huma.Operation {
+	op := apiOperation(id, method, path, status)
+	op.Errors = append(op.Errors, http.StatusForbidden)
+
+	return op
+}
+
 // The same typed registrations are used by the running server and the schema
 // command. Creating the schema does not initialize storage or call handlers.
 func (app *Application) registerAPIs(router *gin.Engine) huma.API {
@@ -346,32 +354,32 @@ func (app *Application) registerAPIs(router *gin.Engine) huma.API {
 	)
 	huma.Register(
 		admin,
-		apiOperation("getAdminOverview", http.MethodGet, "/api/admin/overview", http.StatusOK),
+		adminOperation("getAdminOverview", http.MethodGet, "/api/admin/overview", http.StatusOK),
 		app.adminOverviewAPI,
 	)
 	huma.Register(
 		admin,
-		apiOperation("deleteUser", http.MethodDelete, "/api/admin/user", http.StatusOK),
+		adminOperation("deleteUser", http.MethodDelete, "/api/admin/user", http.StatusOK),
 		app.adminDeleteAccount,
 	)
 	huma.Register(
 		admin,
-		apiOperation("deleteUserFiles", http.MethodDelete, "/api/admin/files", http.StatusOK),
+		adminOperation("deleteUserFiles", http.MethodDelete, "/api/admin/files", http.StatusOK),
 		app.adminDeleteFiles,
 	)
 	huma.Register(
 		admin,
-		apiOperation("deleteUserSessions", http.MethodDelete, "/api/admin/sessions", http.StatusOK),
+		adminOperation("deleteUserSessions", http.MethodDelete, "/api/admin/sessions", http.StatusOK),
 		app.adminDeleteSessions,
 	)
 	huma.Register(
 		admin,
-		apiOperation("deleteUserUploadTokens", http.MethodDelete, "/api/admin/upload_tokens", http.StatusOK),
+		adminOperation("deleteUserUploadTokens", http.MethodDelete, "/api/admin/upload_tokens", http.StatusOK),
 		app.adminDeleteUploadTokens,
 	)
 	huma.Register(
 		admin,
-		apiOperation("giveInviteCode", http.MethodPost, "/api/admin/give_invite_code", http.StatusOK),
+		adminOperation("giveInviteCode", http.MethodPost, "/api/admin/give_invite_code", http.StatusOK),
 		app.adminGiveInviteCode,
 	)
 

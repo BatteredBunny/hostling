@@ -430,7 +430,7 @@ func (ts *testServer) registerUser(admin *testClient) (*testClient, uint) {
 func (ts *testServer) adminID() uint {
 	ts.t.Helper()
 	var acc db.Accounts
-	if err := ts.app.db.Where("account_type = ?", "ADMIN").First(&acc).Error; err != nil {
+	if err := ts.app.db.Where("account_type = ?", db.AccountTypeAdmin).First(&acc).Error; err != nil {
 		ts.t.Fatal(err)
 	}
 

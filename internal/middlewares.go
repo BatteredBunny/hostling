@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -39,6 +40,24 @@ func (app *Application) ratelimitMiddleware() gin.HandlerFunc {
 	}
 }
 
+func crossOriginMiddleware(publicURL string) gin.HandlerFunc {
+	protection := http.NewCrossOriginProtection()
+	if parsed, err := url.Parse(publicURL); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		if err := protection.AddTrustedOrigin(parsed.Scheme + "://" + parsed.Host); err != nil {
+			log.Warn().Err(err).Msg("Failed to trust public_url origin")
+		}
+	}
+
+	return func(c *gin.Context) {
+		if err := protection.Check(c.Request); err != nil {
+			abortAPI(c, http.StatusForbidden, "Cross-origin request rejected")
+
+			return
+		}
+		c.Next()
+	}
+}
+
 // limits request body size
 func (app *Application) bodySizeMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -60,11 +79,14 @@ func (app *Application) apiMiddleware() gin.HandlerFunc {
 func (app *Application) multipartFormMiddleware(maxFileMemory int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.Request.ContentLength != 0 {
-			if err := c.Request.ParseMultipartForm(
-				maxFileMemory,
-			); err != nil &&
-				!errors.Is(err, http.ErrNotMultipart) {
+			err := c.Request.ParseMultipartForm(maxFileMemory)
+			if _, tooLarge := errors.AsType[*http.MaxBytesError](err); tooLarge {
 				abortAPI(c, http.StatusRequestEntityTooLarge, "Too big file")
+
+				return
+			}
+			if err != nil && !errors.Is(err, http.ErrNotMultipart) {
+				abortAPI(c, http.StatusBadRequest, "Malformed form body")
 
 				return
 			}
@@ -132,8 +154,13 @@ func (app *Application) verifySessionAuthentication() gin.HandlerFunc {
 func (app *Application) isAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		account, ok := getAccount(c)
-		if !ok || account.AccountType != "ADMIN" {
+		if !ok {
 			abortAPI(c, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized))
+
+			return
+		}
+		if account.AccountType != db.AccountTypeAdmin {
+			abortAPI(c, http.StatusForbidden, http.StatusText(http.StatusForbidden))
 
 			return
 		}

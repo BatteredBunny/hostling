@@ -63,7 +63,7 @@ buildGoLatestModule {
 
   checkFlags = [ "-trimpath" ];
 
-  vendorHash = "sha256-L1E4vUMytZTzQ0Xz9U0Gzb9J6w2m1dEMVvHQARxPdqY=";
+  vendorHash = "sha256-50DeuEzupoj2/gxY/Fvg2ms/vpM/y5TWWS2T+LMsHwk=";
 
   prePatch = ''
     mkdir -p ./public/dist

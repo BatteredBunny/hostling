@@ -60,7 +60,8 @@ var dangerousInlineMimes = map[string]bool{
 
 func uploadDisposition(mimeType string) string {
 	base, _, _ := strings.Cut(mimeType, ";")
-	if dangerousInlineMimes[strings.TrimSpace(base)] {
+	base = strings.ToLower(strings.TrimSpace(base))
+	if dangerousInlineMimes[base] || strings.HasSuffix(base, "+xml") {
 		return "attachment"
 	}
 

@@ -23,37 +23,40 @@ testers.nixosTest {
     ];
   };
 
-  nodes.machine =
-    { ... }:
-    {
-      imports = [
-        self.nixosModules.default
-      ];
+  nodes.machine = {
+    imports = [ self.nixosModules.default ];
 
-      services.hostling = {
-        enable = true;
-        createDbLocally = dbType == "postgresql";
-        settings = {
-          database_type = dbType;
-          database_connection_url = lib.mkIf (dbType == "sqlite") "hostling.db";
-          inherit port;
-          rate_limit = 1000.0; # To make sure test can run as fast as possible. Might better to add a compile flag to just run off rate limiting, not sure.
-          max_upload_size = 8192;
-        };
+    services.hostling = {
+      enable = true;
+      createDbLocally = dbType == "postgresql";
+      settings = {
+        database_type = dbType;
+        database_connection_url = lib.mkIf (dbType == "sqlite") "hostling.db";
+        inherit port;
       };
-
-      services.postgresql.enable = dbType == "postgresql";
-
-      # Usually you should only include secrets in environmentFile, but for testing its fine
-      systemd.services.hostling.environment.INITIAL_REGISTER_TOKEN = token;
     };
 
-  testScript =
-    { nodes, ... }:
-    ''
-      PORT = "${toString nodes.machine.services.hostling.settings.port}"
-      TOKEN = "${token}"
-      DB_TYPE = "${dbType}"
-      exec(open("${./test_script.py}").read())
-    '';
+    # Usually you should only include secrets in environmentFile, but for testing its fine
+    systemd.services.hostling.environment.INITIAL_REGISTER_TOKEN = token;
+  };
+
+  testScript = ''
+    url = "http://localhost:${toString port}"
+    content = "hostling-service-smoke-test"
+
+    start_all()
+    machine.wait_for_unit("hostling.service")
+    machine.wait_for_open_port(${toString port})
+    machine.succeed(f"curl -fsS {url}/ > /dev/null")
+
+    machine.succeed(f"curl -fsS -c /tmp/cookies -L --data-urlencode code=${token} {url}/api/auth/register > /dev/null")
+    machine.succeed(f"printf %s {content} > /tmp/dummy.txt")
+    uploaded = machine.succeed(
+        f"curl -fsS -b /tmp/cookies -F file=@/tmp/dummy.txt -F plain=true {url}/api/file/upload"
+    ).strip()
+    assert uploaded, "expected upload to return a file name"
+
+    downloaded = machine.succeed(f"curl -fsS {url}{uploaded}")
+    assert downloaded == content, f"file content mismatch: got {downloaded!r}"
+  '';
 }

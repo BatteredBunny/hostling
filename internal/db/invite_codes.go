@@ -99,12 +99,6 @@ func (db *Database) UseCode(code string) (accountType string, invitedBy uint, er
 	return
 }
 
-func (db *Database) DeleteInviteCodesFromAccount(accountID uint) (err error) {
-	_, err = gorm.G[InviteCodes](db.DB).Where("invite_creator_id = ?", accountID).Delete(db.Statement.Context)
-
-	return
-}
-
 func (db *Database) InviteCodesByAccount(accountID uint) ([]InviteCodes, error) {
 	return gorm.G[InviteCodes](db.DB).
 		Where("expiry_date > ?", time.Now()).

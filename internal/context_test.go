@@ -73,7 +73,7 @@ func TestTypedCRUDHonorsScopedCancellation(t *testing.T) {
 			return err
 		}},
 		{"create", func() error {
-			_, err := database.CreateAccount("USER", accountID)
+			_, err := database.CreateAccount(db.AccountTypeUser, accountID)
 
 			return err
 		}},
@@ -98,7 +98,7 @@ func TestTypedCreatesStayInsideTransaction(t *testing.T) {
 	rollback := errors.New("roll back typed creates")
 	err := ts.app.db.Transaction(func(tx *gorm.DB) error {
 		database := db.Database{DB: tx}
-		account, err := database.CreateAccount("USER", ts.adminID())
+		account, err := database.CreateAccount(db.AccountTypeUser, ts.adminID())
 		if err != nil {
 			return err
 		}

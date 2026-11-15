@@ -130,3 +130,31 @@ func TestUploadTokenNicknameLength(t *testing.T) {
 		t.Errorf("too long nickname: expected 400, got %d: %s", status, body)
 	}
 }
+
+func TestUploadExpiryTimestampTakesPriority(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+
+	want := time.Now().Add(48 * time.Hour).Unix()
+	file := admin.upload(
+		formField{"expiry_date", "not-a-date"},
+		formField{"expiry_timestamp", strconv.FormatInt(want, 10)},
+	)
+	if got := admin.fileRecord(file).ExpiryDate.Unix(); got != want {
+		t.Errorf("expected expiry %d from timestamp, got %d", want, got)
+	}
+}
+
+func TestMalformedMultipartIsBadRequest(t *testing.T) {
+	ts := newTestServer(t)
+	admin := ts.registerAdmin()
+
+	req, err := http.NewRequest(http.MethodPost, admin.base+"/api/account/file/tag", strings.NewReader("garbage"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "multipart/form-data; boundary=xyz")
+	if status, body := admin.do(req); status != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d: %s", status, body)
+	}
+}

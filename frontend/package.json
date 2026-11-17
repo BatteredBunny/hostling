@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@astrojs/compiler-rs": "^0.5.2",
+    "@astrojs/compiler-rs": "^0.5.3",
     "@hey-api/openapi-ts": "0.99.0",
     "@playwright/test": "1.65.0",
     "eslint": "^10.14.0",

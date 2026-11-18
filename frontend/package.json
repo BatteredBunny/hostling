@@ -17,7 +17,7 @@
     "screenshots": "pnpm build:demo && playwright test"
   },
   "dependencies": {
-    "@astrojs/solid-js": "^7.1.2",
+    "@astrojs/solid-js": "^7.1.5",
     "astro": "^7.4.10",
     "lucide-solid": "^1.72.0",
     "solid-js": "^1.9.18"

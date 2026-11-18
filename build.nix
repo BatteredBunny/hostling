@@ -28,7 +28,7 @@ let
       inherit version pnpm;
       src = ./frontend;
       fetcherVersion = 4;
-      hash = "sha256-F/DchUB37wK9gz9MLqCYR1Nxsafx3bqIRhSB2x9+17Q=";
+      hash = "sha256-A/clA37frpjhYw/zUBmpzV88prFTni8Qu1lYXTp8z54=";
     };
 
     postBuild = ''

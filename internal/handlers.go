@@ -43,8 +43,6 @@ func (app *Application) getConfiguredProviders() []string {
 	return append([]string(nil), app.configuredProviders...)
 }
 
-func (app *Application) indexPage(c *gin.Context) { app.staticPage(c, "index") }
-
 type AccountStats struct {
 	ID             uint      `json:"ID"`
 	CreatedAt      time.Time `json:"CreatedAt"`
@@ -137,14 +135,6 @@ func (app *Application) adminOverviewAPI(
 	}), nil
 }
 
-func (app *Application) galleryPage(c *gin.Context) {
-	_, ok := app.requireAuth(c)
-	if !ok {
-		return
-	}
-	app.staticPage(c, "gallery")
-}
-
 func (app *Application) settingsAPI(_ context.Context, request *EmptyInput) (*JSONOutput[SettingsOutput], error) {
 	c := request.Gin
 
@@ -190,40 +180,6 @@ func (app *Application) settingsData(account db.Accounts) SettingsOutput {
 		NoProvidersConfigured: len(configured) == 0,
 		UnlinkedAccount:       unlinkedAccount,
 	}
-}
-
-func (app *Application) tokensPage(c *gin.Context) {
-	_, ok := app.requireAuth(c)
-	if !ok {
-		return
-	}
-	app.staticPage(c, "tokens")
-}
-
-func (app *Application) loginPage(c *gin.Context) {
-	_, loggedIn, ok := app.validateOrAbort(c)
-	if !ok {
-		return
-	}
-	if loggedIn {
-		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
-
-		return
-	}
-	app.staticPage(c, "login")
-}
-
-func (app *Application) registerPage(c *gin.Context) {
-	_, loggedIn, ok := app.validateOrAbort(c)
-	if !ok {
-		return
-	}
-	if loggedIn {
-		c.Redirect(http.StatusTemporaryRedirect, "/gallery")
-
-		return
-	}
-	app.staticPage(c, "register")
 }
 
 func (app *Application) indexFiles(c *gin.Context) {
@@ -706,17 +662,4 @@ func (app *Application) filterTagsAPI(
 	}
 
 	return jsonOutput(FilterTagsApiOutput{Tags: tags}), nil
-}
-
-func (app *Application) adminPage(c *gin.Context) {
-	account, ok := app.requireAuth(c)
-	if !ok {
-		return
-	}
-	if account.AccountType != db.AccountTypeAdmin {
-		c.Redirect(http.StatusTemporaryRedirect, "/")
-
-		return
-	}
-	app.staticPage(c, "admin")
 }

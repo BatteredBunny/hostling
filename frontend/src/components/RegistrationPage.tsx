@@ -1,30 +1,48 @@
 import "./RegistrationPage.css";
 import { SectionPanel } from "./SectionPanel";
-import { createSignal, Show } from "solid-js";
+import { createSignal } from "solid-js";
 import { useFrontendContext } from "../context";
 import { register } from "../generated";
 import { apiData } from "../client";
+import { showToast } from "../toast";
 import { Input } from "./Input";
-import { UserPlus as UserPlusIcon } from "lucide-solid";
+import UserPlusIcon from "lucide-solid/icons/user-plus";
+
+// Invite links carry the code; fill it in and drop it from the address bar.
+function takeInviteCode(): string {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code") ?? "";
+  if (code) {
+    params.delete("code");
+    const query = params.toString();
+    history.replaceState(
+      history.state,
+      "",
+      window.location.pathname + (query ? `?${query}` : ""),
+    );
+  }
+  return code;
+}
 
 export function RegistrationPage() {
   const { context } = useFrontendContext();
-  const [code, setCode] = createSignal("");
+  const [code, setCode] = createSignal(takeInviteCode());
   const [busy, setBusy] = createSignal(false);
-  const [error, setError] = createSignal("");
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     if (busy()) return;
     setBusy(true);
-    setError("");
     try {
-      const result = await apiData(register({ body: { code: code().trim() } }));
-      window.location.assign(result.redirect);
+      await apiData(register({ body: { code: code().trim() } }));
+      // A fresh document picks up the new session everywhere.
+      window.location.assign("/gallery");
     } catch (failure) {
-      setError(
+      setCode("");
+      showToast(
         failure instanceof Error
           ? failure.message
           : "Could not create your account.",
+        "error",
       );
       setBusy(false);
     }
@@ -49,9 +67,6 @@ export function RegistrationPage() {
             onInput={(event) => setCode(event.currentTarget.value)}
             disabled={busy()}
           />
-          <Show when={error()}>
-            <p role="alert">{error()}</p>
-          </Show>
           <button class="registration-submit" type="submit" disabled={busy()}>
             <UserPlusIcon class="lucide-icon" aria-hidden="true" />
             Create account

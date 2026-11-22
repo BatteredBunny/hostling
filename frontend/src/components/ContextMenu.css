@@ -1,10 +1,10 @@
-.file-menu-overlay {
+.context-menu-overlay {
   position: fixed;
   inset: 0;
   z-index: 1100;
 }
 
-.file-menu {
+.context-menu {
   position: fixed;
   z-index: 1101;
   display: flex;
@@ -16,7 +16,7 @@
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 
-  .file-menu-item {
+  .context-menu-item {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -43,10 +43,16 @@
       outline: none;
     }
 
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+      background: none;
+    }
+
     &.danger {
       color: var(--error-color);
 
-      &:hover,
+      &:hover:not(:disabled),
       &:focus-visible {
         background-color: var(--error-color);
         color: white;
@@ -54,7 +60,7 @@
     }
   }
 
-  .file-menu-separator {
+  .context-menu-separator {
     height: 1px;
     margin: 4px 6px;
     background-color: var(--menu-border-color);

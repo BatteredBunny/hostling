@@ -32,22 +32,6 @@ func (app *Application) validateOrAbort(c *gin.Context) (account db.Accounts, lo
 	return
 }
 
-// requireAuth is validateOrAbort + redirect to /login when not logged in.
-func (app *Application) requireAuth(c *gin.Context) (account db.Accounts, ok bool) {
-	account, loggedIn, ok := app.validateOrAbort(c)
-	if !ok {
-		return
-	}
-	if !loggedIn {
-		c.Redirect(http.StatusTemporaryRedirect, "/login")
-		ok = false
-
-		return
-	}
-
-	return
-}
-
 func writeLocalFile(path string, body io.Reader) (written int64, err error) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {

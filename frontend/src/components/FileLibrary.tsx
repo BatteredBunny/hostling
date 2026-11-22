@@ -2,21 +2,14 @@ import { batch, createEffect, onCleanup, onMount, Show } from "solid-js";
 import { FileGrid, loadFiles, cancelFileLoad } from "./FileGrid";
 import { FileModal } from "./FileModal";
 import { FileMenu } from "./FileMenu";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { HostlingToast } from "./HostlingToast";
 import {
+  applyUrlParams,
   currentPage,
-  setCurrentPage,
   sortField,
-  setSortField,
   sortDesc,
-  setSortDesc,
   tagFilters,
-  setTagFilters,
   visibilityFilter,
   untaggedFilter,
-  setVisibilityFilter,
-  setUntaggedFilter,
   modalFile,
   fileMenu,
   pendingModalFile,
@@ -41,12 +34,7 @@ export function FileLibrary() {
   });
   const initial = parseUrlParams();
   batch(() => {
-    setSortField(initial.sort);
-    setSortDesc(initial.order === "desc");
-    setTagFilters(initial.tags);
-    setVisibilityFilter(initial.visibility);
-    setUntaggedFilter(initial.untagged);
-    setCurrentPage(initial.page);
+    applyUrlParams(initial);
     closeModal();
     setPendingModalFile(initial.file);
   });
@@ -81,20 +69,17 @@ export function FileLibrary() {
 
   onMount(() => {
     const handlePopState = () => {
+      if (window.location.pathname !== "/gallery") return;
       const next = parseUrlParams();
-      setSortField(next.sort);
-      setSortDesc(next.order === "desc");
-      setTagFilters(next.tags);
-      setVisibilityFilter(next.visibility);
-      setUntaggedFilter(next.untagged);
-      setCurrentPage(next.page);
-      setPendingModalEdge(null);
-      if (next.file) {
+      // Batched so the URL sync effect sees the whole history entry at once
+      // instead of pushing entries for each partially applied field.
+      batch(() => {
+        applyUrlParams(next);
+        setPendingModalEdge(null);
+        // An open modal stays until loadFiles finds the requested file.
+        if (!next.file) closeModal();
         setPendingModalFile(next.file);
-      } else {
-        closeModal();
-        setPendingModalFile(null);
-      }
+      });
       loadFiles(next.page * FILES_PER_PAGE);
     };
 
@@ -109,8 +94,6 @@ export function FileLibrary() {
       <Show when={fileMenu()} keyed>
         {(menu) => <FileMenu menu={menu} />}
       </Show>
-      <ConfirmDialog />
-      <HostlingToast />
     </>
   );
 }

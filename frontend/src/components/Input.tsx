@@ -1,6 +1,7 @@
 import "./Input.css";
 import { Show, createUniqueId, splitProps } from "solid-js";
 import type { JSX } from "solid-js";
+import { cx } from "../utils";
 
 type InputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -32,12 +33,12 @@ export function Input(props: InputProps) {
       .join(" ") || undefined;
 
   return (
-    <div class={`hostling-input-field ${local.fieldClass ?? ""}`}>
+    <div class={cx("hostling-input-field", local.fieldClass)}>
       <label for={id()}>{local.label}</label>
       <input
         {...input}
         id={id()}
-        class={`hostling-input ${local.class ?? ""}`}
+        class={cx("hostling-input", local.class)}
         aria-describedby={describedBy()}
         aria-invalid={local.error ? true : local["aria-invalid"]}
       />

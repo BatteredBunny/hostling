@@ -1,5 +1,6 @@
 import type {
   FrontendContext,
+  AccountStats,
   AdminOverviewOutput,
   FileStatsOutput,
   SettingsOutput,
@@ -18,6 +19,34 @@ let files = scenario() === "empty" ? [] : createFiles();
 let tokens = scenario() === "empty" ? [] : createTokens();
 let invites = scenario() === "empty" ? [] : createInvites();
 let nextTokenId = 3;
+let nextInviteId = 1;
+// Account 1 is the signed-in demo admin, whose stats follow the demo files.
+let accounts: AccountStats[] = ["demo", "artist", "guest"].map((name, i) => ({
+  ID: i + 1,
+  AccountType: i ? "user" : "admin",
+  CreatedAt: timestamp,
+  LastActivity: i === 2 ? "0001-01-01T00:00:00Z" : timestamp,
+  GithubUsername: i === 2 ? "" : name,
+  OIDCUsername: i === 2 ? name : "",
+  InvitedBy: i ? "demo" : "",
+  FilesUploaded: i === 1 ? 4 : 0,
+  SpaceUsed: i === 1 ? 5242880 : 0,
+  SessionsCount: i === 2 ? 0 : 1,
+  UploadTokensCount: i === 1 ? 2 : 0,
+  You: i === 0,
+}));
+function adminAccounts(): AccountStats[] {
+  return accounts.map((account) =>
+    account.You
+      ? {
+          ...account,
+          FilesUploaded: files.length,
+          SpaceUsed: files.reduce((n, f) => n + f.FileSize, 0),
+          UploadTokensCount: tokens.length,
+        }
+      : account,
+  );
+}
 let nextUploadId = files.length + 1;
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const unavailable = () =>
@@ -151,20 +180,7 @@ export const demoFetch: typeof fetch = async (input, init) => {
       }
       case "/api/admin/overview": {
         const overview: AdminOverviewOutput = {
-          accounts: ["demo", "artist", "guest"].map((name, i) => ({
-            ID: i + 1,
-            AccountType: i ? "user" : "admin",
-            CreatedAt: timestamp,
-            LastActivity: i === 2 ? "0001-01-01T00:00:00Z" : timestamp,
-            GithubUsername: i === 2 ? "" : name,
-            OIDCUsername: i === 2 ? name : "",
-            InvitedBy: i ? "demo" : "",
-            FilesUploaded: i ? 0 : files.length,
-            SpaceUsed: i ? 0 : files.reduce((n, f) => n + f.FileSize, 0),
-            SessionsCount: i === 2 ? 0 : 1,
-            UploadTokensCount: i ? 0 : tokens.length,
-            You: i === 0,
-          })),
+          accounts: adminAccounts(),
           failed_providers:
             state === "failed-provider" ? ["openid-connect"] : [],
           file_storage_method: "local",
@@ -184,6 +200,9 @@ export const demoFetch: typeof fetch = async (input, init) => {
   if (path === "/api/file/upload" && method === "POST") {
     if (state === "upload-error") return error();
     const body = await request.formData();
+    const token = body.get("upload_token");
+    if (token !== null && !String(token).startsWith("DEMO-"))
+      return json({ detail: "Unauthorized" }, 401);
     const file = body.get("file");
     if (!(file instanceof File))
       return json({ detail: "Choose a file to upload." }, 400);
@@ -224,6 +243,53 @@ export const demoFetch: typeof fetch = async (input, init) => {
       tokens = tokens.filter((t) => t.id !== Number(body.get("id")));
       return json("Deleted");
     }
+  }
+  if (path.startsWith("/api/admin/")) {
+    const body = await request.formData();
+    const id = Number(body.get("id"));
+    const account = accounts.find((a) => a.ID === id);
+    if (!account) return json({ detail: "Account not found" }, 404);
+    const update = (changes: Partial<AccountStats>) =>
+      (accounts = accounts.map((a) =>
+        a.ID === id ? { ...a, ...changes } : a,
+      ));
+    switch (`${method} ${path}`) {
+      case "POST /api/admin/give_invite_code": {
+        const code = `DEMO-INVITE-${nextInviteId++}`;
+        if (account.You)
+          invites.push({ code, uses: 1, expiry_date: "2026-02-01T12:00:00Z" });
+        return json(code);
+      }
+      case "DELETE /api/admin/sessions":
+        update({ SessionsCount: 0 });
+        return json("Deleted");
+      case "DELETE /api/admin/upload_tokens":
+        if (account.You) tokens = [];
+        update({ UploadTokensCount: 0 });
+        return json("Deleted");
+      case "DELETE /api/admin/files":
+        if (account.You) files = [];
+        update({ FilesUploaded: 0, SpaceUsed: 0 });
+        return json("Deleted");
+      case "DELETE /api/admin/user":
+        if (account.You) return unavailable();
+        accounts = accounts.filter((a) => a.ID !== id);
+        return json("Deleted");
+    }
+    return unavailable();
+  }
+  if (path === "/api/account/provider" && method === "DELETE") {
+    const body = await request.formData();
+    // Only GitHub is linked in the demo, so it is always the last provider.
+    if (body.get("provider") === "github" && state !== "unlinked")
+      return json(
+        {
+          detail:
+            "You can't unlink your only login provider. Link another one first.",
+        },
+        409,
+      );
+    return json("Provider is not linked");
   }
   if (path === "/api/account/invite_code" && method === "DELETE") {
     const body = await request.formData();

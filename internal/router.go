@@ -74,15 +74,9 @@ func setupRouter(uninitializedApp *uninitializedApplication, c Config) (app *App
 	humaAPI := app.registerAPIs(app.Router)
 	api.GET("/openapi.json", func(c *gin.Context) { c.JSON(http.StatusOK, humaAPI.OpenAPI()) })
 
-	// Pages
-	app.Router.GET("/login", app.loginPage)
-	app.Router.GET("/register", app.registerPage)
-	app.Router.POST("/logout", app.logoutHandler)
-	app.Router.GET("/gallery", app.galleryPage)
-	app.Router.GET("/settings", app.settingsPage)
-	app.Router.GET("/tokens", app.tokensPage)
-	app.Router.GET("/admin", app.adminPage)
-	app.Router.GET("/", app.indexPage)
+	for _, page := range appPages {
+		app.Router.GET(page, app.appShell)
+	}
 
 	app.Router.NoRoute(app.ratelimitMiddleware(), app.indexFiles)
 

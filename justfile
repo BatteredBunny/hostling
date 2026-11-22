@@ -27,7 +27,12 @@ fmt:
     pnpm --dir frontend format
 
 dev *args='-c examples/example_local_sqlite.toml':
-    air -- {{args}}
+    #!/usr/bin/env bash
+    set -uo pipefail
+    trap 'kill 0' EXIT
+    air -- {{args}} &
+    pnpm --dir frontend dev &
+    wait -n
 
 generate-api:
     go run ./cmd/openapi frontend/openapi.json

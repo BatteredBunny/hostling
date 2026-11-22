@@ -1,7 +1,7 @@
-import { createSignal, untrack } from "solid-js";
+import { batch, createSignal } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { FileData, SortField } from "./types";
-import { parseUrlParams, type Visibility } from "./url";
+import { parseUrlParams, type UrlParams, type Visibility } from "./url";
 
 const initial = parseUrlParams();
 
@@ -31,6 +31,17 @@ export const [visibilityFilter, setVisibilityFilter] =
 export const [untaggedFilter, setUntaggedFilter] = createSignal(
   initial.untagged,
 );
+
+export function applyUrlParams(params: UrlParams) {
+  batch(() => {
+    setSortField(params.sort);
+    setSortDesc(params.order === "desc");
+    setTagFilters(params.tags);
+    setVisibilityFilter(params.visibility);
+    setUntaggedFilter(params.untagged);
+    setCurrentPage(params.page);
+  });
+}
 
 // Values for the API's repeatable `filter` parameter.
 export function activeFilters(): string[] {
@@ -129,14 +140,16 @@ export function updateFileInList(fileName: string, updates: Partial<FileData>) {
   }
 }
 
-const [replaceNextUrlSync, setReplaceNextUrlSync] = createSignal(false);
+// A plain flag rather than a signal: the URL sync effect reads and clears it,
+// and effects shouldn't write the signals they depend on.
+let replaceNextUrlSync = false;
 export function markReplaceNextUrlSync() {
-  setReplaceNextUrlSync(true);
+  replaceNextUrlSync = true;
 }
 export function consumeReplaceNextUrlSync(): boolean {
-  const v = replaceNextUrlSync();
-  if (v) untrack(() => setReplaceNextUrlSync(false));
-  return v;
+  const replace = replaceNextUrlSync;
+  replaceNextUrlSync = false;
+  return replace;
 }
 
 export function removeFileFromList(fileName: string) {

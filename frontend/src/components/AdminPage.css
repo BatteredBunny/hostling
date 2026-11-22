@@ -1,6 +1,56 @@
-#users-panel .users-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
+#server-config-panel .server-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+  margin: 0;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: var(--alternative-bg-color);
+  }
+
+  dt {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .server-info-providers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+
+    span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+}
+
+#users-panel {
+  .users-count {
+    font-size: 14px;
+    opacity: 0.8;
+  }
+
+  .admin-error {
+    margin: 0 0 12px;
+    color: var(--error-color);
+  }
+
+  .users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+    gap: 12px;
+  }
 }

@@ -5,10 +5,22 @@ import (
 	"github.com/BatteredBunny/hostling/internal/db"
 	"github.com/danielgtaylor/huma/v2"
 	"net/http"
+	"os"
 
 	embed "github.com/BatteredBunny/hostling"
+	"github.com/BatteredBunny/hostling/internal/tags"
 	"github.com/gin-gonic/gin"
 )
+
+const defaultDevFrontendURL = "http://localhost:4321"
+
+func devFrontendURL() string {
+	if url := os.Getenv("HOSTLING_FRONTEND_URL"); url != "" {
+		return url
+	}
+
+	return defaultDevFrontendURL
+}
 
 type FrontendContext struct {
 	Branding        string   `json:"branding"`
@@ -43,10 +55,6 @@ type AdminOverviewOutput struct {
 	LoginProviders        []string       `json:"login_providers"`
 }
 
-type RedirectOutput struct {
-	Redirect string `json:"redirect"`
-}
-
 func (app *Application) frontendContextAPI(
 	_ context.Context,
 	request *EmptyInput,
@@ -71,12 +79,17 @@ func (app *Application) frontendContextAPI(
 	}), nil
 }
 
-// The UI is built by Astro. Request-specific data is fetched through APIs.
-func (app *Application) staticPage(c *gin.Context, page string) {
-	file, err := embed.BuildFiles().Open(page + "/index.html")
-	if page == "index" && err != nil {
-		file, err = embed.BuildFiles().Open("index.html")
+// Every page of the single-page app gets the same shell; the app itself
+// decides what to show, and the APIs decide what each account may see.
+var appPages = []string{"/", "/login", "/register", "/gallery", "/settings", "/tokens", "/admin"}
+
+func (app *Application) appShell(c *gin.Context) {
+	if tags.DevMode {
+		c.Redirect(http.StatusTemporaryRedirect, devFrontendURL()+c.Request.URL.RequestURI())
+
+		return
 	}
+	file, err := embed.BuildFiles().Open("index.html")
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 
@@ -85,11 +98,4 @@ func (app *Application) staticPage(c *gin.Context, page string) {
 	defer file.Close()
 	c.Header("Cache-Control", "no-store")
 	c.DataFromReader(http.StatusOK, -1, "text/html; charset=utf-8", file, nil)
-}
-
-func (app *Application) settingsPage(c *gin.Context) {
-	if _, ok := app.requireAuth(c); !ok {
-		return
-	}
-	app.staticPage(c, "settings")
 }

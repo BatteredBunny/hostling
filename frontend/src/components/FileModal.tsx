@@ -1,10 +1,12 @@
 import {
+  Match,
   Show,
-  createSignal,
+  Switch,
   createEffect,
   createMemo,
-  on,
+  createSignal,
   onCleanup,
+  untrack,
 } from "solid-js";
 import { NativeDialog } from "./NativeDialog";
 import "./FileModal.css";
@@ -16,6 +18,7 @@ import {
   openFileMenu,
   updateFileInList,
   tagFilters,
+  setCurrentPage,
   statsTags,
 } from "../store";
 import {
@@ -25,40 +28,37 @@ import {
   formatTimeDate,
   relativeTime,
   humanizeBytes,
-  hasExpiry,
+  hasDate,
   fileUrl,
+  countLabel,
+  cx,
+  displayName,
 } from "../utils";
 import { addFileTag, removeFileTag } from "../generated";
 import { apiData } from "../client";
 import { copyFileLink, toggleVisibility } from "../fileActions";
 import { loadStats } from "./FileStats";
-import {
-  CaseSensitive as CaseSensitiveIcon,
-  Check as CheckIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Clock as ClockIcon,
-  Ellipsis as EllipsisIcon,
-  Eye as EyeIcon,
-  File as FileIcon,
-  FileType as FileTypeIcon,
-  HardDrive as HardDriveIcon,
-  Hash as HashIcon,
-  Link as LinkIcon,
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
-  Tag as TagIcon,
-  Trash2 as Trash2Icon,
-  X as XIcon,
-} from "lucide-solid";
-import { Dynamic } from "solid-js/web";
+import CaseSensitiveIcon from "lucide-solid/icons/case-sensitive";
+import CheckIcon from "lucide-solid/icons/check";
+import ChevronLeftIcon from "lucide-solid/icons/chevron-left";
+import ChevronRightIcon from "lucide-solid/icons/chevron-right";
+import ClockIcon from "lucide-solid/icons/clock";
+import EllipsisIcon from "lucide-solid/icons/ellipsis";
+import EyeIcon from "lucide-solid/icons/eye";
+import FileIcon from "lucide-solid/icons/file";
+import FileTypeIcon from "lucide-solid/icons/file-type";
+import HardDriveIcon from "lucide-solid/icons/hard-drive";
+import HashIcon from "lucide-solid/icons/hash";
+import LinkIcon from "lucide-solid/icons/link";
+import TagIcon from "lucide-solid/icons/tag";
+import Trash2Icon from "lucide-solid/icons/trash";
+import XIcon from "lucide-solid/icons/x";
+import { VisibilityIcon } from "./VisibilityIcon";
 import { TagEditor } from "./TagEditor";
 import { loadFiles, showAdjacentFile, hasAdjacentFile } from "./FileGrid";
 import type { FileData } from "../types";
 
 export function FileModal(props: { file: FileData }) {
-  const [localTags, setLocalTags] = createSignal<string[]>([]);
-
   let menuButton: HTMLButtonElement | undefined;
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -73,67 +73,51 @@ export function FileModal(props: { file: FileData }) {
     }
   };
 
-  // Keep localTags in sync whenever the underlying file's tag set changes,
-  // including external updates while the same file stays open.
-  createEffect(
-    on(
-      () => props.file.Tags,
-      (tags) => {
-        setLocalTags(tags?.map((t) => t.Name) || []);
-      },
-    ),
-  );
-
   const file = () => props.file;
+  const fileName = createMemo(() => file().FileName);
+  const name = () => displayName(file());
+  // updateFileInList also updates the open file, so this follows tag edits.
+  const tagNames = () => file().Tags.map((t) => t.Name);
   // Reassigning a media element's src restarts playback, even for the same URL.
   // Metadata updates must only notify the media binding when the file changes.
-  const mediaSource = createMemo(() => fileUrl(file().FileName));
+  const mediaSource = createMemo(() => fileUrl(fileName()));
 
   // Warm the cache for neighbouring images so stepping through feels instant.
-  createEffect(
-    on(
-      () => props.file.FileName,
-      (name) => {
-        const list = files();
-        const index = list.findIndex((f) => f.FileName === name);
-        if (index === -1) return;
-        for (const neighbour of [list[index - 1], list[index + 1]]) {
-          if (neighbour && mimeIsImage(neighbour.MimeType)) {
-            new Image().src = fileUrl(neighbour.FileName);
-          }
+  createEffect(() => {
+    const current = fileName();
+    untrack(() => {
+      const list = files();
+      const index = list.findIndex((f) => f.FileName === current);
+      if (index === -1) return;
+      for (const neighbour of [list[index - 1], list[index + 1]]) {
+        if (neighbour && mimeIsImage(neighbour.MimeType)) {
+          new Image().src = fileUrl(neighbour.FileName);
         }
-      },
-    ),
-  );
+      }
+    });
+  });
 
   // Tags of a file as currently known, which may no longer be the open one
   // if the user moved on while a tag request was in flight.
-  const currentTags = (fileName: string) =>
-    file().FileName === fileName
-      ? localTags()
+  const currentTags = (target: string) =>
+    fileName() === target
+      ? tagNames()
       : (files()
-          .find((f) => f.FileName === fileName)
-          ?.Tags?.map((t) => t.Name) ?? []);
+          .find((f) => f.FileName === target)
+          ?.Tags.map((t) => t.Name) ?? []);
 
-  const [copied, setCopied] = createSignal(false);
+  // Remembers which file was copied, so stepping to another file resets it.
+  const [copiedFile, setCopiedFile] = createSignal<string | null>(null);
+  const copied = () => copiedFile() === fileName();
   let copiedTimeoutId: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(copiedTimeoutId));
-  createEffect(
-    on(
-      () => props.file.FileName,
-      () => {
-        clearTimeout(copiedTimeoutId);
-        setCopied(false);
-      },
-      { defer: true },
-    ),
-  );
 
   const handleCopyLink = async () => {
+    const copiedName = fileName();
     if (!(await copyFileLink(file()))) return;
     clearTimeout(copiedTimeoutId);
-    setCopied(true);
-    copiedTimeoutId = setTimeout(() => setCopied(false), 1500);
+    setCopiedFile(copiedName);
+    copiedTimeoutId = setTimeout(() => setCopiedFile(null), 1500);
   };
 
   const isMenuOpen = () => fileMenu()?.returnFocus === menuButton;
@@ -157,9 +141,8 @@ export function FileModal(props: { file: FileData }) {
 
     const newTags = [...currentTags(f.FileName), tag];
     updateFileInList(f.FileName, {
-      Tags: newTags.map((name) => ({ Name: name })),
+      Tags: newTags.map((Name) => ({ Name })),
     });
-    if (file().FileName === f.FileName) setLocalTags(newTags);
     loadStats();
     return null;
   };
@@ -176,12 +159,13 @@ export function FileModal(props: { file: FileData }) {
 
     const newTags = currentTags(f.FileName).filter((t) => t !== tagName);
     updateFileInList(f.FileName, {
-      Tags: newTags.map((name) => ({ Name: name })),
+      Tags: newTags.map((Name) => ({ Name })),
     });
-    if (file().FileName === f.FileName) setLocalTags(newTags);
     loadStats();
 
+    // The file no longer matches the filter, so refill from the first page.
     if (tagFilters().includes(tagName)) {
+      setCurrentPage(0);
       loadFiles(0);
     }
     return null;
@@ -210,7 +194,7 @@ export function FileModal(props: { file: FileData }) {
     <NativeDialog
       open
       id="file-modal"
-      label={file().OriginalFileName || file().FileName}
+      label={name()}
       onDismiss={closeModal}
       onKeyDown={onKey}
     >
@@ -223,8 +207,9 @@ export function FileModal(props: { file: FileData }) {
           <div class="file-modal-titlebar-actions">
             <button
               type="button"
-              class="file-modal-titlebar-button file-modal-copy"
-              classList={{ copied: copied() }}
+              class={cx("file-modal-titlebar-button file-modal-copy", {
+                copied: copied(),
+              })}
               aria-label={copied() ? "Link copied" : "Copy link"}
               title={copied() ? "Link copied" : "Copy link"}
               onClick={handleCopyLink}
@@ -282,48 +267,41 @@ export function FileModal(props: { file: FileData }) {
                 <ChevronRightIcon class="lucide-icon" aria-hidden="true" />
               </button>
             </Show>
-            <Show when={mimeIsImage(file().MimeType)}>
-              <img
-                id="file-preview-image"
-                src={mediaSource()}
-                alt={file().OriginalFileName || file().FileName}
-              />
-            </Show>
-            <Show when={mimeIsVideo(file().MimeType)}>
-              <video
-                id="file-preview-video"
-                aria-label={`Video preview: ${file().OriginalFileName || file().FileName}`}
-                src={mediaSource()}
-                controls
-                preload="metadata"
-              />
-            </Show>
-            <Show when={mimeIsAudio(file().MimeType)}>
-              <audio
-                id="file-preview-audio"
-                aria-label={`Audio preview: ${file().OriginalFileName || file().FileName}`}
-                src={mediaSource()}
-                controls
-                preload="metadata"
-              />
-            </Show>
-            <Show
-              when={
-                !mimeIsImage(file().MimeType) &&
-                !mimeIsVideo(file().MimeType) &&
-                !mimeIsAudio(file().MimeType)
+            <Switch
+              fallback={
+                <a
+                  id="file-preview-generic"
+                  aria-label={`Download ${name()}`}
+                  href={mediaSource()}
+                >
+                  <div class="file-icon">
+                    <FileIcon class="lucide-icon" aria-hidden="true" />
+                  </div>
+                </a>
               }
             >
-              <a
-                id="file-preview-generic"
-                aria-label={`Download ${file().OriginalFileName || file().FileName}`}
-                href={fileUrl(file().FileName)}
-              >
-                <div class="file-icon">
-                  <FileIcon class="lucide-icon" aria-hidden="true" />
-                </div>
-              </a>
-            </Show>
+              <Match when={mimeIsImage(file().MimeType)}>
+                <img id="file-preview-image" src={mediaSource()} alt={name()} />
+              </Match>
+              <Match when={mimeIsVideo(file().MimeType)}>
+                <video
+                  id="file-preview-video"
+                  aria-label={`Video preview: ${name()}`}
+                  src={mediaSource()}
+                  controls
+                  preload="metadata"
+                />
+              </Match>
+              <Match when={mimeIsAudio(file().MimeType)}>
+                <audio
+                  id="file-preview-audio"
+                  aria-label={`Audio preview: ${name()}`}
+                  src={mediaSource()}
+                  controls
+                  preload="metadata"
+                />
+              </Match>
+            </Switch>
           </div>
 
           <div class="file-modal-info">
@@ -345,9 +323,7 @@ export function FileModal(props: { file: FileData }) {
               <div class="views">
                 <EyeIcon class="lucide-icon" aria-hidden="true" />
                 <span id="file-modal-views">
-                  {(file().ViewsCount ?? 0) === 1
-                    ? "1 view"
-                    : `${file().ViewsCount ?? 0} views`}
+                  {countLabel(file().ViewsCount ?? 0, "view")}
                 </span>
               </div>
 
@@ -379,7 +355,7 @@ export function FileModal(props: { file: FileData }) {
                 </span>
               </div>
 
-              <Show when={hasExpiry(file().ExpiryDate)}>
+              <Show when={hasDate(file().ExpiryDate)}>
                 <div
                   id="file-modal-expirydate-wrapper"
                   class="expires-info"
@@ -403,11 +379,7 @@ export function FileModal(props: { file: FileData }) {
                 }
                 onClick={() => toggleVisibility(file())}
               >
-                <Dynamic
-                  component={file().Public ? LockOpenIcon : LockIcon}
-                  class="lucide-icon"
-                  aria-hidden="true"
-                />
+                <VisibilityIcon public={file().Public} />
                 <span id="file-modal-visibility">
                   {file().Public ? "Public" : "Private"}
                 </span>
@@ -419,13 +391,15 @@ export function FileModal(props: { file: FileData }) {
                 <TagIcon class="lucide-icon" aria-hidden="true" />
                 <span>Tags</span>
               </div>
-              <TagEditor
-                tags={localTags()}
-                allTags={statsTags()}
-                resetKey={file().FileName}
-                onAdd={handleAddTag}
-                onRemove={handleRemoveTag}
-              />
+              {/* Keyed so switching files starts the editor from scratch. */}
+              <Show when={fileName()} keyed>
+                <TagEditor
+                  tags={tagNames()}
+                  allTags={statsTags()}
+                  onAdd={handleAddTag}
+                  onRemove={handleRemoveTag}
+                />
+              </Show>
             </div>
           </div>
         </div>

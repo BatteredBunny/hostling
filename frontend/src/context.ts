@@ -1,6 +1,7 @@
 import { createSignal, onCleanup, onMount } from "solid-js";
 import { getContext, type FrontendContext } from "./generated";
 import { apiData } from "./client";
+import { rememberBranding } from "./branding";
 
 const [context, setContext] = createSignal<FrontendContext>();
 const [error, setError] = createSignal("");
@@ -16,6 +17,7 @@ export function loadContext(refresh = false): Promise<FrontendContext> {
   pending = apiData(getContext())
     .then((data) => {
       setContext(data);
+      rememberBranding(data.branding);
       return data;
     })
     .catch((failure) => {
@@ -37,10 +39,6 @@ function listenForChanges() {
     if (document.visibilityState === "visible")
       void loadContext(true).catch(() => {});
   };
-  const onNavigation = () => {
-    refresh();
-    channel?.postMessage("refresh");
-  };
   const onPageShow = (event: PageTransitionEvent) => {
     if (event.persisted) refresh();
   };
@@ -58,7 +56,6 @@ function listenForChanges() {
   window.addEventListener("focus", refresh);
   window.addEventListener("pageshow", onPageShow);
   document.addEventListener("visibilitychange", refresh);
-  document.addEventListener("astro:page-load", onNavigation);
   // A new document follows login, logout and provider-link redirects. Notify
   // other visible tabs once it has read the current cookie-backed state.
   void loadContext(true)
@@ -69,7 +66,6 @@ function listenForChanges() {
     window.removeEventListener("focus", refresh);
     window.removeEventListener("pageshow", onPageShow);
     document.removeEventListener("visibilitychange", refresh);
-    document.removeEventListener("astro:page-load", onNavigation);
   };
 }
 

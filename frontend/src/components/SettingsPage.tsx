@@ -1,29 +1,64 @@
 import "./SettingsPage.css";
+import { LoadError } from "./LoadError";
 import { WarningCallout } from "./WarningCallout";
 import { SectionPanel } from "./SectionPanel";
-import { LoadingSections } from "./LoadingSections";
-import { For, Show, createResource, createSignal } from "solid-js";
-import { getSettings, deleteAccount, deleteAllFiles } from "../generated";
+import { For, Show, createSignal, onMount } from "solid-js";
+import {
+  getSettings,
+  deleteAccount,
+  deleteAllFiles,
+  unlinkProvider,
+  type SettingsOutput,
+  type UnlinkProviderData,
+} from "../generated";
+import { toastAuthError } from "../authErrors";
+import { trackPageLoad } from "../loading";
 import { apiData } from "../client";
 import { showToast } from "../toast";
-import { HostlingToast } from "./HostlingToast";
 import { NativeConfirmation } from "./NativeConfirmation";
-import { Unlink } from "lucide-solid";
+import Unlink from "lucide-solid/icons/unlink";
 import { ProviderButton, ProviderIcon, providerLabel } from "./ProviderAction";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { confirmDialog } from "../store";
 import { useFrontendContext } from "../context";
 
 export function SettingsPage() {
-  const {
-    context,
-    error: contextError,
-    retry: retryContext,
-  } = useFrontendContext();
-  const [data, { refetch }] = createResource(
-    () => (context()?.logged_in ? context() : undefined),
-    () => apiData(getSettings()),
-  );
+  const { error: contextError, retry: retryContext } = useFrontendContext();
+  const [data, setData] = createSignal<SettingsOutput>();
+  const [loadError, setLoadError] = createSignal(false);
+  async function load() {
+    setLoadError(false);
+    try {
+      setData(await apiData(getSettings()));
+    } catch {
+      setLoadError(true);
+    }
+  }
+  onMount(() => void trackPageLoad(load()));
+  toastAuthError();
+
+  async function unlink(provider: UnlinkProviderData["body"]["provider"]) {
+    const name = providerLabel(provider);
+    const confirmed = await confirmDialog({
+      title: `Unlink ${name}?`,
+      message: `You won't be able to log in with ${name} anymore.`,
+      confirmLabel: "Unlink",
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      await apiData(unlinkProvider({ body: { provider } }));
+    } catch (failure) {
+      showToast(
+        failure instanceof Error
+          ? failure.message
+          : `Could not unlink ${name}.`,
+        "error",
+      );
+      return;
+    }
+    showToast(`Unlinked ${name}.`);
+    await load();
+  }
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
   let accountDialog: HTMLDialogElement | undefined;
@@ -36,7 +71,6 @@ export function SettingsPage() {
       await apiData(account ? deleteAccount() : deleteAllFiles());
       if (account) window.location.assign("/");
       else {
-        setBusy(false);
         filesDialog?.close();
         showToast("All files have been deleted.");
       }
@@ -52,29 +86,16 @@ export function SettingsPage() {
   }
   return (
     <>
-      <Show when={data.error || contextError()}>
-        <p role="alert">
-          Could not load settings.{" "}
-          <button
-            onClick={() => {
-              retryContext();
-              refetch();
-            }}
-          >
-            Retry
-          </button>
-        </p>
+      <Show when={loadError() || contextError()}>
+        <LoadError
+          message="Could not load settings."
+          onRetry={() => {
+            retryContext();
+            void trackPageLoad(load());
+          }}
+        />
       </Show>
-      <Show
-        when={
-          !data.error &&
-          !contextError() &&
-          (!context() || (data.loading && !data()))
-        }
-      >
-        <LoadingSections sections={["Social login", "Account"]} />
-      </Show>
-      <Show when={!data.error && data()}>
+      <Show when={data()}>
         {(settings) => (
           <>
             <SectionPanel
@@ -139,33 +160,19 @@ export function SettingsPage() {
                           <span>{provider.Username}</span>
                         </a>
                       </Show>
-                      <form
-                        method="post"
-                        action={`/api/auth/unlink/${provider.Name}`}
-                        class="unlink-form"
-                        onSubmit={async (event) => {
-                          event.preventDefault();
-                          const form = event.currentTarget;
-                          if (
-                            await confirmDialog({
-                              title: "Unlink provider?",
-                              message:
-                                "You won't be able to log in with this provider anymore.",
-                              confirmLabel: "Unlink",
-                              danger: true,
-                            })
+                      <button
+                        type="button"
+                        class="unlink-button"
+                        title={`Unlink ${providerLabel(provider.Name)}`}
+                        aria-label={`Unlink ${providerLabel(provider.Name)}`}
+                        onClick={() =>
+                          unlink(
+                            provider.Name as UnlinkProviderData["body"]["provider"],
                           )
-                            form.submit();
-                        }}
+                        }
                       >
-                        <button
-                          type="submit"
-                          class="unlink-button"
-                          title={`Unlink ${providerLabel(provider.Name)}`}
-                        >
-                          <Unlink class="lucide-icon" aria-hidden="true" />
-                        </button>
-                      </form>
+                        <Unlink class="lucide-icon" aria-hidden="true" />
+                      </button>
                     </div>
                   </Show>
                 )}
@@ -220,8 +227,6 @@ export function SettingsPage() {
           </>
         )}
       </Show>
-      <ConfirmDialog />
-      <HostlingToast />
     </>
   );
 }

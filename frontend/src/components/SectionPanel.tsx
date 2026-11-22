@@ -1,6 +1,7 @@
 import { Show, createUniqueId } from "solid-js";
 import type { JSX } from "solid-js";
 import styles from "./SectionPanel.module.css";
+import { cx } from "../utils";
 
 export function SectionPanel(props: {
   title?: JSX.Element;
@@ -14,7 +15,7 @@ export function SectionPanel(props: {
   return (
     <section
       id={props.id}
-      class={`${styles.panel} ${props.class ?? ""}`}
+      class={cx(styles.panel, props.class)}
       aria-labelledby={props.title ? titleId : undefined}
     >
       <Show when={props.title || props.headerActions}>
@@ -23,9 +24,7 @@ export function SectionPanel(props: {
           <Show when={props.headerActions}>{props.headerActions}</Show>
         </header>
       </Show>
-      <div class={`${styles.body} ${props.bodyClass ?? ""}`}>
-        {props.children}
-      </div>
+      <div class={cx(styles.body, props.bodyClass)}>{props.children}</div>
     </section>
   );
 }

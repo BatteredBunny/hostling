@@ -1,5 +1,5 @@
 import { SectionPanel } from "./SectionPanel";
-import { For, Show, batch, onMount } from "solid-js";
+import { For, Show, onMount } from "solid-js";
 import "./FileGrid.css";
 import {
   files,
@@ -26,22 +26,19 @@ import {
   openModal,
   markReplaceNextUrlSync,
 } from "../store";
-import { FILES_PER_PAGE } from "../utils";
+import { FILES_PER_PAGE, cx } from "../utils";
+import { trackPageLoad } from "../loading";
 import { listFiles } from "../generated";
 import { apiData } from "../client";
 import type { ListFilesResponse } from "../generated";
 import { FileEntry } from "./FileEntry";
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-} from "lucide-solid";
+import ChevronLeftIcon from "lucide-solid/icons/chevron-left";
+import ChevronRightIcon from "lucide-solid/icons/chevron-right";
 import { FileFilters } from "./FileFilters";
 import { FileStats } from "./FileStats";
 
 export function FileGrid() {
-  onMount(() => {
-    loadFiles(currentPage() * FILES_PER_PAGE);
-  });
+  onMount(() => void trackPageLoad(loadFiles(currentPage() * FILES_PER_PAGE)));
 
   const totalPages = () => Math.ceil(totalFiles() / FILES_PER_PAGE);
 
@@ -52,82 +49,66 @@ export function FileGrid() {
     return `${start}-${end} of ${totalFiles()}`;
   };
 
-  const handlePrev = () => {
-    if (currentPage() > 0) {
-      const newPage = currentPage() - 1;
-      setCurrentPage(newPage);
-      loadFiles(newPage * FILES_PER_PAGE);
-    }
-  };
+  const showsOverlay = () => isLoading() && files().length > 0;
 
-  const handleNext = () => {
-    if (currentPage() + 1 < totalPages()) {
-      const newPage = currentPage() + 1;
-      setCurrentPage(newPage);
-      loadFiles(newPage * FILES_PER_PAGE);
-    }
+  const goToPage = (page: number) => {
+    if (page < 0 || page >= totalPages()) return;
+    setCurrentPage(page);
+    loadFiles(page * FILES_PER_PAGE);
   };
 
   return (
-    <>
-      <SectionPanel title="Files" headerActions={<FileStats />}>
-        <FileFilters />
-        <Show when={loadingText()}>
-          <p id="file-grid-loading-text" role="status">
-            {loadingText()}
-          </p>
-        </Show>
-        <ul
-          aria-label="Files"
-          aria-busy={isLoading()}
-          class="file-grid"
-          classList={{ loading: isLoading() && files().length > 0 }}
+    <SectionPanel title="Files" headerActions={<FileStats />}>
+      <FileFilters />
+      <Show when={loadingText()}>
+        <p id="file-grid-loading-text" role="status">
+          {loadingText()}
+        </p>
+      </Show>
+      <ul
+        aria-label="Files"
+        aria-busy={isLoading()}
+        class={cx("file-grid", { loading: showsOverlay() })}
+      >
+        <For each={files()}>{(file) => <FileEntry file={file} />}</For>
+      </ul>
+
+      <Show when={showsOverlay()}>
+        <div
+          id="file-grid-loading-overlay"
+          role="status"
+          aria-label="Loading files"
         >
-          <For each={files()}>{(file) => <FileEntry file={file} />}</For>
-        </ul>
+          <div class="spinner" aria-hidden="true" />
+        </div>
+      </Show>
 
-        <Show when={isLoading() && files().length > 0}>
-          <div
-            id="file-grid-loading-overlay"
-            class="visible"
-            role="status"
-            aria-label="Loading files"
+      <Show when={totalPages() > 1}>
+        <nav id="pagination-controls" aria-label="File pagination">
+          <button
+            id="prev-page-btn"
+            class="pagination-button"
+            onClick={() => goToPage(currentPage() - 1)}
+            disabled={currentPage() === 0}
           >
-            <div class="spinner" aria-hidden="true" />
-          </div>
-        </Show>
-
-        <Show when={totalPages() > 1}>
-          <nav
-            id="pagination-controls"
-            aria-label="File pagination"
-            style={{ display: "flex" }}
+            <ChevronLeftIcon class="lucide-icon" aria-hidden="true" />
+            <span>Previous</span>
+          </button>
+          <span id="page-info" role="status" aria-label="Pagination">
+            {pageInfo()}
+          </span>
+          <button
+            id="next-page-btn"
+            class="pagination-button"
+            onClick={() => goToPage(currentPage() + 1)}
+            disabled={currentPage() + 1 >= totalPages()}
           >
-            <button
-              id="prev-page-btn"
-              class="pagination-button"
-              onClick={handlePrev}
-              disabled={currentPage() === 0}
-            >
-              <ChevronLeftIcon class="lucide-icon" aria-hidden="true" />
-              <span>Previous</span>
-            </button>
-            <span id="page-info" role="status" aria-label="Pagination">
-              {pageInfo()}
-            </span>
-            <button
-              id="next-page-btn"
-              class="pagination-button"
-              onClick={handleNext}
-              disabled={currentPage() + 1 >= totalPages()}
-            >
-              <span>Next</span>
-              <ChevronRightIcon class="lucide-icon" aria-hidden="true" />
-            </button>
-          </nav>
-        </Show>
-      </SectionPanel>
-    </>
+            <span>Next</span>
+            <ChevronRightIcon class="lucide-icon" aria-hidden="true" />
+          </button>
+        </nav>
+      </Show>
+    </SectionPanel>
   );
 }
 
@@ -179,10 +160,8 @@ export async function loadFiles(skip: number) {
         activeFilters().length === 0
       ) {
         if (controller.signal.aborted) return;
-        batch(() => {
-          markReplaceNextUrlSync();
-          setTagFilters([]);
-        });
+        markReplaceNextUrlSync();
+        setTagFilters([]);
         data = await apiData(
           listFiles({
             query: {

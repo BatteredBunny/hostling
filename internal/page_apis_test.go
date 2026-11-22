@@ -29,9 +29,6 @@ func TestPageAPIAccess(t *testing.T) {
 			t.Fatal("settings must not be cached")
 		}
 	}
-	if status, _ := user.get("/admin"); status != http.StatusTemporaryRedirect {
-		t.Fatalf("regular user accessed admin page: %d", status)
-	}
 }
 
 func TestSettingsAPIProviders(t *testing.T) {

@@ -1,4 +1,5 @@
 import { client } from "./generated/client.gen";
+import { navigate } from "./router";
 
 if (import.meta.env.PUBLIC_DEMO) {
   const { demoFetch } = await import("./demo/transport");
@@ -19,7 +20,7 @@ client.interceptors.response.use((response) => {
     (path.startsWith("/api/account/") || path.startsWith("/api/admin/")) &&
     window.location.pathname !== "/login"
   ) {
-    window.location.assign("/login");
+    navigate("/login");
   }
   return response;
 });

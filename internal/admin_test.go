@@ -40,8 +40,8 @@ func TestAdminEndpointsRequireAdmin(t *testing.T) {
 	if status, body := user.postForm("/api/admin/give_invite_code", values); status != http.StatusForbidden {
 		t.Errorf("non-admin creating invite codes: expected 403, got %d: %s", status, body)
 	}
-	if status, body := user.get("/admin"); status != http.StatusTemporaryRedirect {
-		t.Errorf("non-admin on /admin page: expected 307, got %d: %s", status, body)
+	if status, body := user.get("/api/admin/overview"); status != http.StatusForbidden {
+		t.Errorf("non-admin reading admin overview: expected 403, got %d: %s", status, body)
 	}
 }
 

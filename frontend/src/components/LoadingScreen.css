@@ -1,0 +1,102 @@
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.loading-mascot {
+  width: 96px;
+  height: auto;
+  animation: loading-mascot-spin 1.6s linear infinite;
+}
+
+@keyframes loading-mascot-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.app {
+  display: contents;
+
+  &.loading > :not(.loading-screen) {
+    visibility: hidden;
+  }
+
+  &.loading.delayed > :not(.loading-screen) {
+    animation: loading-hide 0s 150ms both;
+    visibility: visible;
+  }
+
+  &.loading.delayed > .loading-screen {
+    animation: loading-show 0s 150ms both;
+  }
+}
+
+@keyframes loading-hide {
+  to {
+    visibility: hidden;
+  }
+}
+
+@keyframes loading-show {
+  from {
+    visibility: hidden;
+  }
+}
+
+.loading-bar {
+  position: relative;
+  width: min(240px, 60vw);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background-color: var(--menu-border-color);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    border-radius: inherit;
+    background-color: var(--link-color);
+    animation: loading-bar-slide 1.1s ease-in-out infinite;
+  }
+}
+
+@keyframes loading-bar-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-mascot {
+    animation: none;
+  }
+
+  .loading-bar::after {
+    width: 100%;
+    animation: loading-bar-pulse 2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes loading-bar-pulse {
+  from {
+    opacity: 0.4;
+  }
+}

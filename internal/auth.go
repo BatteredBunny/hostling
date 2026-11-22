@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/danielgtaylor/huma/v2"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -217,62 +218,68 @@ func (app *Application) setupAuth(api *gin.RouterGroup) {
 	auth.GET("/login/:provider", app.loginApi)
 
 	auth.POST("/link/:provider", app.linkApi)
-	auth.POST("/unlink/:provider", app.unlinkApi)
 }
 
-func (app *Application) unlinkApi(c *gin.Context) {
-	provider := c.Param("provider")
+func (app *Application) unlinkProviderAPI(
+	_ context.Context,
+	request *FormInput[UnlinkProviderForm],
+) (*TextOutput, error) {
+	c := request.Gin
+	provider := request.RawBody.Data().Provider
+	account, _ := getAccount(c)
 
-	_, account, loggedIn, err := app.validateAuthCookie(c)
-	if errors.Is(err, ErrInvalidAuthCookie) || !loggedIn {
-		c.Redirect(http.StatusSeeOther, "/login")
-
-		return
-	} else if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
-	}
-
-	var unlinkErr error
+	var linked bool
 	switch provider {
 	case "github":
-		if account.GithubID == 0 {
-			c.Redirect(http.StatusSeeOther, "/settings")
-
-			return
-		}
-		if linkedIdentityCount(account) <= 1 {
-			c.String(http.StatusConflict, ErrLastLinkedIdent.Error())
-
-			return
-		}
-		unlinkErr = app.db.WithContext(c.Request.Context()).UnlinkGithub(account.ID)
+		linked = account.GithubID != 0
 	case "openid-connect":
-		if account.OIDCID == "" {
-			c.Redirect(http.StatusSeeOther, "/settings")
-
-			return
-		}
-		if linkedIdentityCount(account) <= 1 {
-			c.String(http.StatusConflict, ErrLastLinkedIdent.Error())
-
-			return
-		}
-		unlinkErr = app.db.WithContext(c.Request.Context()).UnlinkOIDC(account.ID)
-	default:
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+		linked = account.OIDCID != ""
 	}
-	if unlinkErr != nil {
-		log.Err(unlinkErr).Str("provider", provider).Msg("Failed to unlink provider")
-		c.AbortWithStatus(http.StatusInternalServerError)
-
-		return
+	if !linked {
+		return textOutput("Provider is not linked"), nil
+	}
+	if linkedIdentityCount(account) <= 1 {
+		return nil, huma.NewError(http.StatusConflict, lastProviderMessage)
 	}
 
-	c.Redirect(http.StatusSeeOther, "/settings")
+	database := app.db.WithContext(c.Request.Context())
+	var err error
+	if provider == "github" {
+		err = database.UnlinkGithub(account.ID)
+	} else {
+		err = database.UnlinkOIDC(account.ID)
+	}
+	if err != nil {
+		log.Err(err).Str("provider", provider).Msg("Failed to unlink provider")
+
+		return nil, huma.NewError(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	}
+
+	return textOutput("Provider unlinked"), nil
+}
+
+const lastProviderMessage = "You can't unlink your only login provider. Link another one first."
+
+// Codes for the login and settings pages, which read them from ?error= when
+// an OAuth flow that left the app comes back without succeeding.
+const (
+	authErrorProviderUnavailable = "provider_unavailable"
+	authErrorLoginFailed         = "login_failed"
+	authErrorAccountNotFound     = "account_not_found"
+	authErrorLinkFailed          = "link_failed"
+	authErrorIdentityTaken       = "identity_taken"
+)
+
+func redirectWithAuthError(c *gin.Context, page, code, provider string) {
+	query := url.Values{"error": {code}}
+	if provider != "" {
+		query.Set("provider", provider)
+	}
+	c.Redirect(http.StatusSeeOther, page+"?"+query.Encode())
+}
+
+func isKnownProvider(provider string) bool {
+	return provider == "github" || provider == "openid-connect"
 }
 
 func (app *Application) loginApi(c *gin.Context) {
@@ -281,7 +288,7 @@ func (app *Application) loginApi(c *gin.Context) {
 
 	if err := app.ensureProvider(provider); err != nil {
 		log.Error().Err(err).Str("provider", provider).Msg("Provider unavailable")
-		c.String(http.StatusServiceUnavailable, "Login provider is temporarily unavailable")
+		redirectWithAuthError(c, "/login", authErrorProviderUnavailable, provider)
 
 		return
 	}
@@ -312,10 +319,7 @@ func (app *Application) ensureProvider(provider string) error {
 	return nil
 }
 
-var (
-	ErrUnknownProvider = errors.New("unknown provider")
-	ErrLastLinkedIdent = errors.New("can't unlink the only remaining login provider")
-)
+var ErrUnknownProvider = errors.New("unknown provider")
 
 // reports how many auth identities the account has linked.
 func linkedIdentityCount(account db.Accounts) (n int) {
@@ -392,9 +396,21 @@ func (app *Application) loginCallback(c *gin.Context) {
 	provider := c.Param("provider")
 	c.Request = contextWithProviderName(c, provider)
 
+	if !isKnownProvider(provider) {
+		c.AbortWithStatus(http.StatusBadRequest)
+
+		return
+	}
+
 	user, err := gothic.CompleteUserAuth(c.Writer, c.Request)
 	if err != nil {
-		_ = c.AbortWithError(http.StatusBadRequest, err)
+		log.Warn().Err(err).Str("provider", provider).Msg("OAuth callback failed")
+		if _, linkErr := app.parseLinkingCookie(c); linkErr == nil {
+			app.clearLinkingCookie(c)
+			redirectWithAuthError(c, "/settings", authErrorLinkFailed, provider)
+		} else {
+			redirectWithAuthError(c, "/login", authErrorLoginFailed, provider)
+		}
 
 		return
 	}
@@ -409,19 +425,20 @@ func (app *Application) loginCallback(c *gin.Context) {
 
 	account, err := app.findAccountForProvider(c.Request.Context(), provider, user)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		c.Redirect(http.StatusSeeOther, "/login")
+		redirectWithAuthError(c, "/login", authErrorAccountNotFound, provider)
 
 		return
 	} else if err != nil {
 		log.Err(err).Str("provider", provider).Msg("Failed to find account by provider id")
-		c.AbortWithStatus(http.StatusInternalServerError)
+		redirectWithAuthError(c, "/login", authErrorLoginFailed, provider)
 
 		return
 	}
 
 	sessionToken, err := app.db.WithContext(c.Request.Context()).CreateSessionToken(account.ID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
+		log.Err(err).Msg("Failed to create session")
+		redirectWithAuthError(c, "/login", authErrorLoginFailed, provider)
 
 		return
 	}
@@ -443,7 +460,7 @@ func (app *Application) handleLinkCallback(c *gin.Context, provider string, user
 	} else if err != nil {
 		app.clearLinkingCookie(c)
 		log.Err(err).Msg("Failed to validate auth cookie during link callback")
-		c.AbortWithStatus(http.StatusInternalServerError)
+		redirectWithAuthError(c, "/settings", authErrorLinkFailed, provider)
 
 		return
 	}
@@ -457,20 +474,20 @@ func (app *Application) handleLinkCallback(c *gin.Context, provider string, user
 	}
 
 	if account.ID != linkingAccountID {
-		c.String(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
+		redirectWithAuthError(c, "/settings", authErrorLinkFailed, provider)
 
 		return
 	}
 
 	alreadyTaken, err := app.linkProvider(c.Request.Context(), provider, account, user)
 	if alreadyTaken {
-		c.String(http.StatusConflict, "This identity is already linked to another user")
+		redirectWithAuthError(c, "/settings", authErrorIdentityTaken, provider)
 
 		return
 	}
 	if err != nil {
 		log.Err(err).Str("provider", provider).Msg("Failed to link provider")
-		c.String(http.StatusInternalServerError, "Failed to link provider")
+		redirectWithAuthError(c, "/settings", authErrorLinkFailed, provider)
 
 		return
 	}
@@ -490,7 +507,7 @@ func (app *Application) linkApi(c *gin.Context) {
 		return
 	} else if err != nil {
 		log.Err(err).Msg("Failed to validate auth cookie during link")
-		c.AbortWithStatus(http.StatusInternalServerError)
+		redirectWithAuthError(c, "/settings", authErrorLinkFailed, provider)
 
 		return
 	}
@@ -521,21 +538,22 @@ func (app *Application) linkApi(c *gin.Context) {
 
 	if err := app.ensureProvider(provider); err != nil {
 		log.Error().Err(err).Str("provider", provider).Msg("Provider unavailable")
-		c.String(http.StatusServiceUnavailable, "Login provider is temporarily unavailable")
+		redirectWithAuthError(c, "/settings", authErrorProviderUnavailable, provider)
 
 		return
 	}
 
 	app.setLinkingCookie(c, account.ID)
 
-	url, err := gothic.GetAuthURL(c.Writer, c.Request)
+	authURL, err := gothic.GetAuthURL(c.Writer, c.Request)
 	if err != nil {
 		log.Err(err).Msg("Failed to build OAuth authorize URL")
-		c.AbortWithStatus(http.StatusInternalServerError)
+		app.clearLinkingCookie(c)
+		redirectWithAuthError(c, "/settings", authErrorLinkFailed, provider)
 
 		return
 	}
-	c.Redirect(http.StatusSeeOther, url)
+	c.Redirect(http.StatusSeeOther, authURL)
 }
 
 type registerApiInput struct {
@@ -545,7 +563,7 @@ type registerApiInput struct {
 func (app *Application) registerApi(
 	_ context.Context,
 	request *FormInput[registerApiInput],
-) (*RegistrationOutput, error) {
+) (*TextOutput, error) {
 	c := request.Gin
 	input := request.RawBody.Data()
 
@@ -559,11 +577,8 @@ func (app *Application) registerApi(
 	}
 
 	app.setAuthCookie(token, c)
-	if c.GetHeader("Accept") == "application/json" {
-		return &RegistrationOutput{Status: http.StatusCreated, Body: RedirectOutput{Redirect: "/gallery"}}, nil
-	}
 
-	return &RegistrationOutput{Status: http.StatusSeeOther, Location: "/gallery"}, nil
+	return &TextOutput{Status: http.StatusCreated, Body: []byte("Account created")}, nil
 }
 
 func oidcUsername(user goth.User) string {
@@ -577,34 +592,23 @@ func oidcUsername(user goth.User) string {
 	return ""
 }
 
-func (app *Application) logoutHandler(c *gin.Context) {
+func (app *Application) logoutAPI(_ context.Context, request *EmptyInput) (*TextOutput, error) {
+	c := request.Gin
 	sessionToken, _, loggedIn, err := app.validateAuthCookie(c)
-	if errors.Is(err, ErrInvalidAuthCookie) {
-		c.Redirect(http.StatusSeeOther, "/")
-		app.clearAuthCookie(c)
-
-		return
-	} else if err != nil {
-		c.AbortWithStatus(http.StatusBadRequest)
-
-		return
+	if err != nil && !errors.Is(err, ErrInvalidAuthCookie) {
+		return nil, huma.NewError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
 
-	if !loggedIn {
-		c.Redirect(http.StatusSeeOther, "/")
-
-		return
-	}
-
-	if err = app.db.WithContext(c.Request.Context()).DeleteSession(sessionToken); err != nil {
-		log.Err(err).Msg("Failed to delete session from db")
+	if loggedIn {
+		if err = app.db.WithContext(c.Request.Context()).DeleteSession(sessionToken); err != nil {
+			log.Err(err).Msg("Failed to delete session from db")
+		}
 	}
 
 	app.clearAuthCookie(c)
-
 	if err := gothic.Logout(c.Writer, c.Request); err != nil {
 		log.Warn().Err(err).Msg("gothic logout failed")
 	}
 
-	c.Redirect(http.StatusSeeOther, "/")
+	return textOutput("Logged out"), nil
 }

@@ -2,13 +2,13 @@
   buildGoLatestModule,
   fetchPnpmDeps,
   pnpmConfigHook,
-  pnpm_11,
+  pnpm_12,
   nodejs,
   stdenv,
   lib,
 }:
 let
-  pnpm = pnpm_11;
+  pnpm = pnpm_12;
   version = "0.6.0";
 
   frontend = stdenv.mkDerivation {
@@ -27,8 +27,8 @@ let
       pname = "hostling-frontend";
       inherit version pnpm;
       src = ./frontend;
-      fetcherVersion = 4;
-      hash = "sha256-udsI4ZNGrf9iujtM2gFc1c1nEhm/TfaTojUOItEhSNg=";
+      fetcherVersion = 5;
+      hash = "sha256-JajsH9oh9Tmf461px2W7YIokVCDwXnmIPpHW+cxcvpY=";
     };
 
     postBuild = ''
@@ -63,7 +63,7 @@ buildGoLatestModule {
 
   checkFlags = [ "-trimpath" ];
 
-  vendorHash = "sha256-50DeuEzupoj2/gxY/Fvg2ms/vpM/y5TWWS2T+LMsHwk=";
+  vendorHash = "sha256-o4Ho+w2RJ0ytlPixmwVYkLILqsY7XHzC1K2I0odWthQ=";
 
   prePatch = ''
     mkdir -p ./public/dist

@@ -1,3 +1,5 @@
+import type { FileData } from "./types";
+
 const demoMedia = import.meta.env.PUBLIC_DEMO
   ? await import("./demo/media")
   : undefined;
@@ -59,6 +61,31 @@ export function humanizeBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+// "1 view", "3 views".
+export function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+export function displayName(file: FileData): string {
+  return file.OriginalFileName || file.FileName;
+}
+
+type ClassValue = string | false | null | undefined | Record<string, unknown>;
+
+// Joins class names, including those of a `{ name: condition }` map. Takes the
+// same shape as Solid 2's array `class` prop, so call sites convert directly.
+export function cx(...values: ClassValue[]): string {
+  const names: string[] = [];
+  for (const value of values) {
+    if (!value) continue;
+    if (typeof value === "string") names.push(value);
+    else
+      for (const [name, enabled] of Object.entries(value))
+        if (enabled) names.push(name);
+  }
+  return names.join(" ");
+}
+
 export function mimeIsImage(mimeType: string): boolean {
   return mimeType?.startsWith("image/") ?? false;
 }
@@ -89,9 +116,9 @@ export function hashStringToHSL(str: string): {
   return { h, s, l };
 }
 
-export function hasExpiry(expiryDate: string): boolean {
-  if (!expiryDate) return false;
-  const t = new Date(expiryDate).getTime();
+export function hasDate(date: string): boolean {
+  if (!date) return false;
+  const t = new Date(date).getTime();
   return Number.isFinite(t) && t > 0;
 }
 

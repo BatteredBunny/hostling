@@ -108,13 +108,14 @@ func TestHTMLPages(t *testing.T) {
 		authed int
 		anon   int
 	}{
+		// The single-page app shell is served everywhere; it handles redirects itself.
 		{"/", http.StatusOK, http.StatusOK},
-		{"/login", http.StatusTemporaryRedirect, http.StatusOK},
-		{"/register", http.StatusTemporaryRedirect, http.StatusOK},
-		{"/gallery", http.StatusOK, http.StatusTemporaryRedirect},
-		{"/settings", http.StatusOK, http.StatusTemporaryRedirect},
-		{"/tokens", http.StatusOK, http.StatusTemporaryRedirect},
-		{"/admin", http.StatusOK, http.StatusTemporaryRedirect},
+		{"/login", http.StatusOK, http.StatusOK},
+		{"/register", http.StatusOK, http.StatusOK},
+		{"/gallery", http.StatusOK, http.StatusOK},
+		{"/settings", http.StatusOK, http.StatusOK},
+		{"/tokens", http.StatusOK, http.StatusOK},
+		{"/admin", http.StatusOK, http.StatusOK},
 	}
 
 	for _, tt := range tests {
@@ -135,8 +136,8 @@ func TestLogoutInvalidatesSession(t *testing.T) {
 	ts := newTestServer(t)
 	admin := ts.registerAdmin()
 
-	if status, body := admin.postForm("/logout", nil); status != http.StatusSeeOther {
-		t.Fatalf("expected 303 on logout, got %d: %s", status, body)
+	if status, body := admin.postForm("/api/auth/logout", nil); status != http.StatusOK {
+		t.Fatalf("expected 200 on logout, got %d: %s", status, body)
 	}
 
 	if status, body := admin.get("/api/account/files"); status != http.StatusUnauthorized {
@@ -144,8 +145,8 @@ func TestLogoutInvalidatesSession(t *testing.T) {
 	}
 
 	// Second logout hits the already-logged-out branch
-	if status, body := admin.postForm("/logout", nil); status != http.StatusSeeOther {
-		t.Errorf("expected 303 for unauthenticated logout, got %d: %s", status, body)
+	if status, body := admin.postForm("/api/auth/logout", nil); status != http.StatusOK {
+		t.Errorf("expected 200 for unauthenticated logout, got %d: %s", status, body)
 	}
 }
 

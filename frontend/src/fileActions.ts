@@ -8,9 +8,8 @@ import {
   updateFileInList,
 } from "./store";
 import { deleteFile, toggleFileVisibility } from "./generated";
-import { FILES_PER_PAGE } from "./utils";
 import { apiData } from "./client";
-import { fileUrl, copyText } from "./utils";
+import { FILES_PER_PAGE, copyText, displayName, fileUrl } from "./utils";
 import { loadFiles } from "./components/FileGrid";
 import { loadStats } from "./components/FileStats";
 import type { FileData } from "./types";
@@ -54,7 +53,7 @@ export async function deleteFileWithConfirm(file: FileData) {
   if (pendingDeletes.has(file.FileName)) return;
   const confirmed = await confirmDialog({
     title: "Delete file?",
-    message: `"${file.OriginalFileName || file.FileName}" will be permanently deleted.`,
+    message: `"${displayName(file)}" will be permanently deleted.`,
     confirmLabel: "Delete",
     danger: true,
   });

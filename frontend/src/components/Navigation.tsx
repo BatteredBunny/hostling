@@ -1,19 +1,21 @@
 import styles from "./Navigation.module.css";
 import { For, Show, createEffect } from "solid-js";
 import { useFrontendContext } from "../context";
-import {
-  GitMerge as GitMergeIcon,
-  House as HouseIcon,
-  Images as ImagesIcon,
-  KeyRound as KeyRoundIcon,
-  LogIn as LogInIcon,
-  LogOut as LogOutIcon,
-  Server as ServerIcon,
-  Settings as SettingsIcon,
-  TriangleAlert as TriangleAlertIcon,
-  UserPlus as UserPlusIcon,
-} from "lucide-solid";
-import { Dynamic } from "solid-js/web";
+import { navigate } from "../router";
+import GitMergeIcon from "lucide-solid/icons/git-merge";
+import HouseIcon from "lucide-solid/icons/house";
+import ImagesIcon from "lucide-solid/icons/images";
+import KeyRoundIcon from "lucide-solid/icons/key-round";
+import LogInIcon from "lucide-solid/icons/log-in";
+import LogOutIcon from "lucide-solid/icons/log-out";
+import ServerIcon from "lucide-solid/icons/server";
+import SettingsIcon from "lucide-solid/icons/settings";
+import TriangleAlertIcon from "lucide-solid/icons/triangle-exclamation-point";
+import UserPlusIcon from "lucide-solid/icons/user-plus";
+import { cx } from "../utils";
+import { logout } from "../generated";
+import { apiData } from "../client";
+import { showToast } from "../toast";
 
 export function Navigation(props: { currentPage: string }) {
   const { context, error, retry } = useFrontendContext();
@@ -24,9 +26,14 @@ export function Navigation(props: { currentPage: string }) {
     const protectedPage = ["gallery", "settings", "tokens", "admin"].includes(
       props.currentPage,
     );
-    if (!info.logged_in && protectedPage) window.location.assign("/login");
+    if (!info.logged_in && protectedPage) navigate("/login", { replace: true });
+    else if (
+      info.logged_in &&
+      ["login", "register"].includes(props.currentPage)
+    )
+      navigate("/gallery", { replace: true });
     else if (!info.is_admin && props.currentPage === "admin")
-      window.location.assign("/gallery");
+      navigate("/gallery", { replace: true });
     else if (
       protectedPage &&
       previousAccount !== undefined &&
@@ -47,6 +54,19 @@ export function Navigation(props: { currentPage: string }) {
       element.content = info.tagline;
     }
   });
+  const signOut = async () => {
+    try {
+      await apiData(logout());
+    } catch (failure) {
+      showToast(
+        failure instanceof Error ? failure.message : "Could not log out.",
+        "error",
+      );
+      return;
+    }
+    // A fresh document drops everything loaded for the account.
+    window.location.assign("/");
+  };
   const links = [
     { page: "gallery", label: "Gallery", icon: ImagesIcon },
     { page: "settings", label: "Settings", icon: SettingsIcon },
@@ -59,8 +79,9 @@ export function Navigation(props: { currentPage: string }) {
       </div>
       <div class={styles.links}>
         <a
-          class={styles.option}
-          classList={{ [styles.active]: props.currentPage === "home" }}
+          class={cx(styles.option, {
+            [styles.active]: props.currentPage === "home",
+          })}
           href="/"
           title="home"
         >
@@ -72,18 +93,18 @@ export function Navigation(props: { currentPage: string }) {
           fallback={
             <Show when={context()}>
               <a
-                class={styles.option}
-                classList={{ [styles.active]: props.currentPage === "login" }}
+                class={cx(styles.option, {
+                  [styles.active]: props.currentPage === "login",
+                })}
                 href="/login"
               >
                 <LogInIcon class="lucide-icon" aria-hidden="true" />
                 <span>Login</span>
               </a>
               <a
-                class={styles.option}
-                classList={{
+                class={cx(styles.option, {
                   [styles.active]: props.currentPage === "register",
-                }}
+                })}
                 href="/register"
               >
                 <UserPlusIcon class="lucide-icon" aria-hidden="true" />
@@ -95,17 +116,16 @@ export function Navigation(props: { currentPage: string }) {
           <Show when={context()?.is_admin}>
             <a
               href="/admin"
-              class={styles.option}
-              classList={{
+              class={cx(styles.option, {
                 [styles.active]: props.currentPage === "admin",
                 [styles.warning]: context()?.has_admin_warning,
-              }}
+              })}
             >
               <ServerIcon class="lucide-icon" aria-hidden="true" />
               <span>Admin</span>
               <Show when={context()?.has_admin_warning}>
                 <TriangleAlertIcon
-                  class={`lucide-icon ${styles.warningIcon}`}
+                  class={cx("lucide-icon", styles.warningIcon)}
                   aria-hidden="true"
                 />
               </Show>
@@ -116,30 +136,26 @@ export function Navigation(props: { currentPage: string }) {
             {(link) => (
               <a
                 href={`/${link.page}`}
-                class={styles.option}
-                classList={{ [styles.active]: props.currentPage === link.page }}
+                class={cx(styles.option, {
+                  [styles.active]: props.currentPage === link.page,
+                })}
               >
-                <Dynamic
-                  component={link.icon}
-                  class="lucide-icon"
-                  aria-hidden="true"
-                />
+                <link.icon class="lucide-icon" aria-hidden="true" />
                 <span>{link.label}</span>
               </a>
             )}
           </For>
           <div class={styles.divider} />
-          <form method="post" action="/logout" class={styles.logoutForm}>
-            <button
-              class={styles.option}
-              type="submit"
-              title="logout"
-              disabled={import.meta.env.PUBLIC_DEMO}
-            >
-              <LogOutIcon class="lucide-icon" aria-hidden="true" />
-              <span>Logout</span>
-            </button>
-          </form>
+          <button
+            class={styles.option}
+            type="button"
+            title="logout"
+            disabled={import.meta.env.PUBLIC_DEMO}
+            onClick={signOut}
+          >
+            <LogOutIcon class="lucide-icon" aria-hidden="true" />
+            <span>Logout</span>
+          </button>
         </Show>
         <Show when={error()}>
           <button class={styles.option} onClick={retry}>

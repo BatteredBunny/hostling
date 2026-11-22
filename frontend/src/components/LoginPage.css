@@ -19,17 +19,6 @@
     gap: 12px;
   }
 
-  .login-warning {
-    padding: 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    line-height: 1.6;
-
-    p {
-      margin: 0;
-    }
-  }
-
   .login-register {
     margin: 20px 0 0;
     font-size: 13px;

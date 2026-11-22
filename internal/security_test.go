@@ -240,8 +240,8 @@ func TestAuthCookieAttributes(t *testing.T) {
 			if status, body := client.postForm(
 				"/api/auth/register",
 				url.Values{"code": {testInitialToken}},
-			); status != http.StatusSeeOther {
-				t.Fatalf("register: expected 303, got %d: %s", status, body)
+			); status != http.StatusCreated {
+				t.Fatalf("register: expected 201, got %d: %s", status, body)
 			}
 
 			var auth *http.Cookie
@@ -291,10 +291,8 @@ func TestExpiredSessionRejected(t *testing.T) {
 	if status, body := admin.get("/" + private); status != http.StatusTemporaryRedirect {
 		t.Errorf("own private file: expected 307, got %d: %s", status, body)
 	}
-	for _, page := range []string{"/gallery", "/settings", "/tokens", "/admin"} {
-		if status, _ := admin.get(page); status != http.StatusTemporaryRedirect {
-			t.Errorf("%s: expected 307, got %d", page, status)
-		}
+	if status, body := admin.get("/api/account/settings"); status != http.StatusUnauthorized {
+		t.Errorf("settings API: expected 401, got %d: %s", status, body)
 	}
 }
 
@@ -352,7 +350,7 @@ func TestCannotRevokeOtherUsersCredentials(t *testing.T) {
 		t.Errorf("admin's upload token should still work, got %d: %s", status, body)
 	}
 	if status, body := ts.newClient().
-		postForm("/api/auth/register", url.Values{"code": {invite}}); status != http.StatusSeeOther {
+		postForm("/api/auth/register", url.Values{"code": {invite}}); status != http.StatusCreated {
 		t.Errorf("admin's invite code should still work, got %d: %s", status, body)
 	}
 }
@@ -397,7 +395,7 @@ func TestSingleUseInviteCodeRace(t *testing.T) {
 
 	var succeeded int
 	for _, s := range statuses {
-		if s == http.StatusSeeOther {
+		if s == http.StatusCreated {
 			succeeded++
 		}
 	}
@@ -444,7 +442,7 @@ func TestCrossOriginStateChangesRejected(t *testing.T) {
 		t.Errorf("foreign Origin: expected 403, got %d", status)
 	}
 	// The invite must still be unused, so a same-origin browser request succeeds.
-	if status := register(map[string]string{"Sec-Fetch-Site": "same-origin"}); status != http.StatusSeeOther {
-		t.Errorf("same-origin: expected 303, got %d", status)
+	if status := register(map[string]string{"Sec-Fetch-Site": "same-origin"}); status != http.StatusCreated {
+		t.Errorf("same-origin: expected 201, got %d", status)
 	}
 }

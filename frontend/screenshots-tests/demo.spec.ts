@@ -10,20 +10,26 @@ import {
 import { resolve } from "node:path";
 
 const sample = resolve("demo-public/demo-assets/sample-1.png");
+const samples = ["sample-1.png", "clip.webm", "notes.txt"].map((name) =>
+  resolve(`demo-public/demo-assets/${name}`),
+);
 async function uploadReady(
   page: import("@playwright/test").Page,
   state = "default",
 ) {
   await visit(page, "/", state);
-  await expect(
-    page.getByRole("button", { name: "Upload File", exact: true }),
-  ).toBeEnabled();
+  await expect(page.locator(".branding-main")).toHaveText("Hostling");
 }
+const uploadButton = (page: import("@playwright/test").Page) =>
+  page.getByRole("button", { name: /^Upload \d+ files?$/ });
+const dropZone = (page: import("@playwright/test").Page) =>
+  page.getByRole("button", { name: /Drop (more )?files/ });
 
 for (const state of [
   "default",
   "guest",
   "selected",
+  "multiple",
   "progress",
   "success",
   "error",
@@ -45,30 +51,34 @@ for (const state of [
         page.getByLabel("Upload token", { exact: true }),
       ).toBeVisible();
     if (["selected", "progress", "success", "error"].includes(state))
-      await page.getByLabel("File to upload").setInputFiles(sample);
+      await page.getByLabel("Files to upload").setInputFiles(sample);
+    if (state === "multiple") {
+      await page.getByLabel("Files to upload").setInputFiles(samples);
+      await expect(uploadButton(page)).toHaveText("Upload 3 files");
+      await uploadButton(page).click();
+      await expect(page.getByRole("link", { name: "View" })).toHaveCount(3);
+    }
     if (["progress", "success", "error"].includes(state))
-      await page
-        .getByRole("button", { name: "Upload File", exact: true })
-        .click();
+      await uploadButton(page).click();
     if (state === "progress")
       await expect(
-        page.getByRole("progressbar", { name: "Upload progress" }),
+        page.getByRole("progressbar", {
+          name: "Upload progress for sample-1.png",
+        }),
       ).toHaveAttribute("aria-valuenow", "64");
     if (state === "success")
-      await expect(
-        page.getByText("Upload successful", { exact: true }),
-      ).toBeVisible();
-    if (state === "error")
+      await expect(page.getByRole("link", { name: "View" })).toBeVisible();
+    if (state === "error") {
       await expect(page.getByRole("alert")).toContainText(
-        "Demo request failed",
+        "1 file failed to upload",
       );
-    if (state === "focus") {
-      await page
-        .getByRole("button", { name: "Drop file here or click to select" })
-        .focus();
       await expect(
-        page.getByRole("button", { name: "Drop file here or click to select" }),
-      ).toBeFocused();
+        page.getByRole("list", { name: "Selected files" }),
+      ).toContainText("Demo request failed");
+    }
+    if (state === "focus") {
+      await dropZone(page).focus();
+      await expect(dropZone(page)).toBeFocused();
     }
     await capture(page, `upload/${state}`, `Upload: ${state}`);
   });
@@ -152,7 +162,7 @@ for (const state of [
             : "default",
     );
     if (state === "loading")
-      await expect(fileList(page)).toHaveAttribute("aria-busy", "true");
+      await expect(page.getByRole("status", { name: "Loading page" })).toBeVisible();
     else if (state === "last-page")
       await expect(page.getByRole("status", { name: "Pagination" })).toHaveText(
         "9-12 of 12",
@@ -239,14 +249,14 @@ for (const state of [
       await expect(
         panel.getByRole("link", { name: "Log in with GitHub" }),
       ).toBeVisible();
+    else if (state === "context-loading")
+      await expect(page.getByRole("status", { name: "Loading page" })).toBeVisible();
     else
       await expect(
         panel.getByText(
           state === "no-providers"
             ? /No authentication providers/
-            : state === "context-error"
-              ? /Could not load server information/
-              : "Loading login providers…",
+            : /Could not load server information/,
         ),
       ).toBeVisible();
     await capture(page, `login/${state}`, `Login: ${state}`);
@@ -305,7 +315,7 @@ for (const state of [
 }
 
 for (const [state, action, title] of [
-  ["unlink-confirmation", "Unlink GitHub", "Unlink provider?"],
+  ["unlink-confirmation", "Unlink GitHub", "Unlink GitHub?"],
   ["delete-account", "Delete my account", "Confirm deletion"],
   ["delete-files", "Delete all files", "Confirm deletion"],
 ] as const) {
@@ -333,7 +343,7 @@ for (const state of [
         "Could not load your tokens",
       );
     else if (state === "tokens-loading")
-      await expect(page.getByRole("status")).toHaveText("Loading tokens…");
+      await expect(page.getByRole("status", { name: "Loading page" })).toBeVisible();
     else if (state === "empty")
       await expect(page.getByText("No upload tokens yet.")).toBeVisible();
     else {
@@ -419,16 +429,33 @@ for (const state of [
   });
 }
 
-test("admin: destructive action confirmation", async ({ page }) => {
+test("admin: user actions menu", async ({ page }) => {
   await visit(page, "/admin");
   await page
-    .getByRole("article", { name: "User 2", exact: true })
-    .getByRole("button", { name: "Delete user", exact: true })
+    .getByRole("button", { name: "Actions for artist", exact: true })
     .click();
+  const menu = page.getByRole("menu", { name: "artist", exact: true });
+  await expect(menu).toBeVisible();
+  await capture(page, "admin/user-menu", "User actions", menu);
+  await menu.getByRole("menuitem", { name: "Delete user", exact: true }).click();
   await expect(
-    page.getByRole("dialog", { name: "Confirm action", exact: true }),
+    page.getByRole("dialog", { name: "Delete user?", exact: true }),
   ).toBeVisible();
   await capture(page, "admin/delete-user", "Delete user confirmation");
+});
+
+test("admin: give invitation code", async ({ page }) => {
+  await visit(page, "/admin");
+  await page
+    .getByRole("article", { name: "User 3", exact: true })
+    .click({ button: "right" });
+  await page
+    .getByRole("menuitem", { name: "Give invitation code", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "Invitation code created", exact: true }),
+  ).toBeVisible();
+  await capture(page, "admin/invite-code", "Invitation code dialog");
 });
 
 test("feedback: error toast", async ({ page }) => {

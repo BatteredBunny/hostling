@@ -1,7 +1,9 @@
 import { splitProps } from "solid-js";
 import type { JSX } from "solid-js";
-import { GitBranch, KeyRound, KeySquare } from "lucide-solid";
-import { Dynamic } from "solid-js/web";
+import GitBranch from "lucide-solid/icons/git-branch";
+import KeyRound from "lucide-solid/icons/key-round";
+import KeySquare from "lucide-solid/icons/key-square";
+import { cx } from "../utils";
 import styles from "./ProviderAction.module.css";
 
 const providers = new Map<string, { label: string; icon: typeof GitBranch }>([
@@ -9,7 +11,7 @@ const providers = new Map<string, { label: string; icon: typeof GitBranch }>([
   ["openid-connect", { label: "OpenID Connect", icon: KeyRound }],
 ]);
 
-export function providerPresentation(name: string) {
+function providerPresentation(name: string) {
   return providers.get(name) ?? { label: name, icon: KeySquare };
 }
 
@@ -18,13 +20,12 @@ export function providerLabel(name: string) {
 }
 
 export function ProviderIcon(props: { name: string }) {
-  return (
-    <Dynamic
-      component={providerPresentation(props.name).icon}
-      class={`lucide-icon ${styles.icon}`}
-      aria-hidden="true"
-    />
-  );
+  // Re-renders when the provider changes, as <Dynamic> would.
+  const icon = () => {
+    const Icon = providerPresentation(props.name).icon;
+    return <Icon class={cx("lucide-icon", styles.icon)} aria-hidden="true" />;
+  };
+  return <>{icon()}</>;
 }
 
 export function ProviderLink(props: {
@@ -45,7 +46,7 @@ export function ProviderButton(
 ) {
   const [local, button] = splitProps(props, ["provider", "children", "class"]);
   return (
-    <button {...button} class={`${styles.action} ${local.class ?? ""}`}>
+    <button {...button} class={cx(styles.action, local.class)}>
       <ProviderIcon name={local.provider} />
       <span>{local.children}</span>
     </button>

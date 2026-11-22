@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { DEMO_ORIGIN, DEMO_PORT } from "./screenshots-tests/origin";
 
 // Without a baseline the suite captures into screenshots/. With
 // SCREENSHOT_BASELINE set to an earlier capture, it compares against it instead
@@ -33,7 +34,7 @@ export default defineConfig({
       : []),
   ],
   use: {
-    baseURL: "http://127.0.0.1:4321",
+    baseURL: DEMO_ORIGIN,
     browserName: "chromium",
     viewport: { width: 1280, height: 900 },
     colorScheme: "dark",
@@ -46,8 +47,8 @@ export default defineConfig({
   },
   webServer: {
     command:
-      "HOSTLING_DEMO=1 node_modules/.bin/astro preview --ignore-lock --host 127.0.0.1 --port 4321",
-    url: "http://127.0.0.1:4321",
+      `HOSTLING_DEMO=1 node_modules/.bin/astro preview --ignore-lock --host 127.0.0.1 --port ${DEMO_PORT}`,
+    url: DEMO_ORIGIN,
     reuseExistingServer: false,
   },
 });

@@ -8,6 +8,7 @@ import {
   createUniqueId,
 } from "solid-js";
 import { NativePopover } from "./NativePopover";
+import { cx } from "../utils";
 import "./FileFilters.css";
 import {
   sortField,
@@ -24,12 +25,10 @@ import {
   activeFilters,
 } from "../store";
 import { loadFiles } from "./FileGrid";
-import {
-  Check as CheckIcon,
-  SlidersHorizontal as SlidersHorizontalIcon,
-  Tag as TagIcon,
-  X as XIcon,
-} from "lucide-solid";
+import CheckIcon from "lucide-solid/icons/check";
+import SlidersHorizontalIcon from "lucide-solid/icons/sliders-horizontal";
+import TagIcon from "lucide-solid/icons/tag";
+import XIcon from "lucide-solid/icons/x";
 import { SelectBox } from "./SelectBox";
 import { getFilterTags } from "../generated";
 import { apiData } from "../client";
@@ -43,46 +42,47 @@ const VISIBILITY_OPTIONS: { value: Visibility | null; label: string }[] = [
   { value: "private", label: "Private" },
 ];
 
-function reload() {
-  setCurrentPage(0);
+// Applies a filter or sort change and returns to the first page. Batched with
+// the page reset so the URL sync effect records it as one history entry.
+function refilter(update: () => void) {
+  batch(() => {
+    update();
+    setCurrentPage(0);
+  });
   loadFiles(0);
 }
 
 function setVisibility(value: Visibility | null) {
   if (visibilityFilter() === value) return;
-  setVisibilityFilter(value);
-  reload();
+  refilter(() => setVisibilityFilter(value));
 }
 
 // Untagged and a specific tag are the only mutually exclusive pair:
 // picking one clears the other. Visibility combines with either.
 function toggleUntagged() {
-  batch(() => {
+  refilter(() => {
     const next = !untaggedFilter();
     setUntaggedFilter(next);
     if (next) setTagFilters([]);
   });
-  reload();
 }
 
 function toggleTag(tag: string) {
-  batch(() => {
+  refilter(() => {
     const selected = tagFilters().includes(tag);
     setTagFilters((tags) =>
       selected ? tags.filter((t) => t !== tag) : [...tags, tag],
     );
     if (!selected) setUntaggedFilter(false);
   });
-  reload();
 }
 
 function clearFilters() {
-  batch(() => {
+  refilter(() => {
     setTagFilters([]);
     setVisibilityFilter(null);
     setUntaggedFilter(false);
   });
-  reload();
 }
 
 const activeFilterCount = () =>
@@ -101,9 +101,10 @@ export function FileFilters() {
 
   const handleSortChange = (value: string) => {
     const [field, order] = value.split(":") as [SortField, string];
-    setSortField(field);
-    setSortDesc(order === "desc");
-    reload();
+    refilter(() => {
+      setSortField(field);
+      setSortDesc(order === "desc");
+    });
   };
 
   return (
@@ -113,8 +114,7 @@ export function FileFilters() {
           <button
             type="button"
             ref={button}
-            class="file-filters-button"
-            classList={{ open: open() }}
+            class={cx("file-filters-button", { open: open() })}
             aria-haspopup="dialog"
             aria-expanded={open()}
             aria-controls={popoverId}

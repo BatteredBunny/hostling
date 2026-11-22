@@ -20,7 +20,9 @@ export function createFiles(): Files[] {
     CreatedAt: new Date(Date.parse(timestamp) - index * 3600000).toISOString(),
     ExpiryDate: index === 7 ? "2026-02-01T12:00:00Z" : "",
     // Reused assets get a unique name; media.ts strips the `copy-N-` prefix.
-    FileName: seen.has(asset) ? `copy-${index}-${asset}` : (seen.add(asset), asset),
+    FileName: seen.has(asset)
+      ? `copy-${index}-${asset}`
+      : (seen.add(asset), asset),
     OriginalFileName: name,
     FileSize: 204800 + index * 8192,
     MimeType: mime,

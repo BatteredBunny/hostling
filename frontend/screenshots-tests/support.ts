@@ -1,5 +1,6 @@
 import { test as base, expect, type Locator, type Page } from "@playwright/test";
 import { existsSync } from "node:fs";
+import { DEMO_ORIGIN } from "./origin";
 
 const comparing = Boolean(process.env.SCREENSHOT_BASELINE);
 
@@ -10,7 +11,7 @@ export const test = base.extend<{ networkGuard: void }>({
       page.on("pageerror", (error) => errors.push(error.message));
       await page.route("**/*", async (route) => {
         const url = new URL(route.request().url());
-        if (url.origin !== "http://127.0.0.1:4321" || url.pathname.startsWith("/api/")) {
+        if (url.origin !== DEMO_ORIGIN || url.pathname.startsWith("/api/")) {
           errors.push(`Unexpected network request: ${url}`);
           return route.abort();
         }
@@ -26,7 +27,7 @@ export const test = base.extend<{ networkGuard: void }>({
 export { expect };
 
 export async function visit(page: Page, path: string, scenario = "default") {
-  const url = new URL(path, "http://127.0.0.1:4321");
+  const url = new URL(path, DEMO_ORIGIN);
   url.searchParams.set("demo", scenario);
   await page.goto(url.href);
 }

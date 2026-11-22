@@ -110,8 +110,8 @@ func (ts *testServer) registerClient(code string) *testClient {
 	if status, body := client.postForm(
 		"/api/auth/register",
 		url.Values{"code": {code}},
-	); status != http.StatusSeeOther {
-		ts.t.Fatalf("register: expected 303, got %d: %s", status, body)
+	); status != http.StatusCreated {
+		ts.t.Fatalf("register: expected 201, got %d: %s", status, body)
 	}
 
 	return client

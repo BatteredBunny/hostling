@@ -15,7 +15,7 @@ pkgs.stdenv.mkDerivation {
 
   nativeBuildInputs = with pkgs; [
     nodejs
-    pnpm_11
+    pnpm_12
     pnpmConfigHook
     chromium
   ];

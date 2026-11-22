@@ -1,4 +1,5 @@
 import { onMount } from "solid-js";
+import { trackPageLoad } from "../loading";
 import "./FileStats.css";
 import {
   statsCount,
@@ -9,17 +10,14 @@ import {
 } from "../store";
 import { getFileStats } from "../generated";
 import { apiData } from "../client";
-import { humanizeBytes } from "../utils";
+import { countLabel, humanizeBytes } from "../utils";
 
 export function FileStats() {
-  onMount(async () => {
-    await loadStats();
-  });
+  onMount(() => void trackPageLoad(loadStats()));
 
   return (
     <span id="files-stats" role="status" aria-label="File statistics">
-      {statsCount() === 1 ? "1 file" : `${statsCount()} files`} ·{" "}
-      {humanizeBytes(statsSizeTotal())}
+      {countLabel(statsCount(), "file")} · {humanizeBytes(statsSizeTotal())}
     </span>
   );
 }

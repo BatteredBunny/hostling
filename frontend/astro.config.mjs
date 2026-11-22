@@ -49,7 +49,6 @@ function demoAssets() {
 export default defineConfig({
   output: "static",
   publicDir: "./public",
-  prefetch: { prefetchAll: true, defaultStrategy: "hover" },
   integrations: demo ? [solid(), demoAssets()] : [solid()],
   fonts: [
     {
@@ -101,7 +100,7 @@ export default defineConfig({
       proxy: demo
         ? {}
         : Object.fromEntries(
-            ["/api", "/logout"].map((path) => [
+            ["/api", "^/[A-Z2-7]{26}\\.[^/]+$"].map((path) => [
               path,
               process.env.HOSTLING_BACKEND_URL || "http://localhost:8081",
             ]),

@@ -1,0 +1,61 @@
+---
+// Every page is the same single-page app; the server still serves each route
+// its own copy so direct visits and reloads work.
+import { Font } from "astro:assets";
+import { App, ROUTES } from "../components/App";
+import { LoadingScreen } from "../components/LoadingScreen";
+import mascot from "../assets/mascot.png";
+import { BRANDING_CACHE_KEY, DEFAULT_BRANDING } from "../branding";
+import "../styles/common.css";
+
+export function getStaticPaths() {
+  return Object.entries(ROUTES).map(([path, route]) => ({
+    params: { path: path === "/" ? undefined : path.slice(1) },
+    props: { title: route.title },
+  }));
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <Font
+      cssVariable="--font-nordwand-mono"
+      preload={[{ weight: 400, style: "normal" }]}
+    />
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#B881FB" />
+    <meta name="darkreader-lock" />
+    <meta name="twitter:image" content={mascot.src} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image" content={mascot.src} />
+    <link rel="icon" href="/public/favicon.ico" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <App client:only="solid-js" mascot={mascot.src}>
+      <div slot="fallback">
+        <LoadingScreen mascot={mascot.src} title={DEFAULT_BRANDING} />
+        <script is:inline define:vars={{ key: BRANDING_CACHE_KEY }}>
+          // Shows the remembered branding before the app starts.
+          try {
+            const branding = localStorage.getItem(key);
+            if (branding)
+              document.currentScript.previousElementSibling.querySelector(
+                ".loading-title",
+              ).textContent = branding;
+          } catch {}
+        </script>
+      </div>
+    </App>
+    <noscript>
+      <p class="javascript-notice">Enable JavaScript to use this site.</p>
+    </noscript>
+  </body>
+</html>

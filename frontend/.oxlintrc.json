@@ -1,5 +1,7 @@
 {
-  "plugins": ["typescript"],
+  "plugins": [
+    "typescript"
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -8,6 +10,17 @@
   "rules": {
     "no-unassigned-vars": "off",
     "no-unused-expressions": "off",
-    "no-cond-assign": "off"
+    "no-cond-assign": "off",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "lucide-solid",
+            "message": "Import icons one by one from \"lucide-solid/icons/<name>\": the index makes the dev server load every icon as a separate module."
+          }
+        ]
+      }
+    ]
   }
 }

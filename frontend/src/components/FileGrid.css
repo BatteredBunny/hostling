@@ -16,10 +16,6 @@
 #file-grid-loading-text {
   text-align: center;
   padding: 2rem;
-
-  &.hidden {
-    display: none;
-  }
 }
 
 #file-grid-loading-overlay {
@@ -28,15 +24,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
   pointer-events: none;
-
-  &.visible {
-    display: flex;
-  }
 
   .spinner {
     width: 48px;
@@ -64,6 +56,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  gap: 12px;
   padding: 15px;
 
   #page-info {
@@ -71,6 +64,7 @@
     color: var(--text-color);
     min-width: 100px;
     text-align: center;
+    font-variant-numeric: tabular-nums;
   }
 
   .pagination-button {

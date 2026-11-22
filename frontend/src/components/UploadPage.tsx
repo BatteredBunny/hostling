@@ -1,12 +1,21 @@
 import "./UploadPage.css";
+import { LoadError } from "./LoadError";
 import { SectionPanel } from "./SectionPanel";
-import { Show, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Match, Show, Switch, createSignal, onCleanup } from "solid-js";
+import { createStore } from "solid-js/store";
+import CheckIcon from "lucide-solid/icons/check";
+import FileIcon from "lucide-solid/icons/file";
+import LinkIcon from "lucide-solid/icons/link";
+import XIcon from "lucide-solid/icons/x";
 import { useFrontendContext } from "../context";
 import { uploadFile } from "../generated";
 import type { UploadFileData } from "../generated";
 import { formDataBodySerializer } from "../generated/client";
-import { apiData } from "../client";
+import { ApiError, apiData } from "../client";
 import { Input } from "./Input";
+import { UploadCommand } from "./UploadCommand";
+import { showToast } from "../toast";
+import { copyText, countLabel, cx, fileUrl, humanizeBytes } from "../utils";
 
 // XHR preserves upload progress without buffering the file into JavaScript memory.
 // The generated SDK still owns the URL, request contract, and response parsing.
@@ -60,96 +69,169 @@ function uploadTransport(
     });
 }
 
+interface QueuedFile {
+  id: number;
+  file: File;
+  preview?: string;
+  status: "pending" | "uploading" | "done" | "failed";
+  progress: number;
+  error?: string;
+  // The server's name for the file once uploaded.
+  name?: string;
+}
+
+let nextQueueId = 0;
+
 export function UploadPage() {
   const { context, error: contextError, retry } = useFrontendContext();
-  const [host, setHost] = createSignal("");
-  const [file, setFile] = createSignal<File>();
-  const [preview, setPreview] = createSignal("");
+  const [queue, setQueue] = createStore<QueuedFile[]>([]);
   const [token, setToken] = createSignal("");
   const [expiry, setExpiry] = createSignal("");
   const [busy, setBusy] = createSignal(false);
-  const [progress, setProgress] = createSignal(0);
-  const [error, setError] = createSignal("");
-  const [result, setResult] = createSignal("");
+  const [dragOver, setDragOver] = createSignal(false);
   let input!: HTMLInputElement;
   let uploadController: AbortController | undefined;
-  onMount(() => setHost(window.location.host));
+
+  const loggedIn = () => !!context()?.logged_in;
+  const toUpload = () =>
+    queue.filter(
+      (item) => item.status === "pending" || item.status === "failed",
+    );
+  const update = (id: number, changes: Partial<QueuedFile>) =>
+    setQueue((item) => item.id === id, changes);
+
+  const release = (items: readonly QueuedFile[]) => {
+    for (const item of items)
+      if (item.preview) URL.revokeObjectURL(item.preview);
+  };
   onCleanup(() => {
     uploadController?.abort();
-    if (preview()) URL.revokeObjectURL(preview());
+    release(queue);
   });
-  function selectFile(selected?: File) {
-    if (busy() || !selected) return;
-    if (preview()) URL.revokeObjectURL(preview());
-    setFile(selected);
-    setPreview(URL.createObjectURL(selected));
-    setResult("");
-    setError("");
+
+  function addFiles(files?: FileList | null) {
+    if (busy() || !files?.length) return;
+    // A new selection starts a new batch; finished uploads make way.
+    const finished = queue.filter((item) => item.status === "done");
+    release(finished);
+    setQueue((items) => [
+      ...items.filter((item) => item.status !== "done"),
+      ...Array.from(files, (file) => ({
+        id: nextQueueId++,
+        file,
+        preview: /^(image|video)\//.test(file.type)
+          ? URL.createObjectURL(file)
+          : undefined,
+        status: "pending" as const,
+        progress: 0,
+      })),
+    ]);
   }
+
+  function remove(id: number) {
+    release(queue.filter((item) => item.id === id));
+    setQueue((items) => items.filter((item) => item.id !== id));
+  }
+
+  const viewUrl = (name: string) =>
+    loggedIn() ? `/gallery?file=${encodeURIComponent(name)}` : fileUrl(name);
+
+  async function copyLink(name: string) {
+    try {
+      await copyText(new URL(fileUrl(name), window.location.origin).href);
+      showToast("Link copied.");
+    } catch {
+      showToast("Could not copy the link.", "error");
+    }
+  }
+
+  async function uploadOne(item: QueuedFile, signal: AbortSignal) {
+    const body = {
+      file: item.file,
+      plain: true,
+      expiry_date: expiry() || undefined,
+      upload_token: loggedIn() ? undefined : token(),
+    };
+    const progress = (value: number) => update(item.id, { progress: value });
+    const name = await apiData(
+      uploadFile({
+        body,
+        signal,
+        fetch: import.meta.env.PUBLIC_DEMO
+          ? (await import("../demo/transport")).demoUploadTransport(progress)
+          : uploadTransport(body, progress),
+      }),
+    );
+    return name.trim().replace(/^\//, "");
+  }
+
   async function submit(event: SubmitEvent) {
     event.preventDefault();
-    const selected = file();
-    if (busy() || !selected) {
-      if (!selected) setError("Choose a file to upload.");
+    if (busy()) return;
+    const items = toUpload();
+    if (!items.length) {
+      showToast("Choose files to upload.", "error");
       return;
     }
     setBusy(true);
-    setProgress(0);
-    setError("");
-    setResult("");
-    uploadController = new AbortController();
+    const controller = new AbortController();
+    uploadController = controller;
+    let failed = 0;
     try {
-      const body = {
-        file: selected,
-        plain: true,
-        expiry_date: expiry() || undefined,
-        upload_token: context()?.logged_in ? undefined : token(),
-      };
-      const name = await apiData(
-        uploadFile({
-          body,
-          signal: uploadController.signal,
-          fetch: import.meta.env.PUBLIC_DEMO
-            ? (await import("../demo/transport")).demoUploadTransport(
-                setProgress,
-              )
-            : uploadTransport(body, setProgress),
-        }),
-      );
-      const fileName = name.trim().replace(/^\//, "");
-      setResult(
-        context()?.logged_in
-          ? `/gallery?file=${encodeURIComponent(fileName)}`
-          : import.meta.env.PUBLIC_DEMO
-            ? // The static demo has no file routes; link the in-memory upload.
-              (await import("../demo/media")).demoFileUrl(fileName)
-            : `/${encodeURIComponent(fileName)}`,
-      );
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Upload failed.");
+      for (const item of items) {
+        if (controller.signal.aborted) break;
+        update(item.id, { status: "uploading", progress: 0, error: undefined });
+        try {
+          // One at a time, so each file gets the full bandwidth in turn.
+          // oxlint-disable-next-line no-await-in-loop
+          const name = await uploadOne(item, controller.signal);
+          update(item.id, { status: "done", progress: 100, name });
+        } catch (failure) {
+          if (
+            failure instanceof ApiError &&
+            failure.status === 401 &&
+            !loggedIn()
+          ) {
+            update(item.id, { status: "pending", progress: 0 });
+            setToken("");
+            showToast("Invalid upload token.", "error");
+            return;
+          }
+          failed++;
+          update(item.id, {
+            status: "failed",
+            error:
+              failure instanceof Error ? failure.message : "Upload failed.",
+          });
+        }
+      }
+      if (failed)
+        showToast(`${countLabel(failed, "file")} failed to upload.`, "error");
+      else if (!controller.signal.aborted)
+        showToast(
+          items.length === 1
+            ? "File uploaded."
+            : `${items.length} files uploaded.`,
+        );
     } finally {
       uploadController = undefined;
       setBusy(false);
     }
   }
+
   return (
     <>
       <div class="branding-title">
         <div class="branding-main">{context()?.branding ?? "…"}</div>
         <div class="tagline">{context()?.tagline}</div>
       </div>
-      <code>
-        curl -X POST -F 'upload_token=YOUR_TOKEN' -F 'file=@yourfile.png'{" "}
-        {host() ? window.location.protocol : "https:"}//{host()}/api/file/upload
-      </code>
+      <UploadCommand />
       <SectionPanel>
         <Show when={contextError()}>
-          <p role="alert">
-            {contextError()} <button onClick={retry}>Retry</button>
-          </p>
+          <LoadError message={contextError()} onRetry={retry} />
         </Show>
-        <form aria-label="Upload file" class="upload-form" onSubmit={submit}>
-          <Show when={!context()?.logged_in}>
+        <form aria-label="Upload files" class="upload-form" onSubmit={submit}>
+          <Show when={!loggedIn()}>
             <Input
               label="Upload token"
               id="upload_token"
@@ -161,51 +243,146 @@ export function UploadPage() {
               onInput={(event) => setToken(event.currentTarget.value)}
             />
           </Show>
-          <div class="form-group">
-            <input
-              ref={input}
-              type="file"
-              aria-label="File to upload"
-              id="file"
-              class="file-input"
-              disabled={busy()}
-              onChange={(event) => selectFile(event.currentTarget.files?.[0])}
-            />
-            <button
-              type="button"
-              class="file-drop-zone"
-              classList={{ disabled: busy(), "file-selected": !!file() }}
-              disabled={busy()}
-              onClick={() => input.click()}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                selectFile(event.dataTransfer?.files[0]);
-              }}
-            >
-              <div class="drop-content">
-                <span class="drop-text">Drop file here or click to select</span>
-                <Show when={file()}>
-                  {(selected) => (
-                    <div class="file-preview" style={{ display: "flex" }}>
-                      <div class="preview-content">
-                        <Show when={selected().type.startsWith("image/")}>
-                          <img src={preview()} alt={selected().name} />
+          <input
+            ref={input}
+            type="file"
+            multiple
+            aria-label="Files to upload"
+            id="file"
+            class="file-input"
+            disabled={busy()}
+            onChange={(event) => {
+              addFiles(event.currentTarget.files);
+              event.currentTarget.value = "";
+            }}
+          />
+          <div
+            class={cx("file-drop-zone", {
+              disabled: busy(),
+              "file-selected": queue.length > 0,
+              "drag-over": dragOver() && !busy(),
+            })}
+            onClick={(event) => {
+              // Clicks on a file's own controls stay with them.
+              if (!busy() && !(event.target as Element).closest("a, li button"))
+                input.click();
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node))
+                setDragOver(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDragOver(false);
+              addFiles(event.dataTransfer?.files);
+            }}
+          >
+            <button type="button" class="drop-text" disabled={busy()}>
+              {queue.length
+                ? "Drop more files or click to add"
+                : "Drop files here or click to select"}
+            </button>
+            <Show when={queue.length > 0}>
+              <ul class="upload-tiles" aria-label="Selected files">
+                <For each={queue}>
+                  {(item) => (
+                    <li class={cx("upload-tile", item.status)}>
+                      <div class="upload-tile-preview">
+                        <Show
+                          when={item.preview}
+                          fallback={
+                            <FileIcon class="lucide-icon" aria-hidden="true" />
+                          }
+                        >
+                          {(preview) =>
+                            item.file.type.startsWith("video/") ? (
+                              <video src={preview()} muted preload="metadata" />
+                            ) : (
+                              <img src={preview()} alt={item.file.name} />
+                            )
+                          }
                         </Show>
-                        <Show when={selected().type.startsWith("video/")}>
-                          <video src={preview()} />
+                        <Show when={item.status === "done"}>
+                          <span class="upload-tile-badge" aria-hidden="true">
+                            <CheckIcon class="lucide-icon" />
+                          </span>
                         </Show>
-                        <Show when={selected().type.startsWith("audio/")}>
-                          <span>Audio file</span>
+                        <Show
+                          when={
+                            !busy() &&
+                            (item.status === "pending" ||
+                              item.status === "failed")
+                          }
+                        >
+                          <button
+                            type="button"
+                            class="upload-tile-remove"
+                            aria-label={`Remove ${item.file.name}`}
+                            title="Remove"
+                            onClick={() => remove(item.id)}
+                          >
+                            <XIcon class="lucide-icon" aria-hidden="true" />
+                          </button>
                         </Show>
                       </div>
-                      <div class="file-name bold">{selected().name}</div>
-                    </div>
+                      <span class="upload-tile-name" title={item.file.name}>
+                        {item.file.name}
+                      </span>
+                      <Switch
+                        fallback={
+                          <span class="upload-tile-meta">
+                            {humanizeBytes(item.file.size)}
+                          </span>
+                        }
+                      >
+                        <Match when={item.status === "uploading"}>
+                          <div
+                            class="progress-bar"
+                            role="progressbar"
+                            aria-label={`Upload progress for ${item.file.name}`}
+                            aria-valuenow={item.progress}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            <div
+                              class="progress-fill"
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                        </Match>
+                        <Match when={item.status === "failed"}>
+                          <span class="upload-tile-error">{item.error}</span>
+                        </Match>
+                        <Match when={item.status === "done" && item.name}>
+                          {(name) => (
+                            <span class="upload-tile-links">
+                              <a href={viewUrl(name())}>View</a>
+                              <button
+                                type="button"
+                                aria-label={`Copy link to ${item.file.name}`}
+                                title="Copy link"
+                                onClick={() => copyLink(name())}
+                              >
+                                <LinkIcon
+                                  class="lucide-icon"
+                                  aria-hidden="true"
+                                />
+                              </button>
+                            </span>
+                          )}
+                        </Match>
+                      </Switch>
+                    </li>
                   )}
-                </Show>
-              </div>
-            </button>
+                </For>
+              </ul>
+            </Show>
           </div>
+
           <Input
             label="Expires (optional)"
             id="expiry_date"
@@ -214,40 +391,16 @@ export function UploadPage() {
             disabled={busy()}
             onInput={(event) => setExpiry(event.currentTarget.value)}
           />
-          <Show when={busy()}>
-            <div
-              class="upload-progress"
-              style={{ display: "flex" }}
-              role="progressbar"
-              aria-label="Upload progress"
-              aria-valuenow={progress()}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div class="progress-bar">
-                <div
-                  class="progress-fill"
-                  style={{ width: `${progress()}%` }}
-                />
-              </div>
-              <span class="progress-text">{progress()}%</span>
-            </div>
-          </Show>
-          <Show when={error()}>
-            <p role="alert">{error()}</p>
-          </Show>
-          <Show when={result()}>
-            <div class="upload-result" style={{ display: "flex" }}>
-              <span>Upload successful</span>
-              <a href={result()}>View file</a>
-            </div>
-          </Show>
           <button
             type="submit"
             class="upload-button bold"
-            disabled={busy() || !context()}
+            disabled={busy() || !context() || toUpload().length === 0}
           >
-            Upload File
+            {busy()
+              ? "Uploading…"
+              : toUpload().length
+                ? `Upload ${countLabel(toUpload().length, "file")}`
+                : "Upload"}
           </button>
         </form>
       </SectionPanel>

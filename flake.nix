@@ -87,7 +87,7 @@
           # TODO: upstream?
           atlas-unfree =
             let
-              version = "v1.3.0";
+              version = "v1.4.0";
             in
             pkgs.stdenvNoCC.mkDerivation {
               pname = "atlas";
@@ -98,7 +98,7 @@
                     "https://release.ariga.io/atlas/atlas-linux-amd64-${version}"
                   else
                     throw "Unsupported system for Atlas: ${system}";
-                hash = "sha256-z8dz5bToRbwB1oA5DBdGSJOKf4i/MOWiyDroUhfCFYc=";
+                hash = "sha256-zB7jA5I9JwRDFrDst9UG/8Vk9S3Y+WnHFkY1fbrTg3s=";
               };
               dontUnpack = true;
               installPhase = ''
@@ -114,7 +114,7 @@
               go_latest
               atlas-unfree # Unfree version of atlas
               sqlite
-              pnpm_11
+              pnpm_12
               nodejs
               just
 

@@ -13,28 +13,28 @@
     "check": "astro check",
     "dev:demo": "HOSTLING_DEMO=1 astro dev",
     "build:demo": "HOSTLING_DEMO=1 astro build",
-    "preview:demo": "HOSTLING_DEMO=1 astro preview --host 127.0.0.1 --port 4321",
+    "preview:demo": "HOSTLING_DEMO=1 astro preview --host 127.0.0.1 --port 4330",
     "screenshots": "pnpm build:demo && playwright test"
   },
   "dependencies": {
-    "@astrojs/solid-js": "^7.1.5",
-    "astro": "^7.4.10",
-    "lucide-solid": "^1.72.0",
-    "solid-js": "^1.9.19"
+    "@astrojs/solid-js": "^7.1.6",
+    "astro": "^7.4.13",
+    "lucide-solid": "^1.77.0",
+    "solid-js": "^1.9.20"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
     "@astrojs/compiler-rs": "^0.5.3",
     "@hey-api/openapi-ts": "0.99.0",
-    "@playwright/test": "1.65.0",
-    "eslint": "^10.14.0",
+    "@playwright/test": "1.65.1",
+    "eslint": "^10.15.0",
     "eslint-plugin-astro": "^3.2.1",
-    "eslint-plugin-oxlint": "^1.93.0",
-    "eslint-plugin-solid": "^0.19.0",
-    "oxfmt": "^0.78.0",
-    "oxlint": "^1.93.0",
+    "eslint-plugin-oxlint": "^1.94.0",
+    "eslint-plugin-solid": "^0.20.1",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.72.2",
+    "typescript-eslint": "^8.73.0",
     "vite": "^8.3.8"
   }
 }

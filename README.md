@@ -4,7 +4,7 @@ Simple file hosting service
 
 Main page             | Library view             | File modal             | Admin panel
 :-------------------------:|:-------------------------:|:-------------------------:|:-------------------------:
-<img width="1280" height="900" alt="upload" src="https://files.catbox.moe/ya44gh.png" />  |  <img width="1280" height="900" alt="gallery" src="https://files.catbox.moe/spo2al.png" />  |  <img width="1280" height="900" alt="modal" src="https://files.catbox.moe/d4swde.png" />  |  <img width="1280" height="900" alt="admin" src="https://files.catbox.moe/h8plo9.png" />
+<img width="1280" height="900" alt="upload" src="https://files.catbox.moe/5ex31r.png" />  |  <img width="1280" height="900" alt="gallery" src="https://files.catbox.moe/bd5os5.png" />  |  <img width="1280" height="900" alt="modal" src="https://files.catbox.moe/3fo6ix.png" />  |  <img width="1280" height="900" alt="admin" src="https://files.catbox.moe/pr44ms.png" />
 
 # Features
 - Login via Github and OpenID connect

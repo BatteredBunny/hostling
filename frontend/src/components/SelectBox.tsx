@@ -6,11 +6,10 @@ import {
   createUniqueId,
 } from "solid-js";
 import { NativePopover } from "./NativePopover";
+import { cx } from "../utils";
 import "./SelectBox.css";
-import {
-  Check as CheckIcon,
-  ChevronDown as ChevronDownIcon,
-} from "lucide-solid";
+import CheckIcon from "lucide-solid/icons/check";
+import ChevronDownIcon from "lucide-solid/icons/chevron-down";
 
 export interface SelectBoxOption {
   value: string;
@@ -104,7 +103,7 @@ export function SelectBox(props: SelectBoxProps) {
   };
 
   return (
-    <div class="select-box" classList={{ open: open() }}>
+    <div class={cx("select-box", { open: open() })}>
       <button
         type="button"
         ref={button}
@@ -141,8 +140,9 @@ export function SelectBox(props: SelectBoxProps) {
             <div
               id={optionId(index())}
               role="option"
-              class="select-box-option"
-              classList={{ active: index() === activeIndex() }}
+              class={cx("select-box-option", {
+                active: index() === activeIndex(),
+              })}
               aria-selected={option.value === props.value}
               onClick={() => choose(index())}
               onMouseEnter={() => setActiveIndex(index())}

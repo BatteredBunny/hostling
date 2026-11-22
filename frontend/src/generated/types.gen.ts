@@ -129,10 +129,6 @@ export type ProviderInfo = {
     Username: string;
 };
 
-export type RedirectOutput = {
-    redirect: string;
-};
-
 export type SettingsOutput = {
     no_providers_configured: boolean;
     providers: Array<ProviderInfo> | null;
@@ -672,6 +668,57 @@ export type ListInviteCodesResponses = {
 
 export type ListInviteCodesResponse = ListInviteCodesResponses[keyof ListInviteCodesResponses];
 
+export type UnlinkProviderData = {
+    body: {
+        provider: 'github' | 'openid-connect';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/account/provider';
+};
+
+export type UnlinkProviderErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Conflict
+     */
+    409: ErrorModel;
+    /**
+     * Request Entity Too Large
+     */
+    413: ErrorModel;
+    /**
+     * Too Many Requests
+     */
+    429: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type UnlinkProviderError = UnlinkProviderErrors[keyof UnlinkProviderErrors];
+
+export type UnlinkProviderResponses = {
+    /**
+     * OK
+     */
+    200: string;
+};
+
+export type UnlinkProviderResponse = UnlinkProviderResponses[keyof UnlinkProviderResponses];
+
 export type GetSettingsData = {
     body?: never;
     path?: never;
@@ -1161,6 +1208,51 @@ export type DeleteUserResponses = {
 
 export type DeleteUserResponse = DeleteUserResponses[keyof DeleteUserResponses];
 
+export type LogoutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/logout';
+};
+
+export type LogoutErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorModel;
+    /**
+     * Unauthorized
+     */
+    401: ErrorModel;
+    /**
+     * Not Found
+     */
+    404: ErrorModel;
+    /**
+     * Request Entity Too Large
+     */
+    413: ErrorModel;
+    /**
+     * Too Many Requests
+     */
+    429: ErrorModel;
+    /**
+     * Internal Server Error
+     */
+    500: ErrorModel;
+};
+
+export type LogoutError = LogoutErrors[keyof LogoutErrors];
+
+export type LogoutResponses = {
+    /**
+     * OK
+     */
+    200: string;
+};
+
+export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
+
 export type RegisterData = {
     body: {
         code: string;
@@ -1203,7 +1295,7 @@ export type RegisterResponses = {
     /**
      * Created
      */
-    201: RedirectOutput;
+    201: string;
 };
 
 export type RegisterResponse = RegisterResponses[keyof RegisterResponses];

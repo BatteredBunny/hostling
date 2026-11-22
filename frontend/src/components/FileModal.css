@@ -52,7 +52,9 @@
           width: 20px;
           height: 20px;
           color: var(--text-color);
-          transition: all 0.2s ease;
+          transition:
+            color 0.2s ease,
+            transform 0.2s ease;
         }
 
         &:hover,
@@ -68,20 +70,8 @@
         transform: rotate(90deg);
       }
 
-      .file-modal-copy {
-        &:hover svg {
-          transform: rotate(-20deg) scale(1.1);
-        }
-
-        &.copied svg {
-          color: light-dark(rgb(0, 150, 60), rgb(80, 210, 120));
-          transform: none;
-          animation: file-modal-copied-pop 0.3s ease;
-        }
-      }
-
-      .file-modal-more:hover svg {
-        transform: scale(1.25);
+      .file-modal-copy.copied svg {
+        color: light-dark(rgb(0, 150, 60), rgb(80, 210, 120));
       }
     }
 
@@ -302,30 +292,14 @@
   }
 }
 
-@keyframes file-modal-copied-pop {
-  0% {
-    transform: scale(0.6);
-  }
-
-  60% {
-    transform: scale(1.2);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   #file-modal .file-modal-window .file-modal-titlebar {
     .file-modal-titlebar-button svg {
       transition: none;
     }
 
-    .file-modal-copy.copied svg,
     .file-modal-titlebar-button:hover svg {
       transform: none;
-      animation: none;
     }
   }
 }

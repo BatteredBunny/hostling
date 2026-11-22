@@ -1,29 +1,27 @@
 import "./LoginPage.css";
+import { LoadError } from "./LoadError";
 import { WarningCallout } from "./WarningCallout";
 import { SectionPanel } from "./SectionPanel";
 import { For, Show } from "solid-js";
 import { useFrontendContext } from "../context";
+import { toastAuthError } from "../authErrors";
 import { ProviderLink, providerLabel } from "./ProviderAction";
 
 export function LoginPage() {
   const { context, error, retry } = useFrontendContext();
+  toastAuthError();
   return (
     <div id="login-page">
       <SectionPanel class="login-panel" title="Welcome back">
         <Show when={error()}>
-          <p role="alert">
-            {error()} <button onClick={retry}>Retry</button>
-          </p>
-        </Show>
-        <Show when={!context() && !error()}>
-          <p role="status">Loading login providers…</p>
+          <LoadError message={error()} onRetry={retry} />
         </Show>
         <Show when={context()}>
           {(info) => (
             <Show
               when={info().providers?.length}
               fallback={
-                <WarningCallout class="login-warning">
+                <WarningCallout>
                   <p>
                     <strong>Server configuration error:</strong> No
                     authentication providers are configured. Please contact the

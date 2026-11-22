@@ -16,3 +16,13 @@
   overflow-wrap: anywhere;
   pointer-events: none;
 }
+
+.hostling-toast.error {
+  border-color: var(--error-color);
+  background-color: color-mix(
+    in srgb,
+    var(--error-color) 14%,
+    var(--menu-bg-color)
+  );
+  color: var(--error-color);
+}

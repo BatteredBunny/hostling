@@ -21,5 +21,6 @@ export function showToast(
 ) {
   clearTimeout(timeout);
   setToast({ id: ++nextId, message, kind });
-  timeout = setTimeout(dismissToast, 3000);
+  // Errors tend to be longer and matter more, so they stay up longer.
+  timeout = setTimeout(dismissToast, kind === "error" ? 6000 : 3000);
 }

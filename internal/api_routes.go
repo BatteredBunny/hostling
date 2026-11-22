@@ -61,17 +61,14 @@ func textOutput(body string) *TextOutput {
 	return &TextOutput{Status: http.StatusOK, Body: []byte(body)}
 }
 
-type RegistrationOutput struct {
-	Status   int
-	Location string `header:"Location"`
-	Body     RedirectOutput
-}
-
 type NewUploadTokenForm struct {
 	Nickname UploadTokenName `form:"nickname" required:"true"`
 }
 type DeleteUploadTokenForm struct {
 	ID uint `form:"id" required:"true" minimum:"1"`
+}
+type UnlinkProviderForm struct {
+	Provider string `form:"provider" required:"true" enum:"github,openid-connect"`
 }
 type DeleteInviteCodeForm struct {
 	Code string `form:"invite_code" required:"true"`
@@ -268,11 +265,12 @@ func (app *Application) registerAPIs(router *gin.Engine) huma.API {
 		apiOperation("getContext", http.MethodGet, "/api/context", http.StatusOK),
 		app.frontendContextAPI,
 	)
-	registration := apiOperation("register", http.MethodPost, "/api/auth/register", http.StatusCreated)
-	registration.Responses = map[string]*huma.Response{
-		"303": {Description: "Redirect to gallery for browser form submissions"},
-	}
-	huma.Register(auth, registration, app.registerApi)
+	huma.Register(
+		auth,
+		apiOperation("register", http.MethodPost, "/api/auth/register", http.StatusCreated),
+		app.registerApi,
+	)
+	huma.Register(auth, apiOperation("logout", http.MethodPost, "/api/auth/logout", http.StatusOK), app.logoutAPI)
 	uploadOperation := apiOperation("uploadFile", http.MethodPost, "/api/file/upload", http.StatusOK)
 	uploadOperation.Responses = map[string]*huma.Response{
 		"307": {Description: "Redirect to uploaded file when plain is false"},
@@ -291,6 +289,9 @@ func (app *Application) registerAPIs(router *gin.Engine) huma.API {
 		apiOperation("deleteAccount", http.MethodDelete, "/api/account/", http.StatusOK),
 		app.accountDeleteAPI,
 	)
+	unlinkOperation := apiOperation("unlinkProvider", http.MethodDelete, "/api/account/provider", http.StatusOK)
+	unlinkOperation.Errors = append(unlinkOperation.Errors, http.StatusConflict)
+	huma.Register(account, unlinkOperation, app.unlinkProviderAPI)
 	huma.Register(
 		account,
 		apiOperation("listUploadTokens", http.MethodGet, "/api/account/upload_tokens", http.StatusOK),

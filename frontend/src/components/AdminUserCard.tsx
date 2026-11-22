@@ -1,165 +1,159 @@
 import { For, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import EllipsisIcon from "lucide-solid/icons/ellipsis";
+import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
 import type { AccountStats as Account } from "../generated";
-import { formatTimeDate, humanizeBytes, relativeTime } from "../utils";
 import {
-  Calendar as CalendarIcon,
-  File as FileIcon,
-  HardDrive as HardDriveIcon,
-  Key as KeyIcon,
-  User as UserIcon,
-} from "lucide-solid";
+  cx,
+  formatTimeDate,
+  hasDate,
+  humanizeBytes,
+  relativeTime,
+} from "../utils";
+import { createContextMenuTrigger } from "../contextMenuTrigger";
+import { ProviderIcon, providerLabel } from "./ProviderAction";
 import styles from "./AdminUserCard.module.css";
-import { providerPresentation } from "./ProviderAction";
 
-export type AdminAction =
-  | "user"
-  | "files"
-  | "sessions"
-  | "upload_tokens"
-  | "give_invite_code";
-
-function rows(account: Account) {
-  const github = providerPresentation("github");
-  const oidc = providerPresentation("openid-connect");
+export function linkedAccounts(account: Account) {
   return [
-    {
-      icon: github.icon,
-      name: github.label,
-      value: account.GithubUsername || "-",
-    },
-    { icon: oidc.icon, name: oidc.label, value: account.OIDCUsername || "-" },
-    {
-      icon: CalendarIcon,
-      name: "Creation",
-      value: relativeTime(account.CreatedAt),
-      title: formatTimeDate(account.CreatedAt),
-    },
-    {
-      icon: CalendarIcon,
-      name: "Last activity",
-      value: account.LastActivity.startsWith("0001-")
-        ? "Never"
-        : relativeTime(account.LastActivity),
-      title: formatTimeDate(account.LastActivity),
-    },
-    { icon: UserIcon, name: "Invited by", value: account.InvitedBy },
-    {
-      icon: HardDriveIcon,
-      name: "Space used",
-      value: humanizeBytes(account.SpaceUsed),
-      title: `${account.SpaceUsed} bytes`,
-    },
-    {
-      icon: FileIcon,
-      name: "Files uploaded",
-      value: String(account.FilesUploaded),
-    },
-    {
-      icon: KeyIcon,
-      name: "Sessions/Upload tokens",
-      value: `${account.SessionsCount}/${account.UploadTokensCount}`,
-    },
-  ];
+    { provider: "github", username: account.GithubUsername },
+    { provider: "openid-connect", username: account.OIDCUsername },
+  ].filter((link) => link.username);
+}
+
+// The name people recognise: a linked username, else the account number.
+export function accountName(account: Account): string {
+  return linkedAccounts(account)[0]?.username ?? `User ${account.ID}`;
 }
 
 export function AdminUserCard(props: {
   account: Account;
   busy: boolean;
-  onAction: (kind: AdminAction, message: string) => void;
+  menuOpen: boolean;
+  // The trigger gets focus back when the menu closes.
+  onOpenMenu: (x: number, y: number, trigger: HTMLElement) => void;
 }) {
+  const account = () => props.account;
+  let menuButton!: HTMLButtonElement;
+
+  const menuTrigger = createContextMenuTrigger((x, y) => {
+    if (!props.menuOpen && !props.busy) props.onOpenMenu(x, y, menuButton);
+  }, `.${styles.menuButton}`);
+
+  const openFromButton = () => {
+    if (props.busy) return;
+    const rect = menuButton.getBoundingClientRect();
+    // Open leftwards from the button's right edge; the menu flips if needed.
+    props.onOpenMenu(rect.right, rect.bottom + 4, menuButton);
+  };
+
+  const stats = () => [
+    {
+      label: "Storage",
+      value: humanizeBytes(account().SpaceUsed),
+      title: `${account().SpaceUsed} bytes`,
+    },
+    { label: "Files", value: String(account().FilesUploaded) },
+    { label: "Sessions", value: String(account().SessionsCount) },
+    {
+      label: "Tokens",
+      value: String(account().UploadTokensCount),
+      title: "Upload tokens",
+    },
+  ];
+
   return (
-    <article class={styles.userCard} aria-label={`User ${props.account.ID}`}>
-      <div class={styles.topRow}>
-        <div class={styles.left}>User {props.account.ID}</div>
-        <div class={styles.right}>
-          <Show when={props.account.You}>
-            <div class={styles.badge}>You</div>
+    <article
+      class={cx(styles.card, { [styles.menuOpen]: props.menuOpen })}
+      aria-label={`User ${account().ID}`}
+      aria-busy={props.busy}
+      onContextMenu={menuTrigger.onContextMenu}
+      onTouchStart={menuTrigger.onTouchStart}
+      onTouchMove={menuTrigger.onTouchMove}
+      onTouchEnd={menuTrigger.onTouchEnd}
+      onTouchCancel={menuTrigger.onTouchCancel}
+    >
+      <header class={styles.header}>
+        <h3 class={styles.name}>
+          <span>{accountName(account())}</span>
+          <span class={styles.id}>#{account().ID}</span>
+        </h3>
+        <div class={styles.badges}>
+          <Show when={account().You}>
+            <span class={cx(styles.badge, styles.you)}>You</span>
           </Show>
-          <div class={styles.badge}>{props.account.AccountType}</div>
+          <span class={styles.badge}>{account().AccountType}</span>
         </div>
-      </div>
-      <div class={styles.middleRow}>
-        <For each={rows(props.account)}>
-          {(row) => (
-            <div class={styles.entry}>
-              <div class={styles.name}>
-                <Dynamic
-                  component={row.icon}
-                  class="lucide-icon"
-                  aria-hidden="true"
-                />
-                <span>{row.name}</span>
-              </div>
-              <div title={row.title}>{row.value}</div>
+        <button
+          type="button"
+          ref={menuButton}
+          class={styles.menuButton}
+          aria-label={`Actions for ${accountName(account())}`}
+          aria-haspopup="menu"
+          aria-expanded={props.menuOpen}
+          // aria-disabled rather than disabled: a disabled button loses focus,
+          // which should stay put while the action runs.
+          aria-disabled={props.busy}
+          onClick={openFromButton}
+        >
+          <Show
+            when={props.busy}
+            fallback={<EllipsisIcon class="lucide-icon" aria-hidden="true" />}
+          >
+            <LoaderCircleIcon class="lucide-icon spinning" aria-hidden="true" />
+          </Show>
+        </button>
+      </header>
+
+      <ul class={styles.links} aria-label="Linked accounts">
+        <For
+          each={linkedAccounts(account())}
+          fallback={<li class={styles.muted}>No linked accounts</li>}
+        >
+          {(link) => (
+            <li>
+              <ProviderIcon name={link.provider} />
+              <span>
+                {providerLabel(link.provider)}
+                {/* The title already shows the first linked username. */}
+                <Show when={link.username !== accountName(account())}>
+                  <span class={styles.muted}> as {link.username}</span>
+                </Show>
+              </span>
+            </li>
+          )}
+        </For>
+      </ul>
+
+      <dl class={styles.stats}>
+        <For each={stats()}>
+          {(stat) => (
+            <div class={styles.stat} title={stat.title}>
+              <dt>{stat.label}</dt>
+              <dd>{stat.value}</dd>
             </div>
           )}
         </For>
-      </div>
-      <div class={styles.bottomRow}>
-        <Show when={!props.account.You}>
-          <button
-            type="button"
-            class="delete-button"
-            disabled={props.busy}
-            onClick={() =>
-              props.onAction(
-                "user",
-                "Delete this user and all their data permanently?",
-              )
-            }
-          >
-            Delete user
-          </button>
+      </dl>
+
+      <p class={styles.meta}>
+        <span>
+          Joined{" "}
+          <span title={formatTimeDate(account().CreatedAt)}>
+            {relativeTime(account().CreatedAt)}
+          </span>
+        </span>
+        <span>
+          Active{" "}
+          <Show when={hasDate(account().LastActivity)} fallback="never">
+            <span title={formatTimeDate(account().LastActivity)}>
+              {relativeTime(account().LastActivity)}
+            </span>
+          </Show>
+        </span>
+        <Show when={account().InvitedBy}>
+          <span>Invited by {account().InvitedBy}</span>
         </Show>
-        <button
-          type="button"
-          class="delete-button"
-          disabled={props.busy}
-          onClick={() =>
-            props.onAction(
-              "files",
-              "Delete all files for this user permanently?",
-            )
-          }
-        >
-          Delete files
-        </button>
-        <button
-          type="button"
-          class="delete-button"
-          disabled={props.busy}
-          onClick={() =>
-            props.onAction(
-              "sessions",
-              "Delete all sessions for this user? They will be logged out immediately.",
-            )
-          }
-        >
-          Delete sessions
-        </button>
-        <button
-          type="button"
-          class="delete-button"
-          disabled={props.busy}
-          onClick={() =>
-            props.onAction(
-              "upload_tokens",
-              "Delete all upload tokens for this user?",
-            )
-          }
-        >
-          Delete upload tokens
-        </button>
-        <button
-          type="button"
-          class="create-button"
-          disabled={props.busy}
-          onClick={() => props.onAction("give_invite_code", "")}
-        >
-          Give invitation code
-        </button>
-      </div>
+      </p>
     </article>
   );
 }

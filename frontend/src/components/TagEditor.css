@@ -119,11 +119,7 @@
   }
 
   .tag-editor-options {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    right: 0;
-    z-index: 10;
+    box-sizing: border-box;
     max-height: 220px;
     overflow-y: auto;
     overscroll-behavior-y: contain;

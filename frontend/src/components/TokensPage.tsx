@@ -1,18 +1,16 @@
 import { SectionPanel } from "./SectionPanel";
+import { LoadError } from "./LoadError";
 import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
-import { NativeDialog } from "./NativeDialog";
-import { copyText } from "../utils";
-import {
-  Check as CheckIcon,
-  Copy as CopyIcon,
-  LoaderCircle as LoaderCircleIcon,
-  Plus as PlusIcon,
-  Trash2 as Trash2Icon,
-} from "lucide-solid";
-import { Dynamic } from "solid-js/web";
+import { SecretDialog } from "./SecretDialog";
+import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
+import PlusIcon from "lucide-solid/icons/plus";
+import Trash2Icon from "lucide-solid/icons/trash";
+import CheckIcon from "lucide-solid/icons/check";
+import CopyIcon from "lucide-solid/icons/copy";
+import LinkIcon from "lucide-solid/icons/link";
 import { Input } from "./Input";
-import { HostlingToast } from "./HostlingToast";
 import { showToast } from "../toast";
+import { trackPageLoad } from "../loading";
 import {
   listUploadTokens,
   listInviteCodes,
@@ -25,7 +23,14 @@ import {
 } from "../generated";
 import { apiData } from "../client";
 import { UploadTokenNameSchema } from "../generated/schemas.gen";
-import { formatTimeDate, relativeTime } from "../utils";
+import {
+  copyText,
+  countLabel,
+  cx,
+  formatTimeDate,
+  relativeTime,
+} from "../utils";
+import { confirmDialog } from "../store";
 import "./TokensPage.css";
 
 export function TokensPage() {
@@ -57,7 +62,7 @@ export function TokensPage() {
       setLoading(false);
     }
   };
-  onMount(load);
+  onMount(() => void trackPageLoad(load()));
 
   const create = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -104,7 +109,6 @@ export function TokensPage() {
       previous.filter((item) => item.code !== invite.code),
     );
     showToast("Invite code deleted.");
-    nameInput?.focus();
   };
 
   return (
@@ -118,10 +122,7 @@ export function TokensPage() {
           <p role="status">Loading tokens…</p>
         </Show>
         <Show when={loadError()}>
-          <p role="alert">{loadError()}</p>
-          <button type="button" onClick={load} disabled={loading()}>
-            Try again
-          </button>
+          <LoadError message={loadError()} onRetry={load} busy={loading()} />
         </Show>
         <form id="create-upload-token" onSubmit={create}>
           <Input
@@ -149,17 +150,24 @@ export function TokensPage() {
             }
             title="Create upload token"
           >
-            <Dynamic
-              component={creating() ? LoaderCircleIcon : PlusIcon}
-              class="lucide-icon"
-              aria-hidden="true"
-            />
+            <Show
+              when={creating()}
+              fallback={<PlusIcon class="lucide-icon" aria-hidden="true" />}
+            >
+              <LoaderCircleIcon
+                class="lucide-icon spinning"
+                aria-hidden="true"
+              />
+            </Show>
           </button>
         </form>
-        <Show when={createdToken()} keyed>
+        <Show when={createdToken()}>
           {(token) => (
-            <CreatedTokenPanel
-              token={token.token}
+            <SecretDialog
+              title="Save your upload token"
+              notice="This is your upload token. Please save it as you won't be able to view it again."
+              noun="token"
+              value={token().token}
               onDismiss={() => {
                 setCreatedToken(undefined);
                 nameInput?.focus();
@@ -194,21 +202,21 @@ export function TokensPage() {
       </SectionPanel>
       <Show when={invites().length > 0}>
         <SectionPanel id="invite-codes" title="Invite codes">
-          <p>Share these codes to invite someone to create an account.</p>
-          <div class="codes">
+          <p class="tokens-description">
+            Share a code or its link to let someone create an account.
+          </p>
+          <div class="upload-tokens-list">
             <For each={invites()}>
               {(invite) => (
                 <InviteEntry
                   invite={invite}
                   onDelete={() => removeInvite(invite)}
-                  onError={setError}
                 />
               )}
             </For>
           </div>
         </SectionPanel>
       </Show>
-      <HostlingToast />
     </>
   );
 }
@@ -266,136 +274,126 @@ function TokenEntry(props: {
           title="Delete token"
           aria-label="Delete token"
         >
-          <Dynamic
-            component={deleting() ? LoaderCircleIcon : Trash2Icon}
-            class="lucide-icon"
-            aria-hidden="true"
-          />
+          <Show
+            when={deleting()}
+            fallback={<Trash2Icon class="lucide-icon" aria-hidden="true" />}
+          >
+            <LoaderCircleIcon class="lucide-icon spinning" aria-hidden="true" />
+          </Show>
         </button>
       </div>
     </article>
   );
 }
 
-function CreatedTokenPanel(props: { token: string; onDismiss: () => void }) {
-  const [copied, setCopied] = createSignal(false);
-  const [copyError, setCopyError] = createSignal("");
-  let dialog: HTMLDialogElement | undefined;
-  let copyButton: HTMLButtonElement | undefined;
-  let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-  onMount(() =>
-    queueMicrotask(() => copyButton?.isConnected && copyButton.focus()),
-  );
-  onCleanup(() => clearTimeout(copyTimeout));
-
-  const copy = async () => {
-    setCopyError("");
-    try {
-      await copyText(props.token, dialog ?? document.body);
-      setCopied(true);
-      showToast("Token copied.");
-      clearTimeout(copyTimeout);
-      copyTimeout = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopyError(
-        "Could not copy the token. You can select and copy it below.",
-      );
-    }
-  };
-  return (
-    <NativeDialog
-      open
-      ref={(element) => {
-        dialog = element;
-      }}
-      class="created-token-modal"
-      labelledBy="created-token-title"
-      describedBy="created-token-notice"
-      onDismiss={props.onDismiss}
-    >
-      <header class="created-token-titlebar">
-        <h2 id="created-token-title">Save your upload token</h2>
-      </header>
-      <div class="created-token-contents">
-        <p id="created-token-notice">
-          This is your upload token. Please save it as you won't be able to view
-          it again.
-        </p>
-        <pre class="created-token-code">
-          <code>{props.token}</code>
-        </pre>
-        <Show when={copyError()}>
-          <p class="created-token-error" role="alert">
-            {copyError()}
-          </p>
-        </Show>
-      </div>
-      <footer class="created-token-footer">
-        <button
-          ref={copyButton}
-          type="button"
-          class="created-token-copy"
-          onClick={copy}
-        >
-          <Dynamic
-            component={copied() ? CheckIcon : CopyIcon}
-            class="lucide-icon"
-            aria-hidden="true"
-          />
-          {copied() ? "Copied" : "Copy token"}
-        </button>
-        <button
-          type="button"
-          class="created-token-dismiss"
-          onClick={() => props.onDismiss()}
-        >
-          Dismiss
-        </button>
-      </footer>
-      <HostlingToast inline />
-    </NativeDialog>
-  );
-}
-
 function InviteEntry(props: {
   invite: InviteCode;
   onDelete: () => Promise<void>;
-  onError: (message: string) => void;
 }) {
   const [deleting, setDeleting] = createSignal(false);
+  const [copied, setCopied] = createSignal<"code" | "link" | null>(null);
+  let copiedTimeout: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(copiedTimeout));
+
+  const link = () =>
+    new URL(
+      `/register?code=${encodeURIComponent(props.invite.code)}`,
+      window.location.origin,
+    ).href;
+
+  const copy = async (what: "code" | "link") => {
+    try {
+      await copyText(what === "code" ? props.invite.code : link());
+    } catch {
+      showToast(`Could not copy the invite ${what}.`, "error");
+      return;
+    }
+    showToast(`Invite ${what} copied.`);
+    setCopied(what);
+    clearTimeout(copiedTimeout);
+    copiedTimeout = setTimeout(() => setCopied(null), 2000);
+  };
+
   const remove = async () => {
     if (deleting()) return;
+    const confirmed = await confirmDialog({
+      title: "Delete invite code?",
+      message: `"${props.invite.code}" will stop working, including links already shared.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!confirmed) return;
     setDeleting(true);
-    props.onError("");
     try {
       await props.onDelete();
     } catch (err) {
-      props.onError(
+      showToast(
         (err as Error).message || "Could not delete the invite code.",
+        "error",
       );
       setDeleting(false);
     }
   };
+
   return (
-    <div class="code">
-      <code class="code-text">{props.invite.code}</code>
-      <div class="info">
-        <span class="uses-left">Uses left: {props.invite.uses}</span>
-        <span
-          class="invite-code-expires"
-          title={formatTimeDate(props.invite.expiry_date)}
-        >
-          Expires {relativeTime(props.invite.expiry_date)}
+    <article
+      class="upload-token-entry"
+      aria-label={`Invite code ${props.invite.code}`}
+    >
+      <div class="token-info">
+        <code class="invite-code">{props.invite.code}</code>
+        <span class="token-last-used">
+          {countLabel(props.invite.uses, "use")} left ·{" "}
+          <span title={formatTimeDate(props.invite.expiry_date)}>
+            Expires {relativeTime(props.invite.expiry_date)}
+          </span>
         </span>
+      </div>
+      <div class="token-actions">
         <button
           type="button"
-          class="delete-button"
+          class={cx("token-action token-copy", { copied: copied() === "link" })}
+          title="Copy invite link"
+          aria-label="Copy invite link"
+          onClick={() => copy("link")}
+        >
+          <Show
+            when={copied() === "link"}
+            fallback={<LinkIcon class="lucide-icon" aria-hidden="true" />}
+          >
+            <CheckIcon class="lucide-icon" aria-hidden="true" />
+          </Show>
+        </button>
+        <button
+          type="button"
+          class={cx("token-action token-copy", { copied: copied() === "code" })}
+          title="Copy invite code"
+          aria-label="Copy invite code"
+          onClick={() => copy("code")}
+        >
+          <Show
+            when={copied() === "code"}
+            fallback={<CopyIcon class="lucide-icon" aria-hidden="true" />}
+          >
+            <CheckIcon class="lucide-icon" aria-hidden="true" />
+          </Show>
+        </button>
+        <button
+          type="button"
+          class="token-action token-delete"
+          title="Delete invite code"
+          aria-label="Delete invite code"
           disabled={deleting()}
           onClick={remove}
         >
-          {deleting() ? "Deleting…" : "Delete"}
+          <Show
+            when={deleting()}
+            fallback={<Trash2Icon class="lucide-icon" aria-hidden="true" />}
+          >
+            <LoaderCircleIcon class="lucide-icon spinning" aria-hidden="true" />
+          </Show>
         </button>
       </div>
-    </div>
+    </article>
   );
 }

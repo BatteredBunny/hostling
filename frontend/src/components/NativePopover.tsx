@@ -1,13 +1,16 @@
 import { createEffect, createUniqueId, onCleanup } from "solid-js";
 import type { JSX } from "solid-js";
 import styles from "./NativePopover.module.css";
+import { cx } from "../utils";
 
 // Native light dismissal and top-layer rendering, with CSS anchoring where
 // available and one shared positioning fallback for older browsers.
 export function NativePopover(props: {
   id: string;
   open: boolean;
-  anchor: () => HTMLButtonElement | undefined;
+  anchor: () => HTMLElement | undefined;
+  // Manual popovers only close when told to, not on outside clicks.
+  manual?: boolean;
   onOpenChange: (open: boolean) => void;
   onOpen?: () => void;
   ref?: (element: HTMLDivElement) => void;
@@ -64,8 +67,8 @@ export function NativePopover(props: {
         el.style.setProperty("position-anchor", anchorName);
         props.ref?.(el);
       }}
-      popover="auto"
-      class={`${styles.popover} ${props.class}`}
+      popover={props.manual ? "manual" : "auto"}
+      class={cx(styles.popover, props.class)}
       role={props.role}
       aria-label={props.label}
       tabindex="-1"

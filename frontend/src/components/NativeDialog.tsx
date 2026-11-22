@@ -2,6 +2,7 @@ import { createEffect, onCleanup, onMount } from "solid-js";
 import type { JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import styles from "./NativeDialog.module.css";
+import { cx } from "../utils";
 
 export function NativeDialog(props: {
   children: JSX.Element;
@@ -57,7 +58,7 @@ export function NativeDialog(props: {
           props.ref?.(element);
         }}
         id={props.id}
-        class={`${styles.dialog} ${props.class ?? ""}`}
+        class={cx(styles.dialog, props.class)}
         aria-labelledby={props.labelledBy}
         aria-label={props.label}
         aria-describedby={props.describedBy}

@@ -2,7 +2,7 @@
 
 import { type Client, type ClientMeta, formDataBodySerializer, type Options as Options2, type RequestResult, type TDataShape } from './client';
 import { client } from './client.gen';
-import type { AddFileTagData, AddFileTagErrors, AddFileTagResponses, CreateUploadTokenData, CreateUploadTokenErrors, CreateUploadTokenResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteAllFilesData, DeleteAllFilesErrors, DeleteAllFilesResponses, DeleteFileData, DeleteFileErrors, DeleteFileResponses, DeleteInviteCodeData, DeleteInviteCodeErrors, DeleteInviteCodeResponses, DeleteUploadTokenData, DeleteUploadTokenErrors, DeleteUploadTokenResponses, DeleteUserData, DeleteUserErrors, DeleteUserFilesData, DeleteUserFilesErrors, DeleteUserFilesResponses, DeleteUserResponses, DeleteUserSessionsData, DeleteUserSessionsErrors, DeleteUserSessionsResponses, DeleteUserUploadTokensData, DeleteUserUploadTokensErrors, DeleteUserUploadTokensResponses, GetAdminOverviewData, GetAdminOverviewErrors, GetAdminOverviewResponses, GetContextData, GetContextErrors, GetContextResponses, GetFileStatsData, GetFileStatsErrors, GetFileStatsResponses, GetFilterTagsData, GetFilterTagsErrors, GetFilterTagsResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GiveInviteCodeData, GiveInviteCodeErrors, GiveInviteCodeResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListInviteCodesData, ListInviteCodesErrors, ListInviteCodesResponses, ListUploadTokensData, ListUploadTokensErrors, ListUploadTokensResponses, RegisterData, RegisterErrors, RegisterResponses, RemoveFileTagData, RemoveFileTagErrors, RemoveFileTagResponses, ToggleFileVisibilityData, ToggleFileVisibilityErrors, ToggleFileVisibilityResponses, UploadFileData, UploadFileErrors, UploadFileResponses } from './types.gen';
+import type { AddFileTagData, AddFileTagErrors, AddFileTagResponses, CreateUploadTokenData, CreateUploadTokenErrors, CreateUploadTokenResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteAllFilesData, DeleteAllFilesErrors, DeleteAllFilesResponses, DeleteFileData, DeleteFileErrors, DeleteFileResponses, DeleteInviteCodeData, DeleteInviteCodeErrors, DeleteInviteCodeResponses, DeleteUploadTokenData, DeleteUploadTokenErrors, DeleteUploadTokenResponses, DeleteUserData, DeleteUserErrors, DeleteUserFilesData, DeleteUserFilesErrors, DeleteUserFilesResponses, DeleteUserResponses, DeleteUserSessionsData, DeleteUserSessionsErrors, DeleteUserSessionsResponses, DeleteUserUploadTokensData, DeleteUserUploadTokensErrors, DeleteUserUploadTokensResponses, GetAdminOverviewData, GetAdminOverviewErrors, GetAdminOverviewResponses, GetContextData, GetContextErrors, GetContextResponses, GetFileStatsData, GetFileStatsErrors, GetFileStatsResponses, GetFilterTagsData, GetFilterTagsErrors, GetFilterTagsResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GiveInviteCodeData, GiveInviteCodeErrors, GiveInviteCodeResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListInviteCodesData, ListInviteCodesErrors, ListInviteCodesResponses, ListUploadTokensData, ListUploadTokensErrors, ListUploadTokensResponses, LogoutData, LogoutErrors, LogoutResponses, RegisterData, RegisterErrors, RegisterResponses, RemoveFileTagData, RemoveFileTagErrors, RemoveFileTagResponses, ToggleFileVisibilityData, ToggleFileVisibilityErrors, ToggleFileVisibilityResponses, UnlinkProviderData, UnlinkProviderErrors, UnlinkProviderResponses, UploadFileData, UploadFileErrors, UploadFileResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -153,6 +153,21 @@ export const listInviteCodes = <ThrowOnError extends boolean = false>(options?: 
     ...options
 });
 
+export const unlinkProvider = <ThrowOnError extends boolean = false>(options: Options<UnlinkProviderData, ThrowOnError>): RequestResult<UnlinkProviderResponses, UnlinkProviderErrors, ThrowOnError> => (options.client ?? client).delete<UnlinkProviderResponses, UnlinkProviderErrors, ThrowOnError>({
+    ...formDataBodySerializer,
+    security: [{
+            in: 'cookie',
+            name: 'auth',
+            type: 'apiKey'
+        }],
+    url: '/api/account/provider',
+    ...options,
+    headers: {
+        'Content-Type': null,
+        ...options.headers
+    }
+});
+
 export const getSettings = <ThrowOnError extends boolean = false>(options?: Options<GetSettingsData, ThrowOnError>): RequestResult<GetSettingsResponses, GetSettingsErrors, ThrowOnError> => (options?.client ?? client).get<GetSettingsResponses, GetSettingsErrors, ThrowOnError>({
     security: [{
             in: 'cookie',
@@ -287,6 +302,8 @@ export const deleteUser = <ThrowOnError extends boolean = false>(options: Option
         ...options.headers
     }
 });
+
+export const logout = <ThrowOnError extends boolean = false>(options?: Options<LogoutData, ThrowOnError>): RequestResult<LogoutResponses, LogoutErrors, ThrowOnError> => (options?.client ?? client).post<LogoutResponses, LogoutErrors, ThrowOnError>({ url: '/api/auth/logout', ...options });
 
 export const register = <ThrowOnError extends boolean = false>(options: Options<RegisterData, ThrowOnError>): RequestResult<RegisterResponses, RegisterErrors, ThrowOnError> => (options.client ?? client).post<RegisterResponses, RegisterErrors, ThrowOnError>({
     ...formDataBodySerializer,

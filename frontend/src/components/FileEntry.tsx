@@ -1,4 +1,4 @@
-import { Show, onCleanup } from "solid-js";
+import { Match, Show, Switch } from "solid-js";
 import "./FileEntry.css";
 import type { FileData } from "../types";
 import {
@@ -7,48 +7,32 @@ import {
   mimeIsAudio,
   formatTimeDate,
   relativeTime,
-  hasExpiry,
+  hasDate,
   fileUrl,
+  countLabel,
+  cx,
+  displayName,
 } from "../utils";
 import { closeFileMenu, fileMenu, openFileMenu, openModal } from "../store";
-import {
-  Ellipsis as EllipsisIcon,
-  Eye as EyeIcon,
-  File as FileIcon,
-  Lock as LockIcon,
-  LockOpen as LockOpenIcon,
-  Music as MusicIcon,
-  Trash2 as Trash2Icon,
-} from "lucide-solid";
-import { Dynamic } from "solid-js/web";
-
-const LONG_PRESS_MS = 500;
-const LONG_PRESS_MOVE_TOLERANCE = 10;
+import EllipsisIcon from "lucide-solid/icons/ellipsis";
+import EyeIcon from "lucide-solid/icons/eye";
+import FileIcon from "lucide-solid/icons/file";
+import MusicIcon from "lucide-solid/icons/eighth-notes";
+import Trash2Icon from "lucide-solid/icons/trash";
+import { VisibilityIcon } from "./VisibilityIcon";
+import { createContextMenuTrigger } from "../contextMenuTrigger";
 
 export function FileEntry(props: { file: FileData }) {
   const file = () => props.file;
 
   let menuButton: HTMLButtonElement | undefined;
-  let longPressTimer: ReturnType<typeof setTimeout> | undefined;
-  let longPressFired = false;
-  let touching = false;
-  let touchStartX = 0;
-  let touchStartY = 0;
-
-  onCleanup(() => clearTimeout(longPressTimer));
-
-  const viewsText = () => {
-    const count = file().ViewsCount || 0;
-    return count === 1 ? "1 view" : `${count} views`;
-  };
+  const views = () => file().ViewsCount || 0;
 
   const isMenuOpen = () => fileMenu()?.file.FileName === file().FileName;
 
-  const openMenuAt = (x: number, y: number) => {
-    // Android fires both our long-press timer and a native contextmenu event.
-    if (isMenuOpen()) return;
-    openFileMenu(file(), x, y, menuButton);
-  };
+  const menuTrigger = createContextMenuTrigger((x, y) => {
+    if (!isMenuOpen()) openFileMenu(file(), x, y, menuButton);
+  }, ".file-entry-menu-button");
 
   const handleMenuButton = () => {
     if (isMenuOpen()) {
@@ -57,39 +41,6 @@ export function FileEntry(props: { file: FileData }) {
     }
     const rect = menuButton!.getBoundingClientRect();
     openFileMenu(file(), rect.left, rect.bottom + 4, menuButton);
-  };
-
-  const handleContextMenu = (e: MouseEvent) => {
-    e.preventDefault();
-    clearTimeout(longPressTimer);
-    if (touching) longPressFired = true;
-    openMenuAt(e.clientX, e.clientY);
-  };
-
-  // iOS Safari never fires contextmenu, so long-press is detected manually.
-  const handleTouchStart = (e: TouchEvent) => {
-    longPressFired = false;
-    if ((e.target as HTMLElement).closest(".file-entry-menu-button")) return;
-    touching = true;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    clearTimeout(longPressTimer);
-    longPressTimer = setTimeout(() => {
-      longPressFired = true;
-      openMenuAt(touchStartX, touchStartY);
-    }, LONG_PRESS_MS);
-  };
-  const handleTouchMove = (e: TouchEvent) => {
-    const dx = e.touches[0].clientX - touchStartX;
-    const dy = e.touches[0].clientY - touchStartY;
-    if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE)
-      clearTimeout(longPressTimer);
-  };
-  const handleTouchEnd = (e: TouchEvent) => {
-    clearTimeout(longPressTimer);
-    touching = false;
-    // Stop the tap that ended a long-press from also opening the file.
-    if (longPressFired) e.preventDefault();
   };
 
   const openCurrent = () => openModal(file());
@@ -104,27 +55,23 @@ export function FileEntry(props: { file: FileData }) {
       openCurrent();
     }
   };
-  const previewAlt = () => file().OriginalFileName || file().FileName;
+  const name = () => displayName(file());
 
   return (
     <li
-      class="file-entry"
+      class={cx("file-entry", { "menu-open": isMenuOpen() })}
       onClick={handleCardClick}
-      classList={{ "menu-open": isMenuOpen() }}
-      onContextMenu={handleContextMenu}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={() => {
-        clearTimeout(longPressTimer);
-        touching = false;
-      }}
+      onContextMenu={menuTrigger.onContextMenu}
+      onTouchStart={menuTrigger.onTouchStart}
+      onTouchMove={menuTrigger.onTouchMove}
+      onTouchEnd={menuTrigger.onTouchEnd}
+      onTouchCancel={menuTrigger.onTouchCancel}
     >
       <button
         type="button"
         ref={menuButton}
         class="file-entry-menu-button"
-        aria-label={`Actions for ${previewAlt()}`}
+        aria-label={`Actions for ${name()}`}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen()}
         onClick={handleMenuButton}
@@ -135,67 +82,58 @@ export function FileEntry(props: { file: FileData }) {
       <div
         class="file-preview"
         role="button"
-        aria-label={`Preview ${previewAlt()}`}
+        aria-label={`Preview ${name()}`}
         tabindex="0"
         onKeyDown={handlePreviewKey}
       >
         <div class="file-thumbnail">
-          <Show when={mimeIsImage(file().MimeType)}>
-            <img
-              class="preview-image"
-              src={fileUrl(file().FileName)}
-              alt={previewAlt()}
-              loading="lazy"
-            />
-          </Show>
-          <Show when={mimeIsVideo(file().MimeType)}>
-            <video
-              class="preview-video"
-              src={fileUrl(file().FileName)}
-              preload="metadata"
-              muted
-            />
-          </Show>
-          <Show when={mimeIsAudio(file().MimeType)}>
-            <div class="preview-audio file-icon">
-              <MusicIcon class="lucide-icon" aria-hidden="true" />
-            </div>
-          </Show>
-          <Show
-            when={
-              !mimeIsImage(file().MimeType) &&
-              !mimeIsVideo(file().MimeType) &&
-              !mimeIsAudio(file().MimeType)
+          <Switch
+            fallback={
+              <div class="preview-generic file-icon">
+                <FileIcon class="lucide-icon" aria-hidden="true" />
+              </div>
             }
           >
-            <div class="preview-generic file-icon">
-              <FileIcon class="lucide-icon" aria-hidden="true" />
-            </div>
-          </Show>
+            <Match when={mimeIsImage(file().MimeType)}>
+              <img
+                class="preview-image"
+                src={fileUrl(file().FileName)}
+                alt={name()}
+                loading="lazy"
+              />
+            </Match>
+            <Match when={mimeIsVideo(file().MimeType)}>
+              <video
+                class="preview-video"
+                src={fileUrl(file().FileName)}
+                preload="metadata"
+                muted
+              />
+            </Match>
+            <Match when={mimeIsAudio(file().MimeType)}>
+              <div class="preview-audio file-icon">
+                <MusicIcon class="lucide-icon" aria-hidden="true" />
+              </div>
+            </Match>
+          </Switch>
         </div>
-        <div class="file-name">
-          {file().OriginalFileName || file().FileName}
-        </div>
+        <div class="file-name">{name()}</div>
       </div>
 
       <div class="file-info">
-        <div class="views" title={viewsText()}>
+        <div class="views" title={countLabel(views(), "view")}>
           <EyeIcon class="lucide-icon" aria-hidden="true" />
-          <span class="views-text">{file().ViewsCount || 0}</span>
+          <span class="views-text">{views()}</span>
         </div>
 
         <div
           class="visibility-status"
           title={file().Public ? "Public" : "Private"}
         >
-          <Dynamic
-            component={file().Public ? LockOpenIcon : LockIcon}
-            class="lucide-icon"
-            aria-hidden="true"
-          />
+          <VisibilityIcon public={file().Public} />
         </div>
 
-        <Show when={hasExpiry(file().ExpiryDate)}>
+        <Show when={hasDate(file().ExpiryDate)}>
           <div
             class="expires-info"
             title={`Expires ${relativeTime(file().ExpiryDate)} (${formatTimeDate(file().ExpiryDate)})`}

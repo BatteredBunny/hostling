@@ -179,6 +179,22 @@ input[type="submit"] {
   fill: none;
 }
 
+.spinning {
+  animation: spinning 0.8s linear infinite;
+}
+
+@keyframes spinning {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning {
+    animation: none;
+  }
+}
+
 .login-provider-icon {
   width: 20px;
   height: 20px;

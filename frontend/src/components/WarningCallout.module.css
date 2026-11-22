@@ -1,8 +1,38 @@
 .callout {
-  border: 2px solid var(--warning-border-color);
-  background-color: var(--warning-bg-color);
-  border-radius: 10px;
-  padding: 5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 15px;
+  padding: 12px 14px;
+  border: 2px solid var(--warning-border-color);
+  border-radius: 10px;
+  background-color: var(--warning-bg-color);
+  font-size: 14px;
+  line-height: 1.6;
   overflow-wrap: anywhere;
+}
+
+.icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  /* Centres the icon on the first line of text. */
+  margin-top: 1px;
+  color: var(--warning-text-color);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+
+  > p,
+  > ul {
+    margin: 0;
+  }
+
+  > ul {
+    padding-left: 20px;
+  }
 }

@@ -195,6 +195,15 @@ func oauthExpectLoggedOut(t *testing.T, tc *testClient) {
 	}
 }
 
+func authErrorLocation(page, code, provider string) string {
+	return page + "?" + url.Values{"error": {code}, "provider": {provider}}.Encode()
+}
+
+// Unlinks through the account API, returning the status and body
+func unlinkProvider(tc *testClient, provider string) (int, string) {
+	return tc.formRequest(http.MethodDelete, "/api/account/provider", url.Values{"provider": {provider}})
+}
+
 func oauthExpectRedirect(t *testing.T, r oauthResp, status int, location string) {
 	t.Helper()
 	if r.status != status || r.location != location {
@@ -210,7 +219,12 @@ func TestOAuthLoginUnlinkedIdentityDoesNotLogIn(t *testing.T) {
 
 			anon := env.newClient()
 			r := env.login(anon, provider, "4242")
-			oauthExpectRedirect(t, r, http.StatusSeeOther, "/login")
+			oauthExpectRedirect(
+				t,
+				r,
+				http.StatusSeeOther,
+				authErrorLocation("/login", authErrorAccountNotFound, provider),
+			)
 			if v := oauthCookie(anon, AUTH_COOKIE); v != "" {
 				t.Fatalf("auth cookie must not be set, got %q", v)
 			}
@@ -241,7 +255,7 @@ func TestOAuthLinkThenLoginGivesSameAccount(t *testing.T) {
 			// Upload so we can prove the new session belongs to the same account
 			name := user.upload()
 
-			user.expectStatus(http.StatusSeeOther, http.MethodPost, "/logout", nil)
+			user.expectStatus(http.StatusOK, http.MethodPost, "/api/auth/logout", nil)
 			oauthExpectLoggedOut(t, user)
 
 			r := env.login(user, provider, "5151")
@@ -313,9 +327,12 @@ func TestOAuthLinkAlreadyLinkedToOtherAccountConflicts(t *testing.T) {
 			env.link(admin, provider, "7001")
 
 			r := env.flow(user, true, provider, "7001")
-			if r.status != http.StatusConflict {
-				t.Fatalf("expected 409, got %d: %s", r.status, r.body)
-			}
+			oauthExpectRedirect(
+				t,
+				r,
+				http.StatusSeeOther,
+				authErrorLocation("/settings", authErrorIdentityTaken, provider),
+			)
 			acc := env.account(userID)
 			if acc.GithubID != 0 || acc.OIDCID != "" {
 				t.Fatalf("identity must not be linked: %+v", acc)
@@ -351,9 +368,7 @@ func TestOAuthLinkingCookieForOtherAccountRejected(t *testing.T) {
 	oauthSetCookie(user, LINKING_COOKIE, env.app.signLinkingValue(env.adminID()))
 
 	r := oauthCallback(user, "github", state)
-	if r.status != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", r.status, r.body)
-	}
+	oauthExpectRedirect(t, r, http.StatusSeeOther, authErrorLocation("/settings", authErrorLinkFailed, "github"))
 	if acc := env.account(userID); acc.GithubID != 0 {
 		t.Fatalf("must not link: %+v", acc)
 	}
@@ -420,7 +435,12 @@ func TestOAuthBadLinkingCookieIsClearedAndFallsThroughToLogin(t *testing.T) {
 			_, state := oauthBegin(t, anon, false, "github")
 			oauthSetCookie(anon, LINKING_COOKIE, mk(env, userID))
 			r := oauthCallback(anon, "github", state)
-			oauthExpectRedirect(t, r, http.StatusSeeOther, "/login")
+			oauthExpectRedirect(
+				t,
+				r,
+				http.StatusSeeOther,
+				authErrorLocation("/login", authErrorAccountNotFound, "github"),
+			)
 			if v := oauthCookie(anon, LINKING_COOKIE); v != "" {
 				t.Fatalf("bad linking cookie should be cleared, got %q", v)
 			}
@@ -434,7 +454,12 @@ func TestOAuthBadLinkingCookieIsClearedAndFallsThroughToLogin(t *testing.T) {
 			_, state = oauthBegin(t, user, false, "github")
 			oauthSetCookie(user, LINKING_COOKIE, mk(env, userID))
 			r = oauthCallback(user, "github", state)
-			oauthExpectRedirect(t, r, http.StatusSeeOther, "/login")
+			oauthExpectRedirect(
+				t,
+				r,
+				http.StatusSeeOther,
+				authErrorLocation("/login", authErrorAccountNotFound, "github"),
+			)
 			if acc := env.account(userID); acc.GithubID != 0 {
 				t.Fatalf("logged in: must not link: %+v", acc)
 			}
@@ -463,52 +488,51 @@ func TestOAuthUnlink(t *testing.T) {
 	admin := env.registerAdmin()
 	user, userID := env.registerUser(admin)
 
-	// Provider not linked: nothing to do, back to settings
-	r := oauthDo(user, http.MethodPost, "/api/auth/unlink/github")
-	oauthExpectRedirect(t, r, http.StatusSeeOther, "/settings")
-	r = oauthDo(user, http.MethodPost, "/api/auth/unlink/openid-connect")
-	oauthExpectRedirect(t, r, http.StatusSeeOther, "/settings")
+	expect := func(provider string, want int, wantBody string) {
+		t.Helper()
+		status, body := unlinkProvider(user, provider)
+		if status != want || (wantBody != "" && !strings.Contains(body, wantBody)) {
+			t.Fatalf("unlink %s: expected %d %q, got %d: %s", provider, want, wantBody, status, body)
+		}
+	}
+
+	// Provider not linked: nothing to do
+	expect("github", http.StatusOK, "")
+	expect("openid-connect", http.StatusOK, "")
 
 	env.link(user, "github", "1111")
 
-	// Only identity: blocked
-	r = oauthDo(user, http.MethodPost, "/api/auth/unlink/github")
-	if r.status != http.StatusConflict || r.body != ErrLastLinkedIdent.Error() {
-		t.Fatalf("expected 409 %q, got %d: %s", ErrLastLinkedIdent, r.status, r.body)
-	}
+	// Only identity: blocked, with the reason for the settings page to show
+	expect("github", http.StatusConflict, lastProviderMessage)
 	if acc := env.account(userID); acc.GithubID != 1111 {
 		t.Fatalf("github must still be linked: %+v", acc)
 	}
 
 	// With a second identity, either can be removed
 	env.link(user, "openid-connect", "oidc-1")
-	r = oauthDo(user, http.MethodPost, "/api/auth/unlink/github")
-	oauthExpectRedirect(t, r, http.StatusSeeOther, "/settings")
+	expect("github", http.StatusOK, "")
 	acc := env.account(userID)
 	if acc.GithubID != 0 || acc.GithubUsername != "" || acc.OIDCID != "oidc-1" {
 		t.Fatalf("unexpected account after unlink: %+v", acc)
 	}
 
 	// The remaining one is now the last
-	r = oauthDo(user, http.MethodPost, "/api/auth/unlink/openid-connect")
-	if r.status != http.StatusConflict {
-		t.Fatalf("expected 409, got %d: %s", r.status, r.body)
-	}
+	expect("openid-connect", http.StatusConflict, lastProviderMessage)
 	if acc := env.account(userID); acc.OIDCID != "oidc-1" {
 		t.Fatalf("oidc must still be linked: %+v", acc)
 	}
 
 	// Unlinked identity can no longer log in, the remaining one can
 	anon := env.newClient()
-	oauthExpectRedirect(t, env.login(anon, "github", "1111"), http.StatusSeeOther, "/login")
+	oauthExpectRedirect(t, env.login(anon, "github", "1111"), http.StatusSeeOther,
+		authErrorLocation("/login", authErrorAccountNotFound, "github"))
 	oauthExpectLoggedOut(t, anon)
 	oauthExpectRedirect(t, env.login(anon, "openid-connect", "oidc-1"), http.StatusSeeOther, "/gallery")
 	oauthExpectLoggedIn(t, anon)
 
-	// Unlinking oidc via the other path works once github is back
+	// Unlinking oidc works once github is back
 	env.link(user, "github", "1111")
-	r = oauthDo(user, http.MethodPost, "/api/auth/unlink/openid-connect")
-	oauthExpectRedirect(t, r, http.StatusSeeOther, "/settings")
+	expect("openid-connect", http.StatusOK, "")
 	if acc := env.account(userID); acc.OIDCID != "" || acc.OIDCUsername != "" || acc.GithubID != 1111 {
 		t.Fatalf("unexpected account after oidc unlink: %+v", acc)
 	}
@@ -531,9 +555,8 @@ func TestOAuthUnknownProvider(t *testing.T) {
 		}
 	})
 	t.Run("unlink", func(t *testing.T) {
-		r := oauthDo(admin, http.MethodPost, "/api/auth/unlink/nope")
-		if r.status != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d: %s", r.status, r.body)
+		if status, body := unlinkProvider(admin, "nope"); status != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d: %s", status, body)
 		}
 	})
 	t.Run("link", func(t *testing.T) {
@@ -559,15 +582,18 @@ func TestOAuthUnauthenticatedLinkUnlink(t *testing.T) {
 			t.Fatalf("no linking cookie expected, got %q", v)
 		}
 
-		r = oauthDo(anon, http.MethodPost, "/api/auth/unlink/"+provider)
-		oauthExpectRedirect(t, r, http.StatusSeeOther, "/login")
+		if status, body := unlinkProvider(anon, provider); status != http.StatusUnauthorized {
+			t.Fatalf("unlink %s signed out: expected 401, got %d: %s", provider, status, body)
+		}
 	}
 
 	// A stale (deleted) session is treated the same way
 	stale := env.newClient()
 	oauthSetCookie(stale, AUTH_COOKIE, "11111111-1111-4111-8111-111111111111")
 	oauthExpectRedirect(t, oauthDo(stale, http.MethodPost, "/api/auth/link/github"), http.StatusSeeOther, "/login")
-	oauthExpectRedirect(t, oauthDo(stale, http.MethodPost, "/api/auth/unlink/github"), http.StatusSeeOther, "/login")
+	if status, body := unlinkProvider(stale, "github"); status != http.StatusUnauthorized {
+		t.Fatalf("unlink with stale session: expected 401, got %d: %s", status, body)
+	}
 }
 
 func TestOAuthLinkSetsSignedLinkingCookie(t *testing.T) {
@@ -592,18 +618,14 @@ func TestOAuthCallbackRequiresValidState(t *testing.T) {
 
 	t.Run("no gothic session", func(t *testing.T) {
 		r := oauthCallback(env.newClient(), "github", "whatever")
-		if r.status != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d: %s", r.status, r.body)
-		}
+		oauthExpectRedirect(t, r, http.StatusSeeOther, authErrorLocation("/login", authErrorLoginFailed, "github"))
 	})
 	t.Run("state mismatch", func(t *testing.T) {
 		anon := env.newClient()
 		env.github.setIdentity("1234")
 		_, state := oauthBegin(t, anon, false, "github")
 		r := oauthCallback(anon, "github", state+"x")
-		if r.status != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d: %s", r.status, r.body)
-		}
+		oauthExpectRedirect(t, r, http.StatusSeeOther, authErrorLocation("/login", authErrorLoginFailed, "github"))
 		oauthExpectLoggedOut(t, anon)
 	})
 	t.Run("state is single use", func(t *testing.T) {
@@ -612,8 +634,11 @@ func TestOAuthCallbackRequiresValidState(t *testing.T) {
 		env.github.setIdentity("1235")
 		_, state := oauthBegin(t, admin, false, "github")
 		oauthExpectRedirect(t, oauthCallback(admin, "github", state), http.StatusSeeOther, "/gallery")
-		if r := oauthCallback(admin, "github", state); r.status != http.StatusBadRequest {
-			t.Fatalf("replayed callback: expected 400, got %d: %s", r.status, r.body)
-		}
+		oauthExpectRedirect(
+			t,
+			oauthCallback(admin, "github", state),
+			http.StatusSeeOther,
+			authErrorLocation("/login", authErrorLoginFailed, "github"),
+		)
 	})
 }

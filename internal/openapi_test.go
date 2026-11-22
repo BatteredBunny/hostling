@@ -83,8 +83,8 @@ func TestOpenAPIRoutesAndBodies(t *testing.T) {
 			}
 		}
 	}
-	if len(ids) != 24 {
-		t.Errorf("expected 24 operations, got %d", len(ids))
+	if len(ids) != 26 {
+		t.Errorf("expected 26 operations, got %d", len(ids))
 	}
 
 	for _, field := range []string{"FileName", "Tags", "Public"} {
@@ -129,8 +129,7 @@ func TestRegistrationJSONResponse(t *testing.T) {
 	if response.StatusCode != http.StatusCreated {
 		t.Fatalf("status %d: %s", response.StatusCode, body)
 	}
-	var redirect RedirectOutput
-	if err := json.Unmarshal(body, &redirect); err != nil || redirect.Redirect != "/gallery" {
+	if string(body) != "Account created" {
 		t.Fatalf("invalid registration response: %s", body)
 	}
 	if status, _ := client.get("/api/account/settings"); status != http.StatusOK {

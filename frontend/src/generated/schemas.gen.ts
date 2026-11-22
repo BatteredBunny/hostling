@@ -457,19 +457,6 @@ export const ProviderInfoSchema = {
     type: 'object'
 } as const;
 
-export const RedirectOutputSchema = {
-    additionalProperties: false,
-    properties: {
-        redirect: {
-            type: 'string'
-        }
-    },
-    required: [
-        'redirect'
-    ],
-    type: 'object'
-} as const;
-
 export const SettingsOutputSchema = {
     additionalProperties: false,
     properties: {

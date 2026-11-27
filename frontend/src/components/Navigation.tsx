@@ -2,17 +2,16 @@ import styles from "./Navigation.module.css";
 import { For, Show, createEffect } from "solid-js";
 import { useFrontendContext } from "../context";
 import { navigate } from "../router";
-import GitMergeIcon from "lucide-solid/icons/git-merge";
-import HouseIcon from "lucide-solid/icons/house";
-import ImagesIcon from "lucide-solid/icons/images";
-import KeyRoundIcon from "lucide-solid/icons/key-round";
-import LogInIcon from "lucide-solid/icons/log-in";
-import LogOutIcon from "lucide-solid/icons/log-out";
-import ServerIcon from "lucide-solid/icons/server";
-import SettingsIcon from "lucide-solid/icons/settings";
-import TriangleAlertIcon from "lucide-solid/icons/triangle-exclamation-point";
-import UserPlusIcon from "lucide-solid/icons/user-plus";
-import { cx } from "../utils";
+import GitMergeIcon from "@lucide/solid/icons/git-merge";
+import HouseIcon from "@lucide/solid/icons/house";
+import ImagesIcon from "@lucide/solid/icons/images";
+import KeyRoundIcon from "@lucide/solid/icons/key-round";
+import LogInIcon from "@lucide/solid/icons/log-in";
+import LogOutIcon from "@lucide/solid/icons/log-out";
+import ServerIcon from "@lucide/solid/icons/server";
+import SettingsIcon from "@lucide/solid/icons/settings";
+import TriangleAlertIcon from "@lucide/solid/icons/triangle-exclamation-point";
+import UserPlusIcon from "@lucide/solid/icons/user-plus";
 import { logout } from "../generated";
 import { apiData } from "../client";
 import { showToast } from "../toast";
@@ -20,40 +19,40 @@ import { showToast } from "../toast";
 export function Navigation(props: { currentPage: string }) {
   const { context, error, retry } = useFrontendContext();
   let previousAccount: number | undefined;
-  createEffect(() => {
-    const info = context();
-    if (!info) return;
-    const protectedPage = ["gallery", "settings", "tokens", "admin"].includes(
-      props.currentPage,
-    );
-    if (!info.logged_in && protectedPage) navigate("/login", { replace: true });
-    else if (
-      info.logged_in &&
-      ["login", "register"].includes(props.currentPage)
-    )
-      navigate("/gallery", { replace: true });
-    else if (!info.is_admin && props.currentPage === "admin")
-      navigate("/gallery", { replace: true });
-    else if (
-      protectedPage &&
-      previousAccount !== undefined &&
-      previousAccount !== info.account_id
-    )
-      window.location.reload();
-    previousAccount = info.account_id;
-    if (props.currentPage === "home") document.title = info.branding;
-    for (const name of ["description", "twitter:description"]) {
-      let element = document.querySelector<HTMLMetaElement>(
-        `meta[name="${name}"]`,
+  createEffect(
+    () => ({ info: context(), page: props.currentPage }),
+    ({ info, page }) => {
+      if (!info) return;
+      const protectedPage = ["gallery", "settings", "tokens", "admin"].includes(
+        page,
       );
-      if (!element) {
-        element = document.createElement("meta");
-        element.name = name;
-        document.head.append(element);
+      if (!info.logged_in && protectedPage)
+        navigate("/login", { replace: true });
+      else if (info.logged_in && ["login", "register"].includes(page))
+        navigate("/gallery", { replace: true });
+      else if (!info.is_admin && page === "admin")
+        navigate("/gallery", { replace: true });
+      else if (
+        protectedPage &&
+        previousAccount !== undefined &&
+        previousAccount !== info.account_id
+      )
+        window.location.reload();
+      previousAccount = info.account_id;
+      if (page === "home") document.title = info.branding;
+      for (const name of ["description", "twitter:description"]) {
+        let element = document.querySelector<HTMLMetaElement>(
+          `meta[name="${name}"]`,
+        );
+        if (!element) {
+          element = document.createElement("meta");
+          element.name = name;
+          document.head.append(element);
+        }
+        element.content = info.tagline;
       }
-      element.content = info.tagline;
-    }
-  });
+    },
+  );
   const signOut = async () => {
     try {
       await apiData(logout());
@@ -79,9 +78,12 @@ export function Navigation(props: { currentPage: string }) {
       </div>
       <div class={styles.links}>
         <a
-          class={cx(styles.option, {
-            [styles.active]: props.currentPage === "home",
-          })}
+          class={[
+            styles.option,
+            {
+              [styles.active]: props.currentPage === "home",
+            },
+          ]}
           href="/"
           title="home"
         >
@@ -93,18 +95,24 @@ export function Navigation(props: { currentPage: string }) {
           fallback={
             <Show when={context()}>
               <a
-                class={cx(styles.option, {
-                  [styles.active]: props.currentPage === "login",
-                })}
+                class={[
+                  styles.option,
+                  {
+                    [styles.active]: props.currentPage === "login",
+                  },
+                ]}
                 href="/login"
               >
                 <LogInIcon class="lucide-icon" aria-hidden="true" />
                 <span>Login</span>
               </a>
               <a
-                class={cx(styles.option, {
-                  [styles.active]: props.currentPage === "register",
-                })}
+                class={[
+                  styles.option,
+                  {
+                    [styles.active]: props.currentPage === "register",
+                  },
+                ]}
                 href="/register"
               >
                 <UserPlusIcon class="lucide-icon" aria-hidden="true" />
@@ -116,16 +124,19 @@ export function Navigation(props: { currentPage: string }) {
           <Show when={context()?.is_admin}>
             <a
               href="/admin"
-              class={cx(styles.option, {
-                [styles.active]: props.currentPage === "admin",
-                [styles.warning]: context()?.has_admin_warning,
-              })}
+              class={[
+                styles.option,
+                {
+                  [styles.active]: props.currentPage === "admin",
+                  [styles.warning]: context()?.has_admin_warning,
+                },
+              ]}
             >
               <ServerIcon class="lucide-icon" aria-hidden="true" />
               <span>Admin</span>
               <Show when={context()?.has_admin_warning}>
                 <TriangleAlertIcon
-                  class={cx("lucide-icon", styles.warningIcon)}
+                  class={`lucide-icon ${styles.warningIcon}`}
                   aria-hidden="true"
                 />
               </Show>
@@ -136,9 +147,12 @@ export function Navigation(props: { currentPage: string }) {
             {(link) => (
               <a
                 href={`/${link.page}`}
-                class={cx(styles.option, {
-                  [styles.active]: props.currentPage === link.page,
-                })}
+                class={[
+                  styles.option,
+                  {
+                    [styles.active]: props.currentPage === link.page,
+                  },
+                ]}
               >
                 <link.icon class="lucide-icon" aria-hidden="true" />
                 <span>{link.label}</span>

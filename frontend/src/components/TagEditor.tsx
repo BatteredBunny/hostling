@@ -8,12 +8,12 @@ import {
 } from "solid-js";
 import "./TagEditor.css";
 import { TagNameSchema, UploadTagsSchema } from "../generated/schemas.gen";
-import PlusIcon from "lucide-solid/icons/plus";
-import TagIcon from "lucide-solid/icons/tag";
-import XIcon from "lucide-solid/icons/x";
+import PlusIcon from "@lucide/solid/icons/plus";
+import TagIcon from "@lucide/solid/icons/tag";
+import XIcon from "@lucide/solid/icons/x";
 import { TagColorDot } from "./TagColorDot";
 import { NativePopover } from "./NativePopover";
-import { cx } from "../utils";
+import { ariaBool } from "../utils";
 
 // Show the "n/max" counter only once a file gets close to the limit.
 const TAG_MAX_LENGTH = TagNameSchema.maxLength;
@@ -94,10 +94,13 @@ export function TagEditor(props: TagEditorProps) {
     Math.max(0, Math.min(highlighted(), options().length - 1));
 
   // Keep the keyboard-highlighted option scrolled into view.
-  createEffect(() => {
-    if (!showList()) return;
-    listEl?.children[activeIndex()]?.scrollIntoView({ block: "nearest" });
-  });
+  createEffect(
+    () => (showList() ? activeIndex() : -1),
+    (index) => {
+      if (index >= 0)
+        listEl?.children[index]?.scrollIntoView({ block: "nearest" });
+    },
+  );
 
   const add = async (tag: string) => {
     if (busy() || !tag) return;
@@ -168,9 +171,12 @@ export function TagEditor(props: TagEditorProps) {
         <For each={props.tags}>
           {(tag) => (
             <div
-              class={cx("tag-editor-selected-row", {
-                pending: pendingRemoval() === tag,
-              })}
+              class={[
+                "tag-editor-selected-row",
+                {
+                  pending: pendingRemoval() === tag,
+                },
+              ]}
             >
               <TagIcon class="lucide-icon" aria-hidden="true" />
               <TagColorDot name={tag} />
@@ -189,7 +195,7 @@ export function TagEditor(props: TagEditorProps) {
       </div>
       <div
         ref={fieldEl}
-        class={cx("tag-editor-field", { disabled: atLimit() })}
+        class={["tag-editor-field", { disabled: atLimit() }]}
         onMouseDown={(e) => {
           // Clicking the field's empty space focuses the input.
           if (e.target === e.currentTarget) {
@@ -209,7 +215,7 @@ export function TagEditor(props: TagEditorProps) {
           id="file-modal-tag-input"
           role="combobox"
           aria-label="Add tag"
-          aria-expanded={showList()}
+          aria-expanded={ariaBool(showList())}
           aria-controls="tag-editor-options"
           aria-autocomplete="list"
           placeholder={
@@ -251,12 +257,15 @@ export function TagEditor(props: TagEditorProps) {
         <For each={options()}>
           {(option, index) => (
             <div
-              class={cx("tag-editor-option", {
-                active: index() === activeIndex(),
-                create: option.kind === "create",
-              })}
+              class={[
+                "tag-editor-option",
+                {
+                  active: index() === activeIndex(),
+                  create: option.kind === "create",
+                },
+              ]}
               role="option"
-              aria-selected={index() === activeIndex()}
+              aria-selected={ariaBool(index() === activeIndex())}
               // mousedown + preventDefault keeps focus in the input.
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -288,7 +297,7 @@ export function TagEditor(props: TagEditorProps) {
             {error()}
           </span>
           <Show when={counterVisible()}>
-            <span class={cx("tag-editor-counter", { full: atLimit() })}>
+            <span class={["tag-editor-counter", { full: atLimit() }]}>
               {props.tags.length}/{MAX_TAGS_PER_FILE}
             </span>
           </Show>

@@ -2,16 +2,16 @@
 // Every page is the same single-page app; the server still serves each route
 // its own copy so direct visits and reloads work.
 import { Font } from "astro:assets";
-import { App, ROUTES } from "../components/App";
-import { LoadingScreen } from "../components/LoadingScreen";
+import LoadingScreen from "../components/LoadingScreen.astro";
 import mascot from "../assets/mascot.png";
 import { BRANDING_CACHE_KEY, DEFAULT_BRANDING } from "../branding";
+import { PAGE_TITLES } from "../router";
 import "../styles/common.css";
 
 export function getStaticPaths() {
-  return Object.entries(ROUTES).map(([path, route]) => ({
+  return Object.entries(PAGE_TITLES).map(([path, title]) => ({
     params: { path: path === "/" ? undefined : path.slice(1) },
-    props: { title: route.title },
+    props: { title },
   }));
 }
 
@@ -39,21 +39,22 @@ const { title } = Astro.props;
     <title>{title}</title>
   </head>
   <body>
-    <App client:only="solid-js" mascot={mascot.src}>
-      <div slot="fallback">
-        <LoadingScreen mascot={mascot.src} title={DEFAULT_BRANDING} />
-        <script is:inline define:vars={{ key: BRANDING_CACHE_KEY }}>
-          // Shows the remembered branding before the app starts.
-          try {
-            const branding = localStorage.getItem(key);
-            if (branding)
-              document.currentScript.previousElementSibling.querySelector(
-                ".loading-title",
-              ).textContent = branding;
-          } catch {}
-        </script>
-      </div>
-    </App>
+    <div id="app" data-mascot={mascot.src}>
+      <LoadingScreen mascot={mascot.src} title={DEFAULT_BRANDING} />
+      <script is:inline define:vars={{ key: BRANDING_CACHE_KEY }}>
+        // Shows the remembered branding before the app starts.
+        try {
+          const branding = localStorage.getItem(key);
+          if (branding)
+            document.currentScript.previousElementSibling.querySelector(
+              ".loading-title",
+            ).textContent = branding;
+        } catch {}
+      </script>
+    </div>
+    <script>
+      import "../main";
+    </script>
     <noscript>
       <p class="javascript-notice">Enable JavaScript to use this site.</p>
     </noscript>

@@ -1,6 +1,6 @@
 import { For, Show, createSignal, onCleanup } from "solid-js";
-import CheckIcon from "lucide-solid/icons/check";
-import CopyIcon from "lucide-solid/icons/copy";
+import CheckIcon from "@lucide/solid/icons/check";
+import CopyIcon from "@lucide/solid/icons/copy";
 import { showToast } from "../toast";
 import { copyText } from "../utils";
 import "./UploadCommand.css";

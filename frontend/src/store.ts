@@ -1,5 +1,4 @@
-import { batch, createSignal } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
+import { createSignal, createStore, reconcile } from "solid-js";
 import type { FileData, SortField } from "./types";
 import { parseUrlParams, type UrlParams, type Visibility } from "./url";
 
@@ -15,7 +14,9 @@ export function setFiles(
 ) {
   const updated = typeof next === "function" ? next(fileState.files) : next;
   // Keep cards and media mounted when metadata changes or a list is refreshed.
-  setFileState("files", reconcile(updated, { key: "FileName" }));
+  setFileState((state) => {
+    reconcile(updated, "FileName")(state.files);
+  });
 }
 export const [totalFiles, setTotalFiles] = createSignal(0);
 export const [currentPage, setCurrentPage] = createSignal(initial.page);
@@ -33,14 +34,21 @@ export const [untaggedFilter, setUntaggedFilter] = createSignal(
 );
 
 export function applyUrlParams(params: UrlParams) {
-  batch(() => {
-    setSortField(params.sort);
-    setSortDesc(params.order === "desc");
-    setTagFilters(params.tags);
-    setVisibilityFilter(params.visibility);
-    setUntaggedFilter(params.untagged);
-    setCurrentPage(params.page);
-  });
+  setSortField(params.sort);
+  setSortDesc(params.order === "desc");
+  setTagFilters(params.tags);
+  setVisibilityFilter(params.visibility);
+  setUntaggedFilter(params.untagged);
+  setCurrentPage(params.page);
+}
+
+// The gallery keeps its state between visits, so each visit starts from its
+// own URL.
+export function resetGalleryFromUrl() {
+  const params = parseUrlParams();
+  applyUrlParams(params);
+  closeModal();
+  setPendingModalFile(params.file);
 }
 
 // Values for the API's repeatable `filter` parameter.
@@ -132,7 +140,10 @@ export function confirmDialog(
 export { showToast } from "./toast";
 
 export function updateFileInList(fileName: string, updates: Partial<FileData>) {
-  setFileState("files", (file) => file.FileName === fileName, updates);
+  setFileState((state) => {
+    const file = state.files.find((f) => f.FileName === fileName);
+    if (file) Object.assign(file, updates);
+  });
 
   const current = modalFile();
   if (current?.FileName === fileName) {

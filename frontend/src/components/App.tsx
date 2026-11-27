@@ -1,7 +1,8 @@
-import { Show, createEffect, createMemo, onCleanup, onMount } from "solid-js";
+import { Show, createEffect, createMemo, onSettled } from "solid-js";
 import type { Component } from "solid-js";
+import { dynamic } from "@solidjs/web";
 import { Navigation } from "./Navigation";
-import { LoadingScreen } from "./LoadingScreen";
+import { LoadingScreen, StartupError } from "./LoadingScreen";
 import { HostlingToast } from "./HostlingToast";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { UploadPage } from "./UploadPage";
@@ -11,56 +12,51 @@ import { FileLibrary } from "./FileLibrary";
 import { SettingsPage } from "./SettingsPage";
 import { TokensPage } from "./TokensPage";
 import { AdminPage } from "./AdminPage";
-import { path, startRouter, visit, type AppPath } from "../router";
+import { PAGE_TITLES, path, startRouter, visit, type AppPath } from "../router";
 import { isPageLoading } from "../loading";
 import { useFrontendContext } from "../context";
-import { cx } from "../utils";
 import { cachedBranding } from "../branding";
+import { resetGalleryFromUrl } from "../store";
 
 interface Route {
   // Names the page for the navigation and the page's container id.
   page: string;
-  title: string;
   component: Component;
   // The id styles hang off, defaulting to `${page}-page`.
   id?: string;
+  // Runs on navigation to the page, before it mounts.
+  enter?: () => void;
 }
 
-export const ROUTES: Record<AppPath, Route> = {
-  "/": { page: "home", title: "Upload", component: UploadPage },
-  "/login": { page: "login", title: "Login", component: LoginPage },
+const ROUTES: Record<AppPath, Route> = {
+  "/": { page: "home", component: UploadPage },
+  "/login": { page: "login", component: LoginPage },
   "/register": {
     page: "register",
-    title: "Register",
     component: RegistrationPage,
   },
   "/gallery": {
     page: "gallery",
-    title: "Gallery",
     component: FileLibrary,
     id: "file-library",
+    enter: resetGalleryFromUrl,
   },
-  "/settings": { page: "settings", title: "Settings", component: SettingsPage },
-  "/tokens": { page: "tokens", title: "Tokens", component: TokensPage },
-  "/admin": { page: "admin", title: "Admin", component: AdminPage },
+  "/settings": { page: "settings", component: SettingsPage },
+  "/tokens": { page: "tokens", component: TokensPage },
+  "/admin": { page: "admin", component: AdminPage },
 };
-
-// Rendered once per visit (see the keyed Show below), so reading the
-// component once is enough.
-function PageContent(props: { route: Route }) {
-  return <props.route.component />;
-}
 
 // The whole frontend: one app whose pages switch without reloading.
 export function App(props: { mascot: string }) {
-  const { context, error } = useFrontendContext();
+  const { context, error, retry } = useFrontendContext();
   const route = () => ROUTES[path()];
+  const Page = dynamic(() => route().component);
 
-  onMount(() => onCleanup(startRouter()));
+  onSettled(() => startRouter((to) => ROUTES[to].enter?.()));
 
   // The home page takes the server's branding (see Navigation).
-  createEffect(() => {
-    if (route().page !== "home") document.title = route().title;
+  createEffect(path, (current) => {
+    if (ROUTES[current].page !== "home") document.title = PAGE_TITLES[current];
   });
 
   const loading = () => (!context() && !error()) || isPageLoading();
@@ -74,34 +70,49 @@ export function App(props: { mascot: string }) {
     return delay;
   });
 
+  // A failed refresh keeps the last context, so this only covers the start.
+  const startupFailed = () => !context() && !!error();
+
   return (
-    <div class={cx("app", { loading: loading(), delayed: delayed() })}>
-      <Navigation currentPage={route().page} />
-      <main>
-        <div class="container">
-          <Show when={route().page !== "home"}>
-            <h1>{route().title}</h1>
-          </Show>
-          {/* Keyed on the visit too, so following a link to the current page
-              starts it afresh. */}
-          <Show when={`${path()}#${visit()}`} keyed>
-            <div
-              class="account-sections"
-              id={route().id ?? `${route().page}-page`}
-            >
-              <PageContent route={route()} />
-            </div>
-          </Show>
-        </div>
-      </main>
-      <HostlingToast />
-      <ConfirmDialog />
-      <Show when={loading()}>
-        <LoadingScreen
+    <Show
+      when={!startupFailed()}
+      fallback={
+        <StartupError
           mascot={props.mascot}
-          title={context()?.branding ?? cachedBranding()}
+          title={cachedBranding()}
+          message={error()}
+          onRetry={retry}
         />
-      </Show>
-    </div>
+      }
+    >
+      <div class={["app", { loading: loading(), delayed: delayed() }]}>
+        <Navigation currentPage={route().page} />
+        <main>
+          <div class="container">
+            <Show when={route().page !== "home"}>
+              <h1>{PAGE_TITLES[path()]}</h1>
+            </Show>
+            {/* Keyed on the visit too, so following a link to the current page
+                starts it afresh. */}
+            <Show when={`${path()}#${visit()}`} keyed>
+              <div
+                class="account-sections"
+                id={route().id ?? `${route().page}-page`}
+              >
+                <Page />
+              </div>
+            </Show>
+          </div>
+        </main>
+        <HostlingToast />
+        <ConfirmDialog />
+        <Show when={loading()}>
+          <LoadingScreen
+            mascot={props.mascot}
+            title={context()?.branding ?? cachedBranding()}
+          />
+        </Show>
+      </div>
+    </Show>
   );
 }

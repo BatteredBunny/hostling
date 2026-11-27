@@ -15,6 +15,14 @@
   animation: loading-mascot-spin 1.6s linear infinite;
 }
 
+.loading-mascot.stopped {
+  animation: none;
+}
+
+.startup-error {
+  width: min(480px, calc(100vw - 32px));
+}
+
 @keyframes loading-mascot-spin {
   to {
     transform: rotate(360deg);

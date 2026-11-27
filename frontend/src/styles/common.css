@@ -44,6 +44,10 @@ body {
   overflow-x: hidden;
 }
 
+#app {
+  display: contents;
+}
+
 main {
   flex: 1;
   display: flex;

@@ -1,5 +1,5 @@
 import { defineConfig, fontProviders } from "astro/config";
-import solid from "@astrojs/solid-js";
+import solid from "@solidjs/vite-plugin";
 import { cpSync, readFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,7 +49,7 @@ function demoAssets() {
 export default defineConfig({
   output: "static",
   publicDir: "./public",
-  integrations: demo ? [solid(), demoAssets()] : [solid()],
+  integrations: demo ? [demoAssets()] : [],
   fonts: [
     {
       name: "Nordwand Mono",
@@ -94,6 +94,7 @@ export default defineConfig({
   outDir: demo ? "./dist-demo" : "../public/dist",
   build: { assets: "_astro", assetsPrefix: demo ? undefined : "/assets" },
   vite: {
+    plugins: [solid()],
     define: { "import.meta.env.PUBLIC_DEMO": JSON.stringify(demo) },
     // Development proxy only
     server: {

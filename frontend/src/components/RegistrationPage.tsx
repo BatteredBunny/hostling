@@ -6,7 +6,7 @@ import { register } from "../generated";
 import { apiData } from "../client";
 import { showToast } from "../toast";
 import { Input } from "./Input";
-import UserPlusIcon from "lucide-solid/icons/user-plus";
+import UserPlusIcon from "@lucide/solid/icons/user-plus";
 
 // Invite links carry the code; fill it in and drop it from the address bar.
 function takeInviteCode(): string {
@@ -61,7 +61,7 @@ export function RegistrationPage() {
             required
             autocomplete="off"
             autocapitalize="none"
-            spellcheck={false}
+            spellcheck="false"
             placeholder="Enter your invitation code"
             value={code()}
             onInput={(event) => setCode(event.currentTarget.value)}

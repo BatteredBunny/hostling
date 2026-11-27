@@ -1,8 +1,7 @@
-import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
-import { Portal } from "solid-js/web";
-import type LinkIcon from "lucide-solid/icons/link";
+import { For, Show, createSignal, onSettled } from "solid-js";
+import { Portal } from "@solidjs/web";
+import type LinkIcon from "@lucide/solid/icons/link";
 import "./ContextMenu.css";
-import { cx } from "../utils";
 
 export interface ContextMenuItem {
   label: string;
@@ -29,7 +28,7 @@ export function ContextMenu(props: {
   onClose: (restoreFocus: boolean) => void;
 }) {
   let menuEl!: HTMLDivElement;
-  // Placed in onMount once the menu's size is known, before the first paint.
+  // Placed in onSettled once the menu's size is known, before the first paint.
   const [position, setPosition] = createSignal({ left: 0, top: 0 });
 
   const menuItems = () =>
@@ -42,7 +41,7 @@ export function ContextMenu(props: {
     items[next]?.focus();
   };
 
-  onMount(() => {
+  onSettled(() => {
     // Keep the menu on screen, flipping it to the other side of the
     // cursor when it would overflow.
     const rect = menuEl.getBoundingClientRect();
@@ -78,11 +77,11 @@ export function ContextMenu(props: {
     window.addEventListener("keydown", onKey, true);
     window.addEventListener("scroll", onDismiss, true);
     window.addEventListener("resize", onDismiss);
-    onCleanup(() => {
+    return () => {
       window.removeEventListener("keydown", onKey, true);
       window.removeEventListener("scroll", onDismiss, true);
       window.removeEventListener("resize", onDismiss);
-    });
+    };
   });
 
   const runItem = (item: ContextMenuItem) => {
@@ -128,7 +127,7 @@ export function ContextMenu(props: {
                   <button
                     type="button"
                     role="menuitem"
-                    class={cx("context-menu-item", { danger: item.danger })}
+                    class={["context-menu-item", { danger: item.danger }]}
                     disabled={item.disabled}
                     onClick={() => runItem(item)}
                   >

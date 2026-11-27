@@ -3,10 +3,10 @@ import {
   createSignal,
   createUniqueId,
   onCleanup,
-  onMount,
+  onSettled,
 } from "solid-js";
-import CheckIcon from "lucide-solid/icons/check";
-import CopyIcon from "lucide-solid/icons/copy";
+import CheckIcon from "@lucide/solid/icons/check";
+import CopyIcon from "@lucide/solid/icons/copy";
 import { NativeDialog } from "./NativeDialog";
 import { HostlingToast } from "./HostlingToast";
 import { showToast } from "../toast";
@@ -29,7 +29,7 @@ export function SecretDialog(props: {
   let dialog: HTMLDialogElement | undefined;
   let copyButton: HTMLButtonElement | undefined;
   let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-  onMount(() =>
+  onSettled(() =>
     queueMicrotask(() => copyButton?.isConnected && copyButton.focus()),
   );
   onCleanup(() => clearTimeout(copyTimeout));

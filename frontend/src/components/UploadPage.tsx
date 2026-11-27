@@ -1,12 +1,19 @@
 import "./UploadPage.css";
 import { LoadError } from "./LoadError";
 import { SectionPanel } from "./SectionPanel";
-import { For, Match, Show, Switch, createSignal, onCleanup } from "solid-js";
-import { createStore } from "solid-js/store";
-import CheckIcon from "lucide-solid/icons/check";
-import FileIcon from "lucide-solid/icons/file";
-import LinkIcon from "lucide-solid/icons/link";
-import XIcon from "lucide-solid/icons/x";
+import {
+  For,
+  Match,
+  Show,
+  Switch,
+  createSignal,
+  createStore,
+  onCleanup,
+} from "solid-js";
+import CheckIcon from "@lucide/solid/icons/check";
+import FileIcon from "@lucide/solid/icons/file";
+import LinkIcon from "@lucide/solid/icons/link";
+import XIcon from "@lucide/solid/icons/x";
 import { useFrontendContext } from "../context";
 import { uploadFile } from "../generated";
 import type { UploadFileData } from "../generated";
@@ -15,7 +22,7 @@ import { ApiError, apiData } from "../client";
 import { Input } from "./Input";
 import { UploadCommand } from "./UploadCommand";
 import { showToast } from "../toast";
-import { copyText, countLabel, cx, fileUrl, humanizeBytes } from "../utils";
+import { copyText, countLabel, fileUrl, humanizeBytes } from "../utils";
 
 // XHR preserves upload progress without buffering the file into JavaScript memory.
 // The generated SDK still owns the URL, request contract, and response parsing.
@@ -98,7 +105,10 @@ export function UploadPage() {
       (item) => item.status === "pending" || item.status === "failed",
     );
   const update = (id: number, changes: Partial<QueuedFile>) =>
-    setQueue((item) => item.id === id, changes);
+    setQueue((items) => {
+      const item = items.find((entry) => entry.id === id);
+      if (item) Object.assign(item, changes);
+    });
 
   const release = (items: readonly QueuedFile[]) => {
     for (const item of items)
@@ -257,11 +267,14 @@ export function UploadPage() {
             }}
           />
           <div
-            class={cx("file-drop-zone", {
-              disabled: busy(),
-              "file-selected": queue.length > 0,
-              "drag-over": dragOver() && !busy(),
-            })}
+            class={[
+              "file-drop-zone",
+              {
+                disabled: busy(),
+                "file-selected": queue.length > 0,
+                "drag-over": dragOver() && !busy(),
+              },
+            ]}
             onClick={(event) => {
               // Clicks on a file's own controls stay with them.
               if (!busy() && !(event.target as Element).closest("a, li button"))
@@ -290,7 +303,7 @@ export function UploadPage() {
               <ul class="upload-tiles" aria-label="Selected files">
                 <For each={queue}>
                   {(item) => (
-                    <li class={cx("upload-tile", item.status)}>
+                    <li class={["upload-tile", item.status]}>
                       <div class="upload-tile-preview">
                         <Show
                           when={item.preview}

@@ -70,22 +70,6 @@ export function displayName(file: FileData): string {
   return file.OriginalFileName || file.FileName;
 }
 
-type ClassValue = string | false | null | undefined | Record<string, unknown>;
-
-// Joins class names, including those of a `{ name: condition }` map. Takes the
-// same shape as Solid 2's array `class` prop, so call sites convert directly.
-export function cx(...values: ClassValue[]): string {
-  const names: string[] = [];
-  for (const value of values) {
-    if (!value) continue;
-    if (typeof value === "string") names.push(value);
-    else
-      for (const [name, enabled] of Object.entries(value))
-        if (enabled) names.push(name);
-  }
-  return names.join(" ");
-}
-
 export function mimeIsImage(mimeType: string): boolean {
   return mimeType?.startsWith("image/") ?? false;
 }
@@ -151,4 +135,9 @@ export async function copyText(
         previousFocus.focus();
     }
   }
+}
+
+// Solid drops attributes set to false, but ARIA states need an explicit "false".
+export function ariaBool(value: unknown): "true" | "false" {
+  return value ? "true" : "false";
 }

@@ -1,18 +1,18 @@
 import { createSignal } from "solid-js";
 
-export const APP_PATHS = [
-  "/",
-  "/login",
-  "/register",
-  "/gallery",
-  "/settings",
-  "/tokens",
-  "/admin",
-] as const;
-export type AppPath = (typeof APP_PATHS)[number];
+export const PAGE_TITLES = {
+  "/": "Upload",
+  "/login": "Login",
+  "/register": "Register",
+  "/gallery": "Gallery",
+  "/settings": "Settings",
+  "/tokens": "Tokens",
+  "/admin": "Admin",
+} as const;
+export type AppPath = keyof typeof PAGE_TITLES;
 
 const isAppPath = (path: string): path is AppPath =>
-  (APP_PATHS as readonly string[]).includes(path);
+  Object.hasOwn(PAGE_TITLES, path);
 
 const currentPath = (): AppPath =>
   typeof window !== "undefined" && isAppPath(window.location.pathname)
@@ -20,6 +20,9 @@ const currentPath = (): AppPath =>
     : "/";
 
 const [path, setPath] = createSignal<AppPath>(currentPath());
+// Lets a page reset its state from the new URL before it mounts, since
+// component bodies can't write signals.
+let enterPage: ((path: AppPath) => void) | undefined;
 const [visit, setVisit] = createSignal(0);
 export { path, visit };
 
@@ -32,12 +35,14 @@ export function navigate(to: string, options: { replace?: boolean } = {}) {
   const target = url.pathname + url.search + url.hash;
   if (options.replace) history.replaceState(null, "", target);
   else history.pushState(null, "", target);
+  enterPage?.(url.pathname);
   setPath(url.pathname);
   setVisit((n) => n + 1);
   if (!url.hash) window.scrollTo(0, 0);
 }
 
-export function startRouter() {
+export function startRouter(onEnter?: (path: AppPath) => void) {
+  enterPage = onEnter;
   const onClick = (event: MouseEvent) => {
     if (
       event.defaultPrevented ||
@@ -60,12 +65,17 @@ export function startRouter() {
     event.preventDefault();
     navigate(link.href);
   };
-  const onPopState = () => setPath(currentPath());
+  const onPopState = () => {
+    const next = currentPath();
+    if (next !== path()) enterPage?.(next);
+    setPath(next);
+  };
 
   document.addEventListener("click", onClick);
   window.addEventListener("popstate", onPopState);
   return () => {
     document.removeEventListener("click", onClick);
     window.removeEventListener("popstate", onPopState);
+    enterPage = undefined;
   };
 }

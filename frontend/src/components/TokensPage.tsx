@@ -1,13 +1,13 @@
 import { SectionPanel } from "./SectionPanel";
 import { LoadError } from "./LoadError";
-import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
 import { SecretDialog } from "./SecretDialog";
-import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
-import PlusIcon from "lucide-solid/icons/plus";
-import Trash2Icon from "lucide-solid/icons/trash";
-import CheckIcon from "lucide-solid/icons/check";
-import CopyIcon from "lucide-solid/icons/copy";
-import LinkIcon from "lucide-solid/icons/link";
+import LoaderCircleIcon from "@lucide/solid/icons/loader-circle";
+import PlusIcon from "@lucide/solid/icons/plus";
+import Trash2Icon from "@lucide/solid/icons/trash";
+import CheckIcon from "@lucide/solid/icons/check";
+import CopyIcon from "@lucide/solid/icons/copy";
+import LinkIcon from "@lucide/solid/icons/link";
 import { Input } from "./Input";
 import { showToast } from "../toast";
 import { trackPageLoad } from "../loading";
@@ -23,13 +23,7 @@ import {
 } from "../generated";
 import { apiData } from "../client";
 import { UploadTokenNameSchema } from "../generated/schemas.gen";
-import {
-  copyText,
-  countLabel,
-  cx,
-  formatTimeDate,
-  relativeTime,
-} from "../utils";
+import { copyText, countLabel, formatTimeDate, relativeTime } from "../utils";
 import { confirmDialog } from "../store";
 import "./TokensPage.css";
 
@@ -62,7 +56,7 @@ export function TokensPage() {
       setLoading(false);
     }
   };
-  onMount(() => void trackPageLoad(load()));
+  onSettled(() => void trackPageLoad(load()));
 
   const create = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -352,7 +346,7 @@ function InviteEntry(props: {
       <div class="token-actions">
         <button
           type="button"
-          class={cx("token-action token-copy", { copied: copied() === "link" })}
+          class={["token-action token-copy", { copied: copied() === "link" }]}
           title="Copy invite link"
           aria-label="Copy invite link"
           onClick={() => copy("link")}
@@ -366,7 +360,7 @@ function InviteEntry(props: {
         </button>
         <button
           type="button"
-          class={cx("token-action token-copy", { copied: copied() === "code" })}
+          class={["token-action token-copy", { copied: copied() === "code" }]}
           title="Copy invite code"
           aria-label="Copy invite code"
           onClick={() => copy("code")}

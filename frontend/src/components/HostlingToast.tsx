@@ -1,15 +1,14 @@
 import "./HostlingToast.css";
 import { Show } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "@solidjs/web";
 import { toast } from "../toast";
-import { cx } from "../utils";
 
 export function HostlingToast(props: { inline?: boolean } = {}) {
   const notification = () => (
     <Show when={toast()} keyed>
       {(item) => (
         <div
-          class={cx("hostling-toast", { error: item.kind === "error" })}
+          class={["hostling-toast", { error: item.kind === "error" }]}
           role={item.kind === "error" ? "alert" : "status"}
         >
           {item.message}

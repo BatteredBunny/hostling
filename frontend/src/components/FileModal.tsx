@@ -31,28 +31,28 @@ import {
   hasDate,
   fileUrl,
   countLabel,
-  cx,
   displayName,
+  ariaBool,
 } from "../utils";
 import { addFileTag, removeFileTag } from "../generated";
 import { apiData } from "../client";
 import { copyFileLink, toggleVisibility } from "../fileActions";
 import { loadStats } from "./FileStats";
-import CaseSensitiveIcon from "lucide-solid/icons/case-sensitive";
-import CheckIcon from "lucide-solid/icons/check";
-import ChevronLeftIcon from "lucide-solid/icons/chevron-left";
-import ChevronRightIcon from "lucide-solid/icons/chevron-right";
-import ClockIcon from "lucide-solid/icons/clock";
-import EllipsisIcon from "lucide-solid/icons/ellipsis";
-import EyeIcon from "lucide-solid/icons/eye";
-import FileIcon from "lucide-solid/icons/file";
-import FileTypeIcon from "lucide-solid/icons/file-type";
-import HardDriveIcon from "lucide-solid/icons/hard-drive";
-import HashIcon from "lucide-solid/icons/hash";
-import LinkIcon from "lucide-solid/icons/link";
-import TagIcon from "lucide-solid/icons/tag";
-import Trash2Icon from "lucide-solid/icons/trash";
-import XIcon from "lucide-solid/icons/x";
+import CaseSensitiveIcon from "@lucide/solid/icons/case-sensitive";
+import CheckIcon from "@lucide/solid/icons/check";
+import ChevronLeftIcon from "@lucide/solid/icons/chevron-left";
+import ChevronRightIcon from "@lucide/solid/icons/chevron-right";
+import ClockIcon from "@lucide/solid/icons/clock";
+import EllipsisIcon from "@lucide/solid/icons/ellipsis";
+import EyeIcon from "@lucide/solid/icons/eye";
+import FileIcon from "@lucide/solid/icons/file";
+import FileTypeIcon from "@lucide/solid/icons/file-type";
+import HardDriveIcon from "@lucide/solid/icons/hard-drive";
+import HashIcon from "@lucide/solid/icons/hash";
+import LinkIcon from "@lucide/solid/icons/link";
+import TagIcon from "@lucide/solid/icons/tag";
+import Trash2Icon from "@lucide/solid/icons/trash";
+import XIcon from "@lucide/solid/icons/x";
 import { VisibilityIcon } from "./VisibilityIcon";
 import { TagEditor } from "./TagEditor";
 import { loadFiles, showAdjacentFile, hasAdjacentFile } from "./FileGrid";
@@ -83,19 +83,23 @@ export function FileModal(props: { file: FileData }) {
   const mediaSource = createMemo(() => fileUrl(fileName()));
 
   // Warm the cache for neighbouring images so stepping through feels instant.
-  createEffect(() => {
-    const current = fileName();
-    untrack(() => {
-      const list = files();
-      const index = list.findIndex((f) => f.FileName === current);
-      if (index === -1) return;
-      for (const neighbour of [list[index - 1], list[index + 1]]) {
-        if (neighbour && mimeIsImage(neighbour.MimeType)) {
-          new Image().src = fileUrl(neighbour.FileName);
-        }
-      }
-    });
-  });
+  createEffect(
+    () => {
+      const current = fileName();
+      // Only a new open file prompts this, not list updates.
+      return untrack(() => {
+        const list = files();
+        const index = list.findIndex((f) => f.FileName === current);
+        if (index === -1) return [];
+        return [list[index - 1], list[index + 1]]
+          .filter((f) => f && mimeIsImage(f.MimeType))
+          .map((f) => fileUrl(f.FileName));
+      });
+    },
+    (urls) => {
+      for (const url of urls) new Image().src = url;
+    },
+  );
 
   // Tags of a file as currently known, which may no longer be the open one
   // if the user moved on while a tag request was in flight.
@@ -207,9 +211,12 @@ export function FileModal(props: { file: FileData }) {
           <div class="file-modal-titlebar-actions">
             <button
               type="button"
-              class={cx("file-modal-titlebar-button file-modal-copy", {
-                copied: copied(),
-              })}
+              class={[
+                "file-modal-titlebar-button file-modal-copy",
+                {
+                  copied: copied(),
+                },
+              ]}
               aria-label={copied() ? "Link copied" : "Copy link"}
               title={copied() ? "Link copied" : "Copy link"}
               onClick={handleCopyLink}
@@ -228,7 +235,7 @@ export function FileModal(props: { file: FileData }) {
               aria-label="File actions"
               title="More actions"
               aria-haspopup="menu"
-              aria-expanded={isMenuOpen()}
+              aria-expanded={ariaBool(isMenuOpen())}
               onClick={handleMenuButton}
             >
               <EllipsisIcon class="lucide-icon" aria-hidden="true" />

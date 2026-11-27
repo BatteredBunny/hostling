@@ -6,10 +6,10 @@ import {
   createUniqueId,
 } from "solid-js";
 import { NativePopover } from "./NativePopover";
-import { cx } from "../utils";
+import { ariaBool } from "../utils";
 import "./SelectBox.css";
-import CheckIcon from "lucide-solid/icons/check";
-import ChevronDownIcon from "lucide-solid/icons/chevron-down";
+import CheckIcon from "@lucide/solid/icons/check";
+import ChevronDownIcon from "@lucide/solid/icons/chevron-down";
 
 export interface SelectBoxOption {
   value: string;
@@ -55,10 +55,13 @@ export function SelectBox(props: SelectBoxProps) {
     if (option && option.value !== props.value) props.onChange(option.value);
   };
 
-  createEffect(() => {
-    if (!open()) return;
-    list?.children[activeIndex()]?.scrollIntoView({ block: "nearest" });
-  });
+  createEffect(
+    () => (open() ? activeIndex() : -1),
+    (index) => {
+      if (index >= 0)
+        list?.children[index]?.scrollIntoView({ block: "nearest" });
+    },
+  );
 
   const onButtonKeyDown = (e: KeyboardEvent) => {
     if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) {
@@ -103,14 +106,14 @@ export function SelectBox(props: SelectBoxProps) {
   };
 
   return (
-    <div class={cx("select-box", { open: open() })}>
+    <div class={["select-box", { open: open() }]}>
       <button
         type="button"
         ref={button}
         id={props.id}
         class="select-box-button"
         aria-haspopup="listbox"
-        aria-expanded={open()}
+        aria-expanded={ariaBool(open())}
         aria-controls={listId}
         aria-label={props["aria-label"]}
         onClick={() => (open() ? close() : openList())}
@@ -140,10 +143,13 @@ export function SelectBox(props: SelectBoxProps) {
             <div
               id={optionId(index())}
               role="option"
-              class={cx("select-box-option", {
-                active: index() === activeIndex(),
-              })}
-              aria-selected={option.value === props.value}
+              class={[
+                "select-box-option",
+                {
+                  active: index() === activeIndex(),
+                },
+              ]}
+              aria-selected={ariaBool(option.value === props.value)}
               onClick={() => choose(index())}
               onMouseEnter={() => setActiveIndex(index())}
             >

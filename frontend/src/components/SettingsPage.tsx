@@ -2,7 +2,7 @@ import "./SettingsPage.css";
 import { LoadError } from "./LoadError";
 import { WarningCallout } from "./WarningCallout";
 import { SectionPanel } from "./SectionPanel";
-import { For, Show, createSignal, onMount } from "solid-js";
+import { For, Show, createSignal, onSettled } from "solid-js";
 import {
   getSettings,
   deleteAccount,
@@ -16,7 +16,7 @@ import { trackPageLoad } from "../loading";
 import { apiData } from "../client";
 import { showToast } from "../toast";
 import { NativeConfirmation } from "./NativeConfirmation";
-import Unlink from "lucide-solid/icons/unlink";
+import Unlink from "@lucide/solid/icons/unlink";
 import { ProviderButton, ProviderIcon, providerLabel } from "./ProviderAction";
 import { confirmDialog } from "../store";
 import { useFrontendContext } from "../context";
@@ -33,7 +33,7 @@ export function SettingsPage() {
       setLoadError(true);
     }
   }
-  onMount(() => void trackPageLoad(load()));
+  onSettled(() => void trackPageLoad(load()));
   toastAuthError();
 
   async function unlink(provider: UnlinkProviderData["body"]["provider"]) {

@@ -1,14 +1,14 @@
 import {
   For,
   Show,
-  batch,
+  createEffect,
   createMemo,
-  createResource,
   createSignal,
   createUniqueId,
+  flush,
 } from "solid-js";
 import { NativePopover } from "./NativePopover";
-import { cx } from "../utils";
+import { ariaBool } from "../utils";
 import "./FileFilters.css";
 import {
   sortField,
@@ -25,10 +25,10 @@ import {
   activeFilters,
 } from "../store";
 import { loadFiles } from "./FileGrid";
-import CheckIcon from "lucide-solid/icons/check";
-import SlidersHorizontalIcon from "lucide-solid/icons/sliders-horizontal";
-import TagIcon from "lucide-solid/icons/tag";
-import XIcon from "lucide-solid/icons/x";
+import CheckIcon from "@lucide/solid/icons/check";
+import SlidersHorizontalIcon from "@lucide/solid/icons/sliders-horizontal";
+import TagIcon from "@lucide/solid/icons/tag";
+import XIcon from "@lucide/solid/icons/x";
 import { SelectBox } from "./SelectBox";
 import { getFilterTags } from "../generated";
 import { apiData } from "../client";
@@ -42,13 +42,12 @@ const VISIBILITY_OPTIONS: { value: Visibility | null; label: string }[] = [
   { value: "private", label: "Private" },
 ];
 
-// Applies a filter or sort change and returns to the first page. Batched with
-// the page reset so the URL sync effect records it as one history entry.
+// Applies a filter or sort change and returns to the first page. Writes land
+// together, so the URL sync effect records it as one history entry.
 function refilter(update: () => void) {
-  batch(() => {
-    update();
-    setCurrentPage(0);
-  });
+  update();
+  setCurrentPage(0);
+  flush();
   loadFiles(0);
 }
 
@@ -114,9 +113,9 @@ export function FileFilters() {
           <button
             type="button"
             ref={button}
-            class={cx("file-filters-button", { open: open() })}
+            class={["file-filters-button", { open: open() }]}
             aria-haspopup="dialog"
-            aria-expanded={open()}
+            aria-expanded={ariaBool(open())}
             aria-controls={popoverId}
             onClick={() => setOpen(!open())}
           >
@@ -170,26 +169,32 @@ export function FileFilters() {
 function FiltersPopover(props: { onClose: (refocus?: boolean) => void }) {
   const [query, setQuery] = createSignal("");
 
-  const [availableTags] = createResource(
+  // Null while the current selection's tags load or after they failed.
+  const [availableTags, setAvailableTags] = createSignal<string[] | null>(null);
+  const [tagsLoading, setTagsLoading] = createSignal(false);
+  createEffect(
     () => ({ tags: [...tagFilters()], filters: activeFilters() }),
-    async (selection) =>
-      (
-        await apiData(
-          getFilterTags({
-            query: { tag: selection.tags, filter: selection.filters },
-          }),
-        )
-      ).tags ?? [],
+    (selection) => {
+      let current = true;
+      setAvailableTags(null);
+      setTagsLoading(true);
+      apiData(
+        getFilterTags({
+          query: { tag: [...selection.tags], filter: [...selection.filters] },
+        }),
+      )
+        .then((data) => current && setAvailableTags(data.tags ?? []))
+        .catch(() => {})
+        .finally(() => current && setTagsLoading(false));
+      return () => {
+        current = false;
+      };
+    },
   );
   const selectedTags = createMemo(() => [...tagFilters()].sort());
   const matches = createMemo(() => {
     const q = query().trim().toLowerCase();
-    // Hide the previous selection's results while its replacement loads.
-    const available =
-      availableTags.loading || availableTags.error
-        ? []
-        : (availableTags() ?? []);
-    return available
+    return (availableTags() ?? [])
       .filter((tag) => !tagFilters().includes(tag) && tag.includes(q))
       .sort();
   });
@@ -220,7 +225,7 @@ function FiltersPopover(props: { onClose: (refocus?: boolean) => void }) {
               <button
                 type="button"
                 role="radio"
-                aria-checked={visibilityFilter() === option.value}
+                aria-checked={ariaBool(visibilityFilter() === option.value)}
                 onClick={() => setVisibility(option.value)}
               >
                 {option.label}
@@ -232,7 +237,7 @@ function FiltersPopover(props: { onClose: (refocus?: boolean) => void }) {
         <button
           type="button"
           role="checkbox"
-          aria-checked={untaggedFilter()}
+          aria-checked={ariaBool(untaggedFilter())}
           class="file-filters-checkbox"
           onClick={toggleUntagged}
         >
@@ -264,7 +269,7 @@ function FiltersPopover(props: { onClose: (refocus?: boolean) => void }) {
           role="listbox"
           aria-label="Tags"
           aria-multiselectable="true"
-          aria-busy={availableTags.loading}
+          aria-busy={ariaBool(tagsLoading())}
         >
           <For each={selectedTags()}>
             {(tag) => (
@@ -285,9 +290,9 @@ function FiltersPopover(props: { onClose: (refocus?: boolean) => void }) {
             each={matches()}
             fallback={
               <div class="file-filters-empty" role="status">
-                {availableTags.loading
+                {tagsLoading()
                   ? "Loading tags…"
-                  : availableTags.error
+                  : availableTags() === null
                     ? "Could not load tags"
                     : "No matching tags"}
               </div>
@@ -298,7 +303,7 @@ function FiltersPopover(props: { onClose: (refocus?: boolean) => void }) {
                 type="button"
                 role="option"
                 class="file-filters-tag-option"
-                aria-selected={tagFilters().includes(tag)}
+                aria-selected={ariaBool(tagFilters().includes(tag))}
                 onClick={() => toggleTag(tag)}
               >
                 <TagIcon class="lucide-icon" aria-hidden="true" />

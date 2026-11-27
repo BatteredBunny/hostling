@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 import { getContext, type FrontendContext } from "./generated";
 import { apiData } from "./client";
 import { rememberBranding } from "./branding";
@@ -70,15 +70,15 @@ function listenForChanges() {
 }
 
 export function useFrontendContext() {
-  onMount(() => {
+  onSettled(() => {
     if (consumers++ === 0) stopListening = listenForChanges();
     void loadContext().catch(() => {});
-    onCleanup(() => {
+    return () => {
       if (--consumers === 0) {
         stopListening?.();
         stopListening = undefined;
       }
-    });
+    };
   });
   return {
     context,

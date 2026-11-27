@@ -5,12 +5,12 @@ import {
   deleteFileWithConfirm,
   toggleVisibility,
 } from "../fileActions";
-import DownloadIcon from "lucide-solid/icons/download";
-import ExternalLinkIcon from "lucide-solid/icons/external-link";
-import LinkIcon from "lucide-solid/icons/link";
-import LockIcon from "lucide-solid/icons/lock";
-import LockOpenIcon from "lucide-solid/icons/lock-open";
-import Trash2Icon from "lucide-solid/icons/trash";
+import DownloadIcon from "@lucide/solid/icons/download";
+import ExternalLinkIcon from "@lucide/solid/icons/external-link";
+import LinkIcon from "@lucide/solid/icons/link";
+import LockIcon from "@lucide/solid/icons/lock";
+import LockOpenIcon from "@lucide/solid/icons/lock-open";
+import Trash2Icon from "@lucide/solid/icons/trash";
 import { displayName } from "../utils";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 

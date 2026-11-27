@@ -1,5 +1,5 @@
 import { SectionPanel } from "./SectionPanel";
-import { For, Show, onMount } from "solid-js";
+import { For, Show, flush, onSettled } from "solid-js";
 import "./FileGrid.css";
 import {
   files,
@@ -26,19 +26,21 @@ import {
   openModal,
   markReplaceNextUrlSync,
 } from "../store";
-import { FILES_PER_PAGE, cx } from "../utils";
+import { FILES_PER_PAGE, ariaBool } from "../utils";
 import { trackPageLoad } from "../loading";
 import { listFiles } from "../generated";
 import { apiData } from "../client";
 import type { ListFilesResponse } from "../generated";
 import { FileEntry } from "./FileEntry";
-import ChevronLeftIcon from "lucide-solid/icons/chevron-left";
-import ChevronRightIcon from "lucide-solid/icons/chevron-right";
+import ChevronLeftIcon from "@lucide/solid/icons/chevron-left";
+import ChevronRightIcon from "@lucide/solid/icons/chevron-right";
 import { FileFilters } from "./FileFilters";
 import { FileStats } from "./FileStats";
 
 export function FileGrid() {
-  onMount(() => void trackPageLoad(loadFiles(currentPage() * FILES_PER_PAGE)));
+  onSettled(
+    () => void trackPageLoad(loadFiles(currentPage() * FILES_PER_PAGE)),
+  );
 
   const totalPages = () => Math.ceil(totalFiles() / FILES_PER_PAGE);
 
@@ -67,8 +69,8 @@ export function FileGrid() {
       </Show>
       <ul
         aria-label="Files"
-        aria-busy={isLoading()}
-        class={cx("file-grid", { loading: showsOverlay() })}
+        aria-busy={ariaBool(isLoading())}
+        class={["file-grid", { loading: showsOverlay() }]}
       >
         <For each={files()}>{(file) => <FileEntry file={file} />}</For>
       </ul>
@@ -120,6 +122,8 @@ export function cancelFileLoad() {
   setIsLoading(false);
 }
 
+// Reads the sort and filters as committed, so callers that just changed them
+// flush() first.
 export async function loadFiles(skip: number) {
   // Abort any in-flight request so rapid filter/sort changes don't race:
   // older responses must not clobber newer ones.
@@ -192,6 +196,7 @@ export async function loadFiles(skip: number) {
     setFiles(
       (data.files ?? []).map((file) => ({ ...file, Tags: file.Tags ?? [] })),
     );
+    flush();
 
     const pending = pendingModalFile();
     if (pending && data.files) {

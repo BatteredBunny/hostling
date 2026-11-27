@@ -1,0 +1,22 @@
+---
+// Static copy of LoadingScreen.tsx shown until the app starts.
+import "./LoadingScreen.css";
+
+interface Props {
+  mascot: string;
+  title: string;
+}
+
+const { mascot, title } = Astro.props;
+---
+
+<div
+  class="loading-screen"
+  role="status"
+  aria-label="Loading page"
+  aria-busy="true"
+>
+  <img class="loading-mascot" src={mascot} alt="" width="128" height="115" />
+  <p class="loading-title">{title}</p>
+  <div class="loading-bar"></div>
+</div>

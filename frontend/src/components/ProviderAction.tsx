@@ -1,9 +1,8 @@
-import { splitProps } from "solid-js";
-import type { JSX } from "solid-js";
-import GitBranch from "lucide-solid/icons/git-branch";
-import KeyRound from "lucide-solid/icons/key-round";
-import KeySquare from "lucide-solid/icons/key-square";
-import { cx } from "../utils";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import GitBranch from "@lucide/solid/icons/git-branch";
+import KeyRound from "@lucide/solid/icons/key-round";
+import KeySquare from "@lucide/solid/icons/key-square";
 import styles from "./ProviderAction.module.css";
 
 const providers = new Map<string, { label: string; icon: typeof GitBranch }>([
@@ -23,7 +22,7 @@ export function ProviderIcon(props: { name: string }) {
   // Re-renders when the provider changes, as <Dynamic> would.
   const icon = () => {
     const Icon = providerPresentation(props.name).icon;
-    return <Icon class={cx("lucide-icon", styles.icon)} aria-hidden="true" />;
+    return <Icon class={`lucide-icon ${styles.icon}`} aria-hidden="true" />;
   };
   return <>{icon()}</>;
 }
@@ -44,11 +43,11 @@ export function ProviderLink(props: {
 export function ProviderButton(
   props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & { provider: string },
 ) {
-  const [local, button] = splitProps(props, ["provider", "children", "class"]);
+  const button = omit(props, "provider", "children", "class");
   return (
-    <button {...button} class={cx(styles.action, local.class)}>
-      <ProviderIcon name={local.provider} />
-      <span>{local.children}</span>
+    <button {...button} class={[styles.action, props.class]}>
+      <ProviderIcon name={props.provider} />
+      <span>{props.children}</span>
     </button>
   );
 }

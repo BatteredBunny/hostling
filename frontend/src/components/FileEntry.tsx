@@ -10,15 +10,15 @@ import {
   hasDate,
   fileUrl,
   countLabel,
-  cx,
   displayName,
+  ariaBool,
 } from "../utils";
 import { closeFileMenu, fileMenu, openFileMenu, openModal } from "../store";
-import EllipsisIcon from "lucide-solid/icons/ellipsis";
-import EyeIcon from "lucide-solid/icons/eye";
-import FileIcon from "lucide-solid/icons/file";
-import MusicIcon from "lucide-solid/icons/eighth-notes";
-import Trash2Icon from "lucide-solid/icons/trash";
+import EllipsisIcon from "@lucide/solid/icons/ellipsis";
+import EyeIcon from "@lucide/solid/icons/eye";
+import FileIcon from "@lucide/solid/icons/file";
+import MusicIcon from "@lucide/solid/icons/eighth-notes";
+import Trash2Icon from "@lucide/solid/icons/trash";
 import { VisibilityIcon } from "./VisibilityIcon";
 import { createContextMenuTrigger } from "../contextMenuTrigger";
 
@@ -59,7 +59,7 @@ export function FileEntry(props: { file: FileData }) {
 
   return (
     <li
-      class={cx("file-entry", { "menu-open": isMenuOpen() })}
+      class={["file-entry", { "menu-open": isMenuOpen() }]}
       onClick={handleCardClick}
       onContextMenu={menuTrigger.onContextMenu}
       onTouchStart={menuTrigger.onTouchStart}
@@ -73,7 +73,7 @@ export function FileEntry(props: { file: FileData }) {
         class="file-entry-menu-button"
         aria-label={`Actions for ${name()}`}
         aria-haspopup="menu"
-        aria-expanded={isMenuOpen()}
+        aria-expanded={ariaBool(isMenuOpen())}
         onClick={handleMenuButton}
       >
         <EllipsisIcon class="lucide-icon" aria-hidden="true" />

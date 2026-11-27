@@ -1,7 +1,6 @@
 import { createEffect, createUniqueId, onCleanup } from "solid-js";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import styles from "./NativePopover.module.css";
-import { cx } from "../utils";
 
 // Native light dismissal and top-layer rendering, with CSS anchoring where
 // available and one shared positioning fallback for older browsers.
@@ -23,39 +22,41 @@ export function NativePopover(props: {
 }) {
   let element!: HTMLDivElement;
   const anchorName = `--popover-${createUniqueId()}`;
-  createEffect(() => {
-    const button = props.anchor();
-    if (!props.open || !button) {
-      if (element.matches(":popover-open")) element.hidePopover();
-      return;
-    }
-    const previousAnchor = button.style.getPropertyValue("anchor-name");
-    button.style.setProperty("anchor-name", anchorName);
-    const positionedByCSS = CSS.supports("position-anchor", anchorName);
-    const sizedByCSS =
-      positionedByCSS && CSS.supports("min-width", "anchor-size(width)");
-    const position = () => {
-      if (positionedByCSS && sizedByCSS) return;
-      const rect = button.getBoundingClientRect();
-      if (!sizedByCSS) element.style.minWidth = `${rect.width}px`;
-      if (!positionedByCSS) {
-        element.style.top = `${rect.bottom + 6}px`;
-        element.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+  createEffect(
+    () => (props.open ? props.anchor() : undefined),
+    (button) => {
+      if (!button) {
+        if (element.matches(":popover-open")) element.hidePopover();
+        return;
       }
-    };
-    position();
-    element.showPopover({ source: button });
-    props.onOpen?.();
-    if (!positionedByCSS || !sizedByCSS) {
-      window.addEventListener("scroll", position, true);
-      window.addEventListener("resize", position);
-    }
-    onCleanup(() => {
-      button.style.setProperty("anchor-name", previousAnchor);
-      window.removeEventListener("scroll", position, true);
-      window.removeEventListener("resize", position);
-    });
-  });
+      const previousAnchor = button.style.getPropertyValue("anchor-name");
+      button.style.setProperty("anchor-name", anchorName);
+      const positionedByCSS = CSS.supports("position-anchor", anchorName);
+      const sizedByCSS =
+        positionedByCSS && CSS.supports("min-width", "anchor-size(width)");
+      const position = () => {
+        if (positionedByCSS && sizedByCSS) return;
+        const rect = button.getBoundingClientRect();
+        if (!sizedByCSS) element.style.minWidth = `${rect.width}px`;
+        if (!positionedByCSS) {
+          element.style.top = `${rect.bottom + 6}px`;
+          element.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+        }
+      };
+      position();
+      element.showPopover({ source: button });
+      props.onOpen?.();
+      if (!positionedByCSS || !sizedByCSS) {
+        window.addEventListener("scroll", position, true);
+        window.addEventListener("resize", position);
+      }
+      return () => {
+        button.style.setProperty("anchor-name", previousAnchor);
+        window.removeEventListener("scroll", position, true);
+        window.removeEventListener("resize", position);
+      };
+    },
+  );
   onCleanup(() => {
     if (element.matches(":popover-open")) element.hidePopover();
   });
@@ -68,7 +69,7 @@ export function NativePopover(props: {
         props.ref?.(el);
       }}
       popover={props.manual ? "manual" : "auto"}
-      class={cx(styles.popover, props.class)}
+      class={[styles.popover, props.class]}
       role={props.role}
       aria-label={props.label}
       tabindex="-1"

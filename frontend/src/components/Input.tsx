@@ -1,7 +1,6 @@
 import "./Input.css";
-import { Show, createUniqueId, splitProps } from "solid-js";
-import type { JSX } from "solid-js";
-import { cx } from "../utils";
+import { Show, createUniqueId, omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 type InputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -11,7 +10,8 @@ type InputProps = JSX.InputHTMLAttributes<HTMLInputElement> & {
 };
 
 export function Input(props: InputProps) {
-  const [local, input] = splitProps(props, [
+  const input = omit(
+    props,
     "id",
     "label",
     "hint",
@@ -20,36 +20,36 @@ export function Input(props: InputProps) {
     "class",
     "aria-describedby",
     "aria-invalid",
-  ]);
+  );
   const generatedId = createUniqueId();
-  const id = () => local.id ?? `input-${generatedId}`;
+  const id = () => props.id ?? `input-${generatedId}`;
   const describedBy = () =>
     [
-      local["aria-describedby"],
-      local.hint ? `${id()}-hint` : undefined,
-      local.error ? `${id()}-error` : undefined,
+      props["aria-describedby"],
+      props.hint ? `${id()}-hint` : undefined,
+      props.error ? `${id()}-error` : undefined,
     ]
       .filter(Boolean)
       .join(" ") || undefined;
 
   return (
-    <div class={cx("hostling-input-field", local.fieldClass)}>
-      <label for={id()}>{local.label}</label>
+    <div class={["hostling-input-field", props.fieldClass]}>
+      <label for={id()}>{props.label}</label>
       <input
         {...input}
         id={id()}
-        class={cx("hostling-input", local.class)}
+        class={["hostling-input", props.class]}
         aria-describedby={describedBy()}
-        aria-invalid={local.error ? true : local["aria-invalid"]}
+        aria-invalid={props.error ? "true" : props["aria-invalid"]}
       />
-      <Show when={local.hint}>
+      <Show when={props.hint}>
         <span class="hostling-input-hint" id={`${id()}-hint`}>
-          {local.hint}
+          {props.hint}
         </span>
       </Show>
-      <Show when={local.error}>
+      <Show when={props.error}>
         <span class="hostling-input-error" id={`${id()}-error`} role="alert">
-          {local.error}
+          {props.error}
         </span>
       </Show>
     </div>

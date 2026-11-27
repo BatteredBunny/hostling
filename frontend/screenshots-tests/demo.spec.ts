@@ -251,7 +251,12 @@ for (const state of [
       ).toBeVisible();
     else if (state === "context-loading")
       await expect(page.getByRole("status", { name: "Loading page" })).toBeVisible();
-    else
+    else if (state === "context-error") {
+      await expect(page.getByRole("alert")).toContainText(
+        "Could not load server information",
+      );
+      await expect(page.getByRole("navigation")).toHaveCount(0);
+    } else
       await expect(
         panel.getByText(
           state === "no-providers"

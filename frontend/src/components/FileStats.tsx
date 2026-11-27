@@ -1,4 +1,4 @@
-import { onMount } from "solid-js";
+import { onSettled } from "solid-js";
 import { trackPageLoad } from "../loading";
 import "./FileStats.css";
 import {
@@ -13,7 +13,7 @@ import { apiData } from "../client";
 import { countLabel, humanizeBytes } from "../utils";
 
 export function FileStats() {
-  onMount(() => void trackPageLoad(loadStats()));
+  onSettled(() => void trackPageLoad(loadStats()));
 
   return (
     <span id="files-stats" role="status" aria-label="File statistics">

@@ -1,4 +1,5 @@
 import "./LoadingScreen.css";
+import { LoadError } from "./LoadError";
 
 // The spinning mascot, the app's name and a loading bar over the bare page
 // background. Inside the app it is paired with hiding the page itself (see
@@ -20,6 +21,31 @@ export function LoadingScreen(props: { mascot: string; title: string }) {
       />
       <p class="loading-title">{props.title}</p>
       <div class="loading-bar" />
+    </div>
+  );
+}
+
+// Takes the loading screen's place when the app can't start, since no page
+// can render without the server's information.
+export function StartupError(props: {
+  mascot: string;
+  title: string;
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div class="loading-screen">
+      <img
+        class="loading-mascot stopped"
+        src={props.mascot}
+        alt=""
+        width="128"
+        height="115"
+      />
+      <p class="loading-title">{props.title}</p>
+      <div class="startup-error">
+        <LoadError message={props.message} onRetry={props.onRetry} />
+      </div>
     </div>
   );
 }

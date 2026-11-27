@@ -1,8 +1,7 @@
-import { createEffect, onCleanup, onMount } from "solid-js";
-import type { JSX } from "solid-js";
-import { Portal } from "solid-js/web";
+import { createEffect, onCleanup } from "solid-js";
+import { Portal, type JSX } from "@solidjs/web";
 import styles from "./NativeDialog.module.css";
-import { cx } from "../utils";
+import { ariaBool } from "../utils";
 
 export function NativeDialog(props: {
   children: JSX.Element;
@@ -18,19 +17,19 @@ export function NativeDialog(props: {
   ref?: (element: HTMLDialogElement) => void;
 }) {
   let dialog!: HTMLDialogElement;
-  let previousFocus: HTMLElement | null = null;
+  const previousFocus =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
   let backdropPressed = false;
-  onMount(() => {
-    previousFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-  });
-  createEffect(() => {
-    if (props.open === undefined) return;
-    if (props.open && !dialog.open) dialog.showModal();
-    else if (!props.open && dialog.open) dialog.close();
-  });
+  createEffect(
+    () => props.open,
+    (open) => {
+      if (open === undefined) return;
+      if (open && !dialog.open) dialog.showModal();
+      else if (!open && dialog.open) dialog.close();
+    },
+  );
   onCleanup(() => {
     dialog.close();
     if (previousFocus?.isConnected) previousFocus.focus();
@@ -58,11 +57,11 @@ export function NativeDialog(props: {
           props.ref?.(element);
         }}
         id={props.id}
-        class={cx(styles.dialog, props.class)}
+        class={[styles.dialog, props.class]}
         aria-labelledby={props.labelledBy}
         aria-label={props.label}
         aria-describedby={props.describedBy}
-        aria-busy={props.busy}
+        aria-busy={ariaBool(props.busy)}
         onCancel={(event) => {
           event.preventDefault();
           dismiss();

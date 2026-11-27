@@ -1,13 +1,13 @@
 import { For, Show } from "solid-js";
-import EllipsisIcon from "lucide-solid/icons/ellipsis";
-import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
+import EllipsisIcon from "@lucide/solid/icons/ellipsis";
+import LoaderCircleIcon from "@lucide/solid/icons/loader-circle";
 import type { AccountStats as Account } from "../generated";
 import {
-  cx,
   formatTimeDate,
   hasDate,
   humanizeBytes,
   relativeTime,
+  ariaBool,
 } from "../utils";
 import { createContextMenuTrigger } from "../contextMenuTrigger";
 import { ProviderIcon, providerLabel } from "./ProviderAction";
@@ -63,9 +63,9 @@ export function AdminUserCard(props: {
 
   return (
     <article
-      class={cx(styles.card, { [styles.menuOpen]: props.menuOpen })}
+      class={[styles.card, { [styles.menuOpen]: props.menuOpen }]}
       aria-label={`User ${account().ID}`}
-      aria-busy={props.busy}
+      aria-busy={ariaBool(props.busy)}
       onContextMenu={menuTrigger.onContextMenu}
       onTouchStart={menuTrigger.onTouchStart}
       onTouchMove={menuTrigger.onTouchMove}
@@ -79,7 +79,7 @@ export function AdminUserCard(props: {
         </h3>
         <div class={styles.badges}>
           <Show when={account().You}>
-            <span class={cx(styles.badge, styles.you)}>You</span>
+            <span class={[styles.badge, styles.you]}>You</span>
           </Show>
           <span class={styles.badge}>{account().AccountType}</span>
         </div>
@@ -89,10 +89,10 @@ export function AdminUserCard(props: {
           class={styles.menuButton}
           aria-label={`Actions for ${accountName(account())}`}
           aria-haspopup="menu"
-          aria-expanded={props.menuOpen}
+          aria-expanded={ariaBool(props.menuOpen)}
           // aria-disabled rather than disabled: a disabled button loses focus,
           // which should stay put while the action runs.
-          aria-disabled={props.busy}
+          aria-disabled={ariaBool(props.busy)}
           onClick={openFromButton}
         >
           <Show

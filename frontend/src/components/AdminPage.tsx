@@ -3,13 +3,19 @@ import { LoadError } from "./LoadError";
 import { AdminUserCard, accountName } from "./AdminUserCard";
 import { WarningCallout } from "./WarningCallout";
 import { SectionPanel } from "./SectionPanel";
-import { For, Show, createSignal, onMount } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
-import KeyRoundIcon from "lucide-solid/icons/key-round";
-import LogOutIcon from "lucide-solid/icons/log-out";
-import TicketIcon from "lucide-solid/icons/ticket";
-import Trash2Icon from "lucide-solid/icons/trash";
-import UserXIcon from "lucide-solid/icons/user-x";
+import {
+  For,
+  Show,
+  createSignal,
+  createStore,
+  onSettled,
+  reconcile,
+} from "solid-js";
+import KeyRoundIcon from "@lucide/solid/icons/key-round";
+import LogOutIcon from "@lucide/solid/icons/log-out";
+import TicketIcon from "@lucide/solid/icons/ticket";
+import Trash2Icon from "@lucide/solid/icons/trash";
+import UserXIcon from "@lucide/solid/icons/user-x";
 import * as sdk from "../generated";
 import type {
   AccountStats as Account,
@@ -45,14 +51,14 @@ export function AdminPage() {
   async function load() {
     try {
       const data = await apiData(sdk.getAdminOverview());
-      setAccounts(reconcile(data.accounts ?? [], { key: "ID" }));
+      setAccounts(reconcile(data.accounts ?? [], "ID"));
       setOverview(data);
       setLoadError(false);
     } catch {
       setLoadError(true);
     }
   }
-  onMount(() => void trackPageLoad(load()));
+  onSettled(() => void trackPageLoad(load()));
 
   const retry = () => {
     setLoadError(false);
